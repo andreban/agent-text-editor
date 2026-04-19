@@ -1,12 +1,15 @@
 # Technical Specification: AI Agent Text Editor
 
 ## Architecture
+
 The application is a single-page React application bundled with Vite. It consists of three main architectural components:
+
 1. **The Editor (Monaco):** Handles text input, rendering, and provides an API for programmatic access.
 2. **The Agent (MAST):** Orchestrates the "think-act" loop. It uses a `ToolRegistry` to expose editor-specific functions to the AI. The architecture supports multi-agent orchestration; the primary `AgentRunner` can spin up specialized sub-`AgentRunners` based on user-defined skills.
 3. **The Adapter (Google Gen AI):** A custom implementation of `LlmAdapter` that bridges `MAST` with the `@google/genai` SDK.
 
 ## Data Flow
+
 1. User enters a prompt in the chat sidebar.
 2. `AgentRunner` receives the prompt and passes it to the `GoogleGenAIAdapter`.
 3. The selected LLM (e.g., Gemini 2.5 Flash) decides whether to respond with text or call a tool.
@@ -16,6 +19,7 @@ The application is a single-page React application bundled with Vite. It consist
 7. Upon receiving a response from the LLM, the `GoogleGenAIAdapter` intercepts the usage metadata and updates the application's global token count.
 
 ## Technical Stack
+
 - **Frontend:** React 18, TypeScript, Vite.
 - **Styling:** Tailwind CSS.
 - **UI Components:** `shadcn/ui` (built on Radix UI).
@@ -26,18 +30,22 @@ The application is a single-page React application bundled with Vite. It consist
 - **Quality:** `eslint`, `prettier`.
 
 ## License
+
 Apache-2.0
 
 ## License Headers
+
 All source files must include the mandatory license header using the appropriate comment syntax:
 
 **TypeScript/JavaScript/CSS:**
+
 ```typescript
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 ```
 
 **HTML:**
+
 ```html
 <!--
 Copyright 2026 Andre Cipriani Bandarra
@@ -46,6 +54,7 @@ SPDX-License-Identifier: Apache-2.0
 ```
 
 ## Directory Structure
+
 ```text
 src/
 ├── adapters/
@@ -67,7 +76,9 @@ src/
 ## Component Breakdown
 
 ### `GoogleGenAIAdapter.ts`
+
 Implements `LlmAdapter` interface:
+
 - `generate(request: AdapterRequest): Promise<AdapterResponse>`
 - Translates MAST messages/tools to `@google/genai` format.
 - Handles tool calls from the model.
@@ -75,7 +86,9 @@ Implements `LlmAdapter` interface:
 - Extracts token usage statistics (`usageMetadata` from the `@google/genai` SDK response) and reports it back to the application state, typically via an event emitter or callback passed during adapter initialization.
 
 ### `EditorTools.ts`
+
 Registers tools with `ToolRegistry`:
+
 - `read()`: `() => string`. Returns the complete current editor content.
 - `read_selection()`: `() => string`. Returns text currently selected.
 - `search(query: string)`: `({ query: string }) => { results: { line: number, text: string }[] }`.
@@ -87,29 +100,38 @@ Registers tools with `ToolRegistry`:
 - `delegate_to_skill(skillName: string, task: string)`: `({ skillName: string, task: string }) => string`. Invokes sub-agent.
 
 ## Main Agent System Instructions
+
 The primary agent should be configured with a system prompt that explains its role as an editor and its mandatory approval workflow.
 Example:
-> You are a senior editorial assistant. You help the user refine their text. 
+
+> You are a senior editorial assistant. You help the user refine their text.
+>
 > - Always use `read()` or `read_selection()` before suggesting changes.
 > - All edits MUST be proposed via `edit()` or `write()`.
 > - Do not assume you can change text without a tool call.
 > - You have access to specialized sub-agents. Use them for focused tasks like proofreading.
 
 ### `EditorPanel.tsx`
+
 Wraps the Monaco Editor component and provides an imperative handle or context for tools to interact with the editor instance.
 
 ### `ChatSidebar.tsx`
+
 Provides the chat interface, message history, and token usage display.
 
 ### `SuggestionWidget.tsx`
+
 - Uses Monaco's `addContentWidget` and `changeViewZones` APIs to render inline.
 - **Visuals:** Original text is highlighted light red with a squiggly line using `deltaDecorations`. Proposed text is rendered in green. Provides inline buttons for "Accept", "Reject", and a text input for "Feedback".
 
 ### `SkillsManager.tsx`
+
 A dialog or dedicated view for creating, editing, and deleting custom skills.
 
 ### `App.tsx`
+
 The main entry point:
+
 - Manages global state (e.g., API key, selected model, active suggestions, "approve all" toggle, user-defined skills, supporting documents, session token usage).
 - Handles loading the API key, selected model, skills, and supporting documents from `localStorage` on initialization.
 - Includes UI components for managing both specialized skills and supporting markdown documents (creation, editing, deletion).
@@ -119,16 +141,18 @@ The main entry point:
 - Initializes `AgentRunner` and `Conversation`.
 
 ## Security
+
 - API keys are handled purely on the client side and are not stored on any backend.
 - Users are prompted to enter their Google AI Studio API key on first use.
 - The API key is persisted in the browser's `localStorage` so the user does not have to re-enter it on subsequent visits.
 
 ## Implementation Details
-- **Vite Configuration:** 
+
+- **Vite Configuration:**
   - Use `vite-plugin-monaco-editor` or configure `optimizeDeps` and `worker` settings to ensure Monaco's web workers are correctly bundled and loaded.
   - Ensure `process.env` or similar is handled if the Google SDK expects it (though we should pass the key directly).
 - **Testing Strategy:** Use Vitest for unit testing adapters, tools, and state logic. Use React Testing Library for component rendering and interaction tests.
-- **Error Handling:** 
+- **Error Handling:**
   - Graceful handling of API rate limits and invalid tool calls.
   - Catch and display LLM errors (e.g., safety filters) in the chat UI.
 - **Styling:** Use Tailwind CSS for utility-first styling and `shadcn/ui` for complex components (e.g., Dialogs for Skills Manager, Tabs for Sidebar).
