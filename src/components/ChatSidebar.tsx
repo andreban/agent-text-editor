@@ -7,7 +7,7 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Conversation } from "@mast-ai/core";
 import { MarkdownContent } from "./MarkdownContent";
-import { ChevronDown, ChevronUp, Brain } from "lucide-react";
+import { ChevronDown, ChevronUp, Brain, Wrench, Check } from "lucide-react";
 import { useApp } from "@/lib/store";
 
 interface ChatSidebarProps {
@@ -15,18 +15,21 @@ interface ChatSidebarProps {
   totalTokens: number;
 }
 
-interface UIMessage {
-  id: string;
-  role: "user" | "assistant";
-  text: string;
-  thought?: string;
-  isStreaming?: boolean;
-}
+type StreamItem =
+  | { kind: "user"; id: string; text: string }
+  | {
+      kind: "assistant";
+      id: string;
+      text: string;
+      thought: string;
+      isStreaming: boolean;
+    }
+  | { kind: "tool"; id: string; name: string; pending: boolean };
 
 export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [items, setItems] = useState<StreamItem[]>([]);
   const [expandedThoughts, setExpandedThoughts] = useState<Set<string>>(
     new Set(),
   );
@@ -36,25 +39,36 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { approveAll, setApproveAll } = useApp();
 
-  // Initialize history if conversation changes
+  // Rebuild display items when the conversation instance changes (e.g. new session)
   if (conversation !== prevConversation) {
     setPrevConversation(conversation);
     if (conversation && conversation.history.length > 0) {
-      const initialMessages: UIMessage[] = conversation.history.map((m, i) => ({
-        id: `hist-${i}`,
-        role: m.role,
-        text:
-          m.content.type === "text"
-            ? m.content.text
-            : m.content.type === "tool_calls"
-              ? m.content.calls
-                  .map((c) => `**Tool Call:** \`${c.name}\``)
-                  .join("\n")
-              : m.content.type === "tool_result"
-                ? `**Result:** ${typeof m.content.result === "string" ? m.content.result : JSON.stringify(m.content.result)}`
-                : "[Action]",
-      }));
-      setMessages(initialMessages);
+      const rebuilt: StreamItem[] = conversation.history.flatMap((m, i) => {
+        if (m.content.type === "text") {
+          return [
+            {
+              kind: m.role === "user" ? "user" : "assistant",
+              id: `hist-${i}`,
+              text: m.content.text,
+              ...(m.role === "assistant"
+                ? { thought: "", isStreaming: false }
+                : {}),
+            } as StreamItem,
+          ];
+        }
+        if (m.content.type === "tool_calls") {
+          return m.content.calls.map(
+            (c, j): StreamItem => ({
+              kind: "tool",
+              id: `hist-${i}-${j}`,
+              name: c.name,
+              pending: false,
+            }),
+          );
+        }
+        return [];
+      });
+      setItems(rebuilt);
     }
   }
 
@@ -64,10 +78,9 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
     }
   }, []);
 
-  // Always scroll when messages update
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [items, scrollToBottom]);
 
   const toggleThought = (id: string) => {
     setExpandedThoughts((prev) => {
@@ -82,119 +95,114 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
     if (!input.trim() || !conversation || isLoading) return;
 
     const userText = input.trim();
-    const userMsgId = Date.now().toString();
-    let currentAssistantMsgId = (Date.now() + 1).toString();
-
-    const userMsg: UIMessage = { id: userMsgId, role: "user", text: userText };
-    const assistantMsg: UIMessage = {
-      id: currentAssistantMsgId,
-      role: "assistant",
-      text: "",
-      thought: "",
-      isStreaming: true,
-    };
-
-    // 1. UPDATE UI IMMEDIATELY
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput("");
     setIsLoading(true);
-    setExpandedThoughts((prev) => new Set(prev).add(currentAssistantMsgId));
+
+    setItems((prev) => [
+      ...prev,
+      { kind: "user", id: `user-${Date.now()}`, text: userText },
+    ]);
+
+    // IDs of in-flight items — local vars are sufficient since this all runs
+    // within a single async invocation.
+    let assistantId: string | null = null;
+    let toolId: string | null = null;
+
+    const ensureAssistant = (): string => {
+      if (assistantId) return assistantId;
+      const id = `asst-${Date.now()}`;
+      assistantId = id;
+      setItems((prev) => [
+        ...prev,
+        { kind: "assistant", id, text: "", thought: "", isStreaming: true },
+      ]);
+      setExpandedThoughts((prev) => new Set(prev).add(id));
+      return id;
+    };
 
     try {
-      const stream = conversation.runStream(userText);
-
-      let accumulatedThought = "";
-      let accumulatedText = "";
-
-      for await (const event of stream) {
+      for await (const event of conversation.runStream(userText)) {
         if (event.type === "thinking") {
-          accumulatedThought += event.delta;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === currentAssistantMsgId
-                ? { ...m, thought: accumulatedThought }
-                : m,
+          const id = ensureAssistant();
+          const delta = event.delta;
+          setItems((prev) =>
+            prev.map((it) =>
+              it.kind === "assistant" && it.id === id
+                ? { ...it, thought: it.thought + delta }
+                : it,
             ),
           );
         } else if (event.type === "text_delta") {
-          accumulatedText += event.delta;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === currentAssistantMsgId
-                ? { ...m, text: accumulatedText }
-                : m,
+          const id = ensureAssistant();
+          const delta = event.delta;
+          setItems((prev) =>
+            prev.map((it) =>
+              it.kind === "assistant" && it.id === id
+                ? { ...it, text: it.text + delta }
+                : it,
             ),
           );
         } else if (event.type === "tool_call_started") {
-          const newAssistantId = `assistant-${Date.now()}`;
-          setMessages((prev) => [
-            ...prev.map((m) =>
-              m.id === currentAssistantMsgId ? { ...m, isStreaming: false } : m,
-            ),
-            {
-              id: `tool-${Date.now()}`,
-              role: "assistant",
-              text: `**Tool Call:** \`${event.name}\``,
-            },
-            {
-              id: newAssistantId,
-              role: "assistant",
-              text: "",
-              isStreaming: true,
-            },
+          // Finalize any open assistant bubble, then open a pending tool item.
+          if (assistantId) {
+            const closeId = assistantId;
+            setItems((prev) =>
+              prev.map((it) =>
+                it.kind === "assistant" && it.id === closeId
+                  ? { ...it, isStreaming: false }
+                  : it,
+              ),
+            );
+            assistantId = null;
+          }
+          const tid = `tool-${Date.now()}`;
+          toolId = tid;
+          const name = event.name;
+          setItems((prev) => [
+            ...prev,
+            { kind: "tool", id: tid, name, pending: true },
           ]);
-          currentAssistantMsgId = newAssistantId;
-          accumulatedText = "";
-          accumulatedThought = "";
         } else if (event.type === "tool_call_completed") {
-          const resultText =
-            typeof event.result === "string"
-              ? event.result
-              : JSON.stringify(event.result);
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `res-${Date.now()}`,
-              role: "user",
-              text: `**Result:** ${resultText}`,
-            },
-          ]);
-
-          const finalAssistantId = `assistant-final-${Date.now()}`;
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: finalAssistantId,
-              role: "assistant",
-              text: "",
-              isStreaming: true,
-            },
-          ]);
-          currentAssistantMsgId = finalAssistantId;
-          accumulatedText = "";
-          accumulatedThought = "";
+          // Mark the tool as done. Next content will lazily open a new assistant bubble.
+          if (toolId) {
+            const closeToolId = toolId;
+            setItems((prev) =>
+              prev.map((it) =>
+                it.kind === "tool" && it.id === closeToolId
+                  ? { ...it, pending: false }
+                  : it,
+              ),
+            );
+            toolId = null;
+          }
+          assistantId = null;
+        } else if (event.type === "done") {
+          // Finalize the last assistant bubble and auto-collapse its thought.
+          if (assistantId) {
+            const closeId = assistantId;
+            setItems((prev) =>
+              prev.map((it) =>
+                it.kind === "assistant" && it.id === closeId
+                  ? { ...it, isStreaming: false }
+                  : it,
+              ),
+            );
+            setExpandedThoughts((prev) => {
+              const next = new Set(prev);
+              next.delete(closeId);
+              return next;
+            });
+            assistantId = null;
+          }
         }
       }
-
-      // Mark as finished streaming
-      setMessages((prev) =>
-        prev
-          .map((m) =>
-            m.id === currentAssistantMsgId ? { ...m, isStreaming: false } : m,
-          )
-          .filter((m) => m.text || m.thought || m.isStreaming),
-      );
-
-      // Auto-collapse when done
-      setExpandedThoughts((prev) => {
-        const next = new Set(prev);
-        next.delete(currentAssistantMsgId);
-        return next;
-      });
     } catch (error) {
       console.error("Chat Error:", error);
-      setMessages((prev) => prev.filter((m) => m.id !== currentAssistantMsgId));
+      // Remove any open (empty) assistant bubble on failure.
+      if (assistantId) {
+        const removeId = assistantId;
+        setItems((prev) => prev.filter((it) => it.id !== removeId));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -221,35 +229,57 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 flex flex-col gap-6"
+        className="flex-1 overflow-y-auto p-4 flex flex-col gap-4"
       >
-        {messages.length === 0 && (
+        {items.length === 0 && (
           <div className="text-sm text-muted-foreground italic text-center mt-4">
             Start a conversation with the editor assistant.
           </div>
         )}
 
-        {messages.map((m) => {
-          const isAssistant = m.role === "assistant";
-          const isExpanded = expandedThoughts.has(m.id);
-
-          if (isAssistant && !m.text && !m.thought && !m.isStreaming) {
-            return null;
+        {items.map((item) => {
+          if (item.kind === "user") {
+            return (
+              <div key={item.id} className="flex flex-col items-end">
+                <div className="max-w-[90%] p-3 rounded-2xl rounded-tr-none text-sm shadow-sm bg-primary text-primary-foreground">
+                  {item.text}
+                </div>
+              </div>
+            );
           }
 
+          if (item.kind === "tool") {
+            return (
+              <div
+                key={item.id}
+                className="flex items-center gap-2 text-xs text-muted-foreground self-start px-2 py-1 rounded-full border border-border bg-muted/40"
+              >
+                {item.pending ? (
+                  <Wrench className="w-3 h-3 animate-pulse text-primary" />
+                ) : (
+                  <Check className="w-3 h-3 text-green-500" />
+                )}
+                <span>
+                  <code className="font-mono">{item.name}</code>
+                </span>
+              </div>
+            );
+          }
+
+          // assistant
+          const isExpanded = expandedThoughts.has(item.id);
           return (
-            <div key={m.id} className="flex flex-col gap-2">
-              {/* Thought Block */}
-              {isAssistant && m.thought && (
+            <div key={item.id} className="flex flex-col gap-2">
+              {item.thought && (
                 <div className="max-w-[90%] self-start w-full">
-                  <div className="bg-muted border border-border rounded-lg overflow-hidden transition-all">
+                  <div className="bg-muted border border-border rounded-lg overflow-hidden">
                     <button
-                      onClick={() => toggleThought(m.id)}
+                      onClick={() => toggleThought(item.id)}
                       className="flex items-center justify-between w-full p-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground hover:bg-accent"
                     >
                       <div className="flex items-center gap-2">
                         <Brain
-                          className={`w-3 h-3 ${m.isStreaming && !m.text ? "animate-pulse text-primary" : ""}`}
+                          className={`w-3 h-3 ${item.isStreaming && !item.text ? "animate-pulse text-primary" : ""}`}
                         />
                         <span>Thinking Process</span>
                       </div>
@@ -261,40 +291,24 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
                     </button>
                     {isExpanded && (
                       <div className="p-3 text-xs text-muted-foreground border-t border-border bg-muted/30 whitespace-pre-wrap italic leading-relaxed">
-                        {m.thought}
+                        {item.thought}
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Message Bubble */}
-              {(m.text || m.isStreaming || !isAssistant) && (
-                <div
-                  className={`flex flex-col ${isAssistant ? "items-start" : "items-end"}`}
-                >
-                  <div
-                    className={`max-w-[90%] p-3 rounded-2xl text-sm shadow-sm ${
-                      isAssistant
-                        ? "bg-secondary text-secondary-foreground rounded-tl-none"
-                        : "bg-primary text-primary-foreground rounded-tr-none"
-                    }`}
-                  >
-                    {m.text ? (
-                      isAssistant ? (
-                        <MarkdownContent content={m.text} />
-                      ) : (
-                        m.text
-                      )
+              {(item.text || item.isStreaming) && (
+                <div className="flex flex-col items-start">
+                  <div className="max-w-[90%] p-3 rounded-2xl rounded-tl-none text-sm shadow-sm bg-secondary text-secondary-foreground">
+                    {item.text ? (
+                      <MarkdownContent content={item.text} />
                     ) : (
-                      isAssistant &&
-                      m.isStreaming && (
-                        <div className="flex gap-1 h-4 items-center">
-                          <span className="animate-bounce">.</span>
-                          <span className="animate-bounce delay-100">.</span>
-                          <span className="animate-bounce delay-200">.</span>
-                        </div>
-                      )
+                      <div className="flex gap-1 h-4 items-center">
+                        <span className="animate-bounce">.</span>
+                        <span className="animate-bounce delay-100">.</span>
+                        <span className="animate-bounce delay-200">.</span>
+                      </div>
                     )}
                   </div>
                 </div>
