@@ -7,8 +7,16 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Conversation } from "@mast-ai/core";
 import { MarkdownContent } from "./MarkdownContent";
-import { ChevronDown, ChevronUp, Brain, Wrench, Check } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Brain,
+  Wrench,
+  Check,
+  Settings,
+} from "lucide-react";
 import { useApp } from "@/lib/store";
+import { SettingsDialog } from "./SettingsDialog";
 
 interface ChatSidebarProps {
   conversation: Conversation | null;
@@ -37,6 +45,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
     null,
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { approveAll, setApproveAll } = useApp();
 
   // Rebuild display items when the conversation instance changes (e.g. new session)
@@ -210,6 +219,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
 
   return (
     <div className="flex flex-col h-full bg-muted/20 border-l">
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <div className="p-4 border-b flex justify-between items-center gap-4">
         <span className="font-medium whitespace-nowrap">AI Assistant</span>
         <div className="flex items-center gap-4 text-xs text-muted-foreground ml-auto">
@@ -224,6 +234,15 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
             </Label>
           </div>
           <span className="whitespace-nowrap">Tokens: {totalTokens}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings"
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 

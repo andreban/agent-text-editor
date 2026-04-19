@@ -79,11 +79,12 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Make the application usable across sessions and transparent about usage.
 
-- [ ] Update state management to sync the API key and selected model (default: `gemini-2.5-flash`) with `localStorage`.
-- [ ] Create a "Settings" UI (modal or sidebar tab) to manage credentials and model selection.
-- [ ] Update `GoogleGenAIAdapter` to capture `usageMetadata`.
-- [ ] Add a UI element to display cumulative session token usage.
+- [x] Update state management to sync the API key and selected model (default: `gemini-2.5-flash`) with `localStorage`.
+- [x] Create a "Settings" UI (modal or sidebar tab) to manage credentials and model selection.
+- [x] Update `GoogleGenAIAdapter` to capture `usageMetadata`.
+- [x] Add a UI element to display cumulative session token usage.
 - **Working State:** API keys and model choices survive page reloads. The UI clearly displays token consumption during chats.
+- [x] Complete
 
 ## Phase 7: Sub-Agents & Custom Skills
 
