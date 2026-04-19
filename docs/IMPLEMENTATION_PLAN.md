@@ -69,10 +69,11 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Improve agent efficiency for large documents.
 
-- [ ] Add the `read_selection` tool to `EditorTools.ts` using the Monaco API.
-- [ ] Add the `search` tool to find occurrences of text.
-- [ ] Add the `get_metadata` tool (word count, etc.).
+- [x] Add the `read_selection` tool to `EditorTools.ts` using the Monaco API.
+- [x] Add the `search` tool to find occurrences of text.
+- [x] Add the `get_metadata` tool (word count, etc.).
 - **Working State:** The agent can be asked to "fix the spelling in my selection" or "find where I mentioned X" and successfully use the new tools.
+- [x] Complete
 
 ## Phase 6: Persistence, Settings, & Token Tracking
 
