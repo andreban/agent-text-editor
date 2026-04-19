@@ -18,6 +18,7 @@ npm run preview   # Preview production build
 This is an AI-powered collaborative text editor: a React SPA where an LLM agent assists with editing text in a Monaco editor.
 
 **Data flow:**
+
 1. User submits a prompt in `ChatSidebar`
 2. `App.tsx` creates an `AgentRunner` (from `@mast-ai/core`) backed by `GoogleGenAIAdapter`
 3. The LLM decides to respond or invoke tools (`read`, `read_selection`, `edit`, `write`)
@@ -25,6 +26,7 @@ This is an AI-powered collaborative text editor: a React SPA where an LLM agent 
 5. The tool resolves with the user's decision, and the agent loop continues until a final text response
 
 **Key modules:**
+
 - `src/adapters/GoogleGenAIAdapter.ts` — implements `LlmAdapter` for Google Gen AI SDK; maps MAST message/tool formats, enables thinking mode (`ThinkingLevel.HIGH`), streams deltas, and reports token usage via callback
 - `src/lib/EditorTools.ts` — registers the four editor tools with `ToolRegistry`; `edit` and `write` create suggestions and await user resolution
 - `src/lib/store.tsx` — React Context holding the Monaco editor instance, pending `Suggestion[]`, API key, model selection, and aggregated token counts

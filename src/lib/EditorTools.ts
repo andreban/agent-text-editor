@@ -31,6 +31,30 @@ export class EditorTools {
     return this.editor.getModel()?.getValueInRange(selection) || "";
   }
 
+  search({ query }: { query: string }): string {
+    if (!this.editor) return "Error: Editor not initialized.";
+    if (!query) return "Error: query parameter is required.";
+    const model = this.editor.getModel();
+    if (!model) return "Error: Model not found.";
+
+    const matches = model.findMatches(query, true, false, false, null, false);
+    if (matches.length === 0) return `No occurrences of "${query}" found.`;
+
+    const locations = matches
+      .map((m) => `line ${m.range.startLineNumber}, col ${m.range.startColumn}`)
+      .join("; ");
+    return `Found ${matches.length} occurrence(s) of "${query}": ${locations}.`;
+  }
+
+  get_metadata(): string {
+    if (!this.editor) return "Error: Editor not initialized.";
+    const text = this.editor.getValue();
+    const charCount = text.length;
+    const lineCount = text === "" ? 0 : text.split("\n").length;
+    const wordCount = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+    return `Characters: ${charCount}, Words: ${wordCount}, Lines: ${lineCount}.`;
+  }
+
   /**
    * Proposes an edit by replacing originalText with replacementText.
    * Returns a promise that resolves with the user's decision.

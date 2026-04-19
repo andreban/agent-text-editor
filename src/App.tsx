@@ -66,6 +66,35 @@ function App() {
 
     registry.register({
       definition: () => ({
+        name: "search",
+        description:
+          "Finds all occurrences of a query string in the document. Returns the line and column of each match.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description: "The text to search for.",
+            },
+          },
+          required: ["query"],
+        },
+      }),
+      call: async (args: { query: string }) => editorTools.search(args),
+    });
+
+    registry.register({
+      definition: () => ({
+        name: "get_metadata",
+        description:
+          "Returns metadata about the current document: character count, word count, and line count.",
+        parameters: { type: "object", properties: {} },
+      }),
+      call: async () => editorTools.get_metadata(),
+    });
+
+    registry.register({
+      definition: () => ({
         name: "edit",
         description:
           "Proposes a targeted edit. This tool pauses and waits for user approval. ONLY use this for small, localized changes (e.g., 1-2 sentences). Never pass the entire document.",
@@ -126,11 +155,20 @@ function App() {
         "You are a helpful senior editorial assistant. Help the user refine their text. " +
         "You MUST use the provided tools to interact with the editor. " +
         "Always use `read()` or `read_selection()` before suggesting changes. " +
+        "Use `search()` to locate specific text before editing it. " +
+        "Use `get_metadata()` to answer questions about document length or word count without reading the full content. " +
         "CRITICAL: Prefer small, surgical edits using `edit()`. Do not rewrite the entire document unless explicitly asked to. " +
         "When using `edit()`, the `originalText` should be as short as possible (just the sentence or words changing), not the whole file. " +
         "When you call `edit()` or `write()`, the execution will PAUSE until the user manually Accepts or Rejects the change. " +
         "You will then receive the user's decision (and feedback if any) as the tool result.",
-      tools: ["read", "read_selection", "edit", "write"],
+      tools: [
+        "read",
+        "read_selection",
+        "search",
+        "get_metadata",
+        "edit",
+        "write",
+      ],
     };
     return runner.conversation(agent);
   }, [runner]);

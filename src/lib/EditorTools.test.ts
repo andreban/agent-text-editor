@@ -54,6 +54,153 @@ describe("EditorTools", () => {
     });
   });
 
+  describe("search", () => {
+    it("should return error if editor is not initialized", () => {
+      const tools = new EditorTools(
+        null,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.search({ query: "hello" })).toBe(
+        "Error: Editor not initialized.",
+      );
+    });
+
+    it("should return error for empty query", () => {
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.search({ query: "" })).toBe(
+        "Error: query parameter is required.",
+      );
+    });
+
+    it("should return not-found message when there are no matches", () => {
+      mockModel.findMatches.mockReturnValue([]);
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.search({ query: "xyz" })).toBe(
+        'No occurrences of "xyz" found.',
+      );
+    });
+
+    it("should return location of a single match", () => {
+      mockModel.findMatches.mockReturnValue([
+        {
+          range: {
+            startLineNumber: 3,
+            startColumn: 5,
+            endLineNumber: 3,
+            endColumn: 8,
+          },
+        },
+      ]);
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.search({ query: "foo" })).toBe(
+        'Found 1 occurrence(s) of "foo": line 3, col 5.',
+      );
+    });
+
+    it("should return locations of multiple matches", () => {
+      mockModel.findMatches.mockReturnValue([
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 4,
+          },
+        },
+        {
+          range: {
+            startLineNumber: 5,
+            startColumn: 10,
+            endLineNumber: 5,
+            endColumn: 13,
+          },
+        },
+      ]);
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.search({ query: "foo" })).toBe(
+        'Found 2 occurrence(s) of "foo": line 1, col 1; line 5, col 10.',
+      );
+    });
+  });
+
+  describe("get_metadata", () => {
+    it("should return error if editor is not initialized", () => {
+      const tools = new EditorTools(
+        null,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.get_metadata()).toBe("Error: Editor not initialized.");
+    });
+
+    it("should return zero counts for an empty document", () => {
+      mockEditor.getValue.mockReturnValue("");
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.get_metadata()).toBe("Characters: 0, Words: 0, Lines: 0.");
+    });
+
+    it("should return correct counts for a single-line document", () => {
+      mockEditor.getValue.mockReturnValue("hello world");
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.get_metadata()).toBe("Characters: 11, Words: 2, Lines: 1.");
+    });
+
+    it("should return correct line count for a multi-line document", () => {
+      mockEditor.getValue.mockReturnValue("line one\nline two\nline three");
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.get_metadata()).toBe("Characters: 28, Words: 6, Lines: 3.");
+    });
+
+    it("should not count leading/trailing whitespace as words", () => {
+      mockEditor.getValue.mockReturnValue("  hello world  ");
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      expect(tools.get_metadata()).toBe("Characters: 15, Words: 2, Lines: 1.");
+    });
+  });
+
   describe("edit", () => {
     it("should return an error if text is not found", async () => {
       mockModel.findMatches.mockReturnValue([]);

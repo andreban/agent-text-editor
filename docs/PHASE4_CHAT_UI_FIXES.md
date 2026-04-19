@@ -8,7 +8,7 @@ Two bugs in `ChatSidebar.tsx` to address before closing out Phase 4.
 
 ### Root Cause
 
-In `handleSend`, the `tool_call_started` handler (line 128) immediately creates a new empty assistant message with `isStreaming: true` — the animated "..." bubble that is meant to be a placeholder for the agent's next response. However, when `tool_call_completed` fires, it appends a result message and then creates a *second* new empty `isStreaming: true` placeholder (line 164–173), reassigning `currentAssistantMsgId` to the new one.
+In `handleSend`, the `tool_call_started` handler (line 128) immediately creates a new empty assistant message with `isStreaming: true` — the animated "..." bubble that is meant to be a placeholder for the agent's next response. However, when `tool_call_completed` fires, it appends a result message and then creates a _second_ new empty `isStreaming: true` placeholder (line 164–173), reassigning `currentAssistantMsgId` to the new one.
 
 The original "..." bubble from `tool_call_started` is never marked `isStreaming: false` and is never removed. Because the final cleanup filter (`m.isStreaming`) still resolves to `true` for it, it persists in the UI indefinitely.
 

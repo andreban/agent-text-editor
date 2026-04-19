@@ -44,6 +44,7 @@ npm run preview   # Preview production build
 ## Architecture
 
 **Data flow:**
+
 1. User submits a prompt in `ChatSidebar`
 2. `App.tsx` creates an `AgentRunner` (from `@mast-ai/core`) backed by `GoogleGenAIAdapter`
 3. The LLM decides to respond or invoke tools (`read`, `read_selection`, `edit`, `write`)
@@ -52,14 +53,14 @@ npm run preview   # Preview production build
 
 **Key modules:**
 
-| Module | Description |
-|---|---|
+| Module                               | Description                                                                                          |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `src/adapters/GoogleGenAIAdapter.ts` | `LlmAdapter` implementation for Google Gen AI SDK; handles streaming, thinking mode, and token usage |
-| `src/lib/EditorTools.ts` | Registers the four editor tools (`read`, `read_selection`, `edit`, `write`) with `ToolRegistry` |
-| `src/lib/store.tsx` | React Context holding editor instance, pending suggestions, API key, model, and token counts |
-| `src/components/EditorPanel.tsx` | Monaco editor with diff decorations and accept/reject widgets |
-| `src/components/ChatSidebar.tsx` | Streaming chat UI with thinking chunks, text deltas, and tool events |
-| `src/App.tsx` | Top-level assembly: agent runner, system prompt, and settings persistence |
+| `src/lib/EditorTools.ts`             | Registers the four editor tools (`read`, `read_selection`, `edit`, `write`) with `ToolRegistry`      |
+| `src/lib/store.tsx`                  | React Context holding editor instance, pending suggestions, API key, model, and token counts         |
+| `src/components/EditorPanel.tsx`     | Monaco editor with diff decorations and accept/reject widgets                                        |
+| `src/components/ChatSidebar.tsx`     | Streaming chat UI with thinking chunks, text deltas, and tool events                                 |
+| `src/App.tsx`                        | Top-level assembly: agent runner, system prompt, and settings persistence                            |
 
 ## License
 
