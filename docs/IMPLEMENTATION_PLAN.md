@@ -86,15 +86,15 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 - **Working State:** API keys and model choices survive page reloads. The UI clearly displays token consumption during chats.
 - [x] Complete
 
-## Phase 7: Sub-Agents & Custom Skills
+## Phase 7: Mobile-Friendly Interface
 
-**Goal:** Enable specialized workflows through multi-agent delegation.
+**Goal:** Make the application fully usable on small-screen and touch devices.
 
-- [ ] Implement initialization logic in `App.tsx` to populate `localStorage` with Default Skills (Proofreader, Summarizer, Markdown Formatter) if empty.
-- [ ] Build a "Skills Manager" UI for CRUD operations on custom skills.
-- [ ] Update `App.tsx` to dynamically inject skill names and descriptions into the main agent's `systemInstructions`.
-- [ ] Implement the `delegate_to_skill` tool, which spins up a child `AgentRunner` with the skill's specific instructions.
-- **Working State:** The user can ask the main agent to "proofread the document", and it successfully delegates the task to the Proofreader sub-agent. User can create a new custom skill and invoke it.
+- [ ] Implement a responsive layout: below the `md` breakpoint the split-pane view collapses into a two-tab interface (Editor | Chat) using `shadcn/ui` `Tabs`.
+- [ ] Ensure all interactive controls meet a 44 × 44 px minimum touch-target size on mobile.
+- [ ] Verify the Monaco editor fills available height without horizontal overflow on narrow viewports.
+- [ ] Write snapshot/interaction tests for the responsive layout breakpoint.
+- **Working State:** On a mobile browser the editor and chat are accessible via tabs with no horizontal scrolling, and all controls are comfortably tappable.
 
 ## Phase 8: Supporting Documents Workspace
 
@@ -118,12 +118,12 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 - [ ] Write tests for `ThemeProvider` (toggle, persistence).
 - **Working State:** The user can switch between light and dark themes via a toolbar button; the preference survives a page reload and all UI components — including the Monaco editor — adapt accordingly.
 
-## Phase 10: Mobile-Friendly Interface
+## Phase 10: Sub-Agents & Custom Skills
 
-**Goal:** Make the application fully usable on small-screen and touch devices.
+**Goal:** Enable specialized workflows through multi-agent delegation.
 
-- [ ] Implement a responsive layout: below the `md` breakpoint the split-pane view collapses into a two-tab interface (Editor | Chat) using `shadcn/ui` `Tabs`.
-- [ ] Ensure all interactive controls meet a 44 × 44 px minimum touch-target size on mobile.
-- [ ] Verify the Monaco editor fills available height without horizontal overflow on narrow viewports.
-- [ ] Write snapshot/interaction tests for the responsive layout breakpoint.
-- **Working State:** On a mobile browser the editor and chat are accessible via tabs with no horizontal scrolling, and all controls are comfortably tappable.
+- [ ] Implement initialization logic in `App.tsx` to populate `localStorage` with Default Skills (Proofreader, Summarizer, Markdown Formatter) if empty.
+- [ ] Build a "Skills Manager" UI for CRUD operations on custom skills.
+- [ ] Update `App.tsx` to dynamically inject skill names and descriptions into the main agent's `systemInstructions`.
+- [ ] Implement the `delegate_to_skill` tool, which spins up a child `AgentRunner` with the skill's specific instructions.
+- **Working State:** The user can ask the main agent to "proofread the document", and it successfully delegates the task to the Proofreader sub-agent. User can create a new custom skill and invoke it.
