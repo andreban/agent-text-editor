@@ -55,14 +55,15 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Give the agent the ability to interact with the editor content safely.
 
-- [ ] Create `EditorTools.ts` and implement the `read` tool.
-- [ ] Implement the `edit` and `write` tools, ensuring they do _not_ mutate the editor directly.
-- [ ] Create global state to track active `Suggestions`.
-- [ ] Implement Monaco `deltaDecorations` to highlight `originalText` (light red, squiggly).
-- [ ] Implement Monaco `changeViewZones` to display `replacementText` inline (green).
-- [ ] Build the `SuggestionWidget` as a Monaco `ContentWidget` containing the Accept/Reject/Feedback UI.
-- [ ] Implement the "Accept", "Decline", and "Provide Feedback" workflows, including the "Approve All" toggle logic.
+- [x] Create `EditorTools.ts` and implement the `read` tool.
+- [x] Implement the `edit` and `write` tools, ensuring they do _not_ mutate the editor directly.
+- [x] Create global state to track active `Suggestions`.
+- [x] Implement Monaco `deltaDecorations` to highlight `originalText` (light red, squiggly).
+- [x] Implement Monaco `changeViewZones` to display `replacementText` inline (green).
+- [x] Build the `SuggestionWidget` as a Monaco `ContentWidget` containing the Accept/Reject/Feedback UI.
+- [x] Implement the "Accept", "Decline", and "Provide Feedback" workflows, including the "Approve All" toggle logic.
 - **Working State:** The agent can read the text and propose edits/rewrites. The user must approve them via the UI before the editor updates.
+- [x] Complete
 
 ## Phase 5: Advanced Context Tools
 
