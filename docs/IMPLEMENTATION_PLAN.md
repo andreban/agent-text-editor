@@ -96,14 +96,15 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 - [ ] Write snapshot/interaction tests for the responsive layout breakpoint.
 - **Working State:** On a mobile browser the editor and chat are accessible via tabs with no horizontal scrolling, and all controls are comfortably tappable.
 
-## Phase 8: Supporting Documents Workspace
+## Phase 8: Sub-Agents & Custom Skills
 
-**Goal:** Provide the agent with reference material via workspace documents.
+**Goal:** Enable specialized workflows through multi-agent delegation.
 
-- [ ] Extend global state to manage a list of supporting markdown documents (title + content) synced with `localStorage`.
-- [ ] Build a UI (e.g., a "Reference" tab in the sidebar) for the user to create, edit, and delete these documents.
-- [ ] Implement `list_supporting_docs` and `read_supporting_doc` in the tool registry.
-- **Working State:** The user can manage reference notes. The agent can be asked to "check my notes on character X" and successfully use the tools to retrieve the information before making edits to the main text.
+- [ ] Implement initialization logic in `App.tsx` to populate `localStorage` with Default Skills (Proofreader, Summarizer, Markdown Formatter) if empty.
+- [ ] Build a "Skills Manager" UI for CRUD operations on custom skills.
+- [ ] Update `App.tsx` to dynamically inject skill names and descriptions into the main agent's `systemInstructions`.
+- [ ] Implement the `delegate_to_skill` tool, which spins up a child `AgentRunner` with the skill's specific instructions.
+- **Working State:** The user can ask the main agent to "proofread the document", and it successfully delegates the task to the Proofreader sub-agent. User can create a new custom skill and invoke it.
 
 ## Phase 9: Dark Mode
 
@@ -118,12 +119,11 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 - [ ] Write tests for `ThemeProvider` (toggle, persistence).
 - **Working State:** The user can switch between light and dark themes via a toolbar button; the preference survives a page reload and all UI components — including the Monaco editor — adapt accordingly.
 
-## Phase 10: Sub-Agents & Custom Skills
+## Phase 10: Supporting Documents Workspace
 
-**Goal:** Enable specialized workflows through multi-agent delegation.
+**Goal:** Provide the agent with reference material via workspace documents.
 
-- [ ] Implement initialization logic in `App.tsx` to populate `localStorage` with Default Skills (Proofreader, Summarizer, Markdown Formatter) if empty.
-- [ ] Build a "Skills Manager" UI for CRUD operations on custom skills.
-- [ ] Update `App.tsx` to dynamically inject skill names and descriptions into the main agent's `systemInstructions`.
-- [ ] Implement the `delegate_to_skill` tool, which spins up a child `AgentRunner` with the skill's specific instructions.
-- **Working State:** The user can ask the main agent to "proofread the document", and it successfully delegates the task to the Proofreader sub-agent. User can create a new custom skill and invoke it.
+- [ ] Extend global state to manage a list of supporting markdown documents (title + content) synced with `localStorage`.
+- [ ] Build a UI (e.g., a "Reference" tab in the sidebar) for the user to create, edit, and delete these documents.
+- [ ] Implement `list_supporting_docs` and `read_supporting_doc` in the tool registry.
+- **Working State:** The user can manage reference notes. The agent can be asked to "check my notes on character X" and successfully use the tools to retrieve the information before making edits to the main text.
