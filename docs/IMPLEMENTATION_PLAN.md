@@ -104,3 +104,26 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 - [ ] Build a UI (e.g., a "Reference" tab in the sidebar) for the user to create, edit, and delete these documents.
 - [ ] Implement `list_supporting_docs` and `read_supporting_doc` in the tool registry.
 - **Working State:** The user can manage reference notes. The agent can be asked to "check my notes on character X" and successfully use the tools to retrieve the information before making edits to the main text.
+
+## Phase 9: Dark Mode
+
+**Goal:** Make the application comfortable to use in any lighting condition.
+
+- [ ] Enable Tailwind CSS class-based dark mode (`darkMode: 'class'` in `tailwind.config`).
+- [ ] Create a `ThemeProvider` context that reads the saved theme from `localStorage`, applies the `dark` class to `<html>`, and exposes a toggle function.
+- [ ] Add a theme toggle button (sun/moon icon) to the toolbar/header, wired to `ThemeProvider`.
+- [ ] Audit all components for hardcoded light-mode colors and replace with Tailwind dark-mode variants (`dark:` prefix).
+- [ ] Pass the matching Monaco theme (`vs` / `vs-dark`) to the `MonacoEditor` component based on the active theme.
+- [ ] Add the theme preference to the Settings dialog so it is surfaced alongside API key and model selection.
+- [ ] Write tests for `ThemeProvider` (toggle, persistence).
+- **Working State:** The user can switch between light and dark themes via a toolbar button; the preference survives a page reload and all UI components — including the Monaco editor — adapt accordingly.
+
+## Phase 10: Mobile-Friendly Interface
+
+**Goal:** Make the application fully usable on small-screen and touch devices.
+
+- [ ] Implement a responsive layout: below the `md` breakpoint the split-pane view collapses into a two-tab interface (Editor | Chat) using `shadcn/ui` `Tabs`.
+- [ ] Ensure all interactive controls meet a 44 × 44 px minimum touch-target size on mobile.
+- [ ] Verify the Monaco editor fills available height without horizontal overflow on narrow viewports.
+- [ ] Write snapshot/interaction tests for the responsive layout breakpoint.
+- **Working State:** On a mobile browser the editor and chat are accessible via tabs with no horizontal scrolling, and all controls are comfortably tappable.

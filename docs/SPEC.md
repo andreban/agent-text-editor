@@ -157,3 +157,5 @@ The main entry point:
   - Graceful handling of API rate limits and invalid tool calls.
   - Catch and display LLM errors (e.g., safety filters) in the chat UI.
 - **Styling:** Use Tailwind CSS for utility-first styling and `shadcn/ui` for complex components (e.g., Dialogs for Skills Manager, Tabs for Sidebar).
+- **Dark Mode:** Use Tailwind CSS's class-based dark mode strategy (`darkMode: 'class'` in `tailwind.config`). A `ThemeProvider` wraps the app and toggles a `dark` class on the `<html>` element. The Monaco editor theme switches between `vs` (light) and `vs-dark` (dark) in sync. The selected theme is persisted in `localStorage`.
+- **Responsive Layout:** On screens narrower than the `md` breakpoint (768 px), the side-by-side editor/sidebar layout collapses into a tab-based view (Editor | Chat) using the existing `shadcn/ui` `Tabs` component. Touch targets (buttons, inputs) must be at minimum 44 × 44 px. The Monaco editor renders in a flex-fill container so it uses available height without overflow.
