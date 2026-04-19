@@ -32,11 +32,12 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Add a preview tab to the EditorPanel to switch between raw text and rendered Markdown.
 
-- [ ] Install `react-markdown` and `remark-gfm`.
-- [ ] Update `EditorPanel.tsx` to use the `Tabs` component.
-- [ ] Implement state management to share the editor content with the preview.
-- [ ] Render the parsed Markdown in the preview tab.
+- [x] Install `react-markdown` and `remark-gfm`.
+- [x] Update `EditorPanel.tsx` to use the `Tabs` component.
+- [x] Implement state management to share the editor content with the preview.
+- [x] Render the parsed Markdown in the preview tab.
 - **Working State:** The user can toggle between the Monaco editor and a rendered Markdown preview of their text.
+- [x] Complete
 
 ## Phase 3: Basic LLM Integration (MAST + Google Gen AI)
 
