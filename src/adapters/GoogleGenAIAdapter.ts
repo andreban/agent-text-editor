@@ -181,6 +181,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
               args: part.functionCall.args,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               thoughtSignature: (part as any).thoughtSignature,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
           };
         }

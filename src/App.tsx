@@ -1,8 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { EditorPanel } from "@/components/EditorPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
+import { MessageCircle, ChevronDown } from "lucide-react";
 import { useApp } from "@/lib/store";
 import {
   Dialog,
@@ -13,9 +14,108 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AgentRunner, ToolRegistry, AgentConfig, Tool } from "@mast-ai/core";
+import {
+  AgentRunner,
+  ToolRegistry,
+  AgentConfig,
+  Conversation,
+} from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@/adapters/GoogleGenAIAdapter";
 import { EditorTools } from "@/lib/EditorTools";
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia("(max-width: 767px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isMobile;
+}
+
+interface LayoutProps {
+  conversation: Conversation | null;
+  totalTokens: number;
+}
+
+function DesktopLayout({ conversation, totalTokens }: LayoutProps) {
+  return (
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+      <main className="flex-1 min-w-0">
+        <EditorPanel />
+      </main>
+      <aside className="w-[400px] shrink-0 border-l border-border">
+        <ChatSidebar conversation={conversation} totalTokens={totalTokens} />
+      </aside>
+    </div>
+  );
+}
+
+function MobileLayout({ conversation, totalTokens }: LayoutProps) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el) return;
+    if (!sheetOpen) {
+      el.setAttribute("inert", "");
+      el.setAttribute("aria-hidden", "true");
+    } else {
+      el.removeAttribute("inert");
+      el.removeAttribute("aria-hidden");
+    }
+  }, [sheetOpen]);
+
+  return (
+    <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
+      {/* Editor always mounted, full screen */}
+      <div className="h-full w-full">
+        <EditorPanel />
+      </div>
+
+      {/* FAB */}
+      {!sheetOpen && (
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
+          aria-label="Open chat"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* Bottom sheet overlay */}
+      <div
+        ref={sheetRef}
+        className={`fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-2xl border-t border-border bg-background shadow-2xl transition-transform duration-300 ${
+          sheetOpen ? "translate-y-0" : "translate-y-full"
+        }`}
+        style={{ height: "70vh" }}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <span className="font-medium">AI Assistant</span>
+          <button
+            onClick={() => {
+              (document.activeElement as HTMLElement)?.blur();
+              setSheetOpen(false);
+            }}
+            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-muted"
+            aria-label="Close chat"
+          >
+            <ChevronDown className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ChatSidebar conversation={conversation} totalTokens={totalTokens} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const {
@@ -114,7 +214,8 @@ function App() {
           required: ["originalText", "replacementText"],
         },
       }),
-      call: async (args: any) => editorTools.edit(args),
+      call: async (args: { originalText: string; replacementText: string }) =>
+        editorTools.edit(args),
     });
 
     registry.register({
@@ -133,7 +234,7 @@ function App() {
           required: ["content"],
         },
       }),
-      call: async (args: any) => editorTools.write(args),
+      call: async (args: { content: string }) => editorTools.write(args),
     });
 
     return new AgentRunner(adapter, registry);
@@ -173,6 +274,8 @@ function App() {
     return runner.conversation(agent);
   }, [runner]);
 
+  const isMobile = useIsMobile();
+
   const handleSaveKey = () => {
     if (tempKey.trim()) {
       setApiKey(tempKey.trim());
@@ -181,13 +284,12 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      <main className="flex-1 min-w-0">
-        <EditorPanel />
-      </main>
-      <aside className="w-[400px] shrink-0 border-l border-border">
-        <ChatSidebar conversation={conversation} totalTokens={totalTokens} />
-      </aside>
+    <>
+      {isMobile ? (
+        <MobileLayout conversation={conversation} totalTokens={totalTokens} />
+      ) : (
+        <DesktopLayout conversation={conversation} totalTokens={totalTokens} />
+      )}
 
       <Dialog open={showKeyDialog} onOpenChange={setShowKeyDialog}>
         <DialogContent>
@@ -212,7 +314,7 @@ function App() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

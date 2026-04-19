@@ -223,7 +223,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
       <div className="p-4 border-b flex justify-between items-center gap-4">
         <span className="font-medium whitespace-nowrap">AI Assistant</span>
         <div className="flex items-center gap-4 text-xs text-muted-foreground ml-auto">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 min-h-11">
             <Switch
               id="approve-all"
               checked={approveAll}
@@ -237,7 +237,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-11 w-11"
             onClick={() => setSettingsOpen(true)}
             aria-label="Open settings"
           >
@@ -346,7 +346,11 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
           disabled={isLoading}
           className="bg-background"
         />
-        <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
+        <Button
+          onClick={handleSend}
+          disabled={isLoading || !input.trim()}
+          className="min-h-11"
+        >
           Send
         </Button>
       </div>

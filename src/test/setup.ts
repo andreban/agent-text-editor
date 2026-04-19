@@ -20,10 +20,12 @@ vi.mock("monaco-editor", () => ({
 
 // Mock @monaco-editor/react to prevent it from loading the real Monaco
 vi.mock("@monaco-editor/react", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Editor: ({ onChange, value }: any) => {
     return React.createElement("textarea", {
       "data-testid": "mock-monaco-editor",
       value: value,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChange: (e: any) => onChange?.(e.target.value),
     });
   },

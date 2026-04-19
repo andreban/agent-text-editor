@@ -4,9 +4,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EditorTools } from "./EditorTools";
 
 describe("EditorTools", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockEditor: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockModel: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let setSuggestions: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let setEditorContent: any;
 
   beforeEach(() => {

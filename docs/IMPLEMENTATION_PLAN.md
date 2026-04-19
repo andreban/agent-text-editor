@@ -90,11 +90,14 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Make the application fully usable on small-screen and touch devices.
 
-- [ ] Implement a responsive layout: below the `md` breakpoint the split-pane view collapses into a two-tab interface (Editor | Chat) using `shadcn/ui` `Tabs`.
-- [ ] Ensure all interactive controls meet a 44 × 44 px minimum touch-target size on mobile.
-- [ ] Verify the Monaco editor fills available height without horizontal overflow on narrow viewports.
-- [ ] Write snapshot/interaction tests for the responsive layout breakpoint.
-- **Working State:** On a mobile browser the editor and chat are accessible via tabs with no horizontal scrolling, and all controls are comfortably tappable.
+- [x] Implement a responsive layout: below the `md` breakpoint the editor fills the screen and a FAB opens a bottom-sheet chat overlay (always keeping the editor mounted).
+- [x] Ensure all interactive controls meet a 44 × 44 px minimum touch-target size on mobile.
+- [x] Verify the Monaco editor fills available height without horizontal overflow on narrow viewports.
+- [x] Write interaction tests for the responsive layout breakpoint.
+- [x] Fix Monaco content widget touch handling so Accept/Reject buttons work on mobile.
+- **Working State:** On a mobile browser the editor is always visible; a FAB opens a 70 vh chat sheet. All controls are comfortably tappable and agent tools work regardless of sheet state.
+
+- [x] Complete
 
 ## Phase 8: Sub-Agents & Custom Skills
 

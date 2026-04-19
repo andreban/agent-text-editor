@@ -22,7 +22,7 @@ export const SuggestionWidget: React.FC<SuggestionWidgetProps> = ({
         variant="ghost"
         size="icon"
         onClick={() => onAccept(suggestion.id)}
-        className="h-7 w-7 rounded-full text-green-600 hover:bg-green-50 hover:text-green-700"
+        className="h-11 w-11 rounded-full text-green-600 hover:bg-green-50 hover:text-green-700"
         title="Accept"
       >
         <Check className="w-4 h-4" />
@@ -32,7 +32,7 @@ export const SuggestionWidget: React.FC<SuggestionWidgetProps> = ({
         variant="ghost"
         size="icon"
         onClick={() => onReject(suggestion.id)}
-        className="h-7 w-7 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
+        className="h-11 w-11 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
         title="Reject"
       >
         <X className="w-4 h-4" />

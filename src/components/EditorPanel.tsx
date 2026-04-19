@@ -77,6 +77,13 @@ export function EditorPanel() {
       if (!contentWidgetsRef.current.has(suggestion.id)) {
         const domNode = document.createElement("div");
         domNode.className = "z-50";
+        // Monaco captures touchstart globally on mobile; stop propagation so
+        // the Accept/Reject buttons inside the widget receive the tap.
+        domNode.addEventListener(
+          "touchstart",
+          (e) => e.stopPropagation(),
+          { passive: false },
+        );
 
         const widget: monaco.editor.IContentWidget = {
           getId: () => `suggestion-widget-${suggestion.id}`,
