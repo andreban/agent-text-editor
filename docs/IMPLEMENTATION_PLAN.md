@@ -43,12 +43,13 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Connect the chat interface to Gemini 2.5 Flash using MAST.
 
-- [ ] Install `@mast-ai/core` and `@google/genai`.
-- [ ] Implement the `GoogleGenAIAdapter` to translate MAST requests to the Google AI SDK.
-- [ ] Set up global state for a temporary API key input.
-- [ ] Initialize the `AgentRunner` and `Conversation` in `App.tsx`.
-- [ ] Connect the `ChatSidebar` to the `Conversation` to send prompts and display the LLM's text responses.
+- [x] Install `@mast-ai/core` and `@google/genai`.
+- [x] Implement the `GoogleGenAIAdapter` to translate MAST requests to the Google AI SDK.
+- [x] Set up global state for a temporary API key input.
+- [x] Initialize the `AgentRunner` and `Conversation` in `App.tsx`.
+- [x] Connect the `ChatSidebar` to the `Conversation` to send prompts and display the LLM's text responses.
 - **Working State:** The user can enter an API key and hold a basic text conversation with the AI in the sidebar.
+- [x] Complete
 
 ## Phase 4: Core Editor Tools & Approval Workflow
 
