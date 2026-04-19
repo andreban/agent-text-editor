@@ -8,10 +8,13 @@ This file contains foundational mandates for the AI Agent Text Editor project. T
 - **Styling:** Use Tailwind CSS for utility styling and `shadcn/ui` for complex components.
 - **Tools:** Modification of the main editor content MUST go through the `edit` or `write` tools to ensure the user approval workflow is respected (unless "Approve All" mode is active).
 - **Sub-Agents:** Custom skills are stored in `localStorage` and injected into the main agent's system prompt for discovery.
+- **Quality Assurance:** All new logic (tools, adapters, state management) MUST be covered by automated tests (Vitest).
+- **Code Quality:** Code MUST be linted with ESLint (and issues fixed) and formatted with Prettier before every commit.
 
 ## Implementation Workflow
 
 - Follow the phased approach in `docs/IMPLEMENTATION_PLAN.md`.
+- Run tests (`npm run test`), lint (`npm run lint`), and format (`npm run format`) before committing.
 - Each phase must be marked as complete in the plan and committed to git before moving to the next.
 - Maintain a working application state at the end of every phase.
 

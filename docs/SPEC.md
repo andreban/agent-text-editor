@@ -22,6 +22,8 @@ The application is a single-page React application bundled with Vite. It consist
 - **Editor:** `@monaco-editor/react`.
 - **LLM SDK:** `@google/genai`.
 - **Agent Framework:** `@mast-ai/core` (Installed via `npm install github:andreban/mast-ai#packages/core`).
+- **Testing:** `vitest`, `@testing-library/react`.
+- **Quality:** `eslint`, `prettier`.
 
 ## License
 Apache-2.0
@@ -125,6 +127,7 @@ The main entry point:
 - **Vite Configuration:** 
   - Use `vite-plugin-monaco-editor` or configure `optimizeDeps` and `worker` settings to ensure Monaco's web workers are correctly bundled and loaded.
   - Ensure `process.env` or similar is handled if the Google SDK expects it (though we should pass the key directly).
+- **Testing Strategy:** Use Vitest for unit testing adapters, tools, and state logic. Use React Testing Library for component rendering and interaction tests.
 - **Error Handling:** 
   - Graceful handling of API rate limits and invalid tool calls.
   - Catch and display LLM errors (e.g., safety filters) in the chat UI.

@@ -3,11 +3,14 @@
 This document outlines the phased implementation strategy for the AI Agent Text Editor. Each phase is designed to be small, easily reviewable, and results in a working application state.
 
 **Workflow per Phase:**
-1. Execute the tasks defined in the phase.
+1. Execute the tasks defined in the phase, **including writing relevant automated tests**.
 2. Ensure all new source files include the mandatory license header (see `SPEC.md`).
-3. Verify functionality and ensure no regressions.
-4. Mark the phase as `[x] Complete` in this document.
-5. Commit the code using `git commit`.
+3. Run tests and ensure they pass.
+4. Run ESLint (`npm run lint`) and fix any issues.
+5. Format code with Prettier (`npm run format`).
+6. Verify manual functionality and ensure no regressions.
+7. Mark the phase as `[x] Complete` in this document.
+8. Commit the code using `git commit`.
 
 ---
 
