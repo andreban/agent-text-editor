@@ -14,12 +14,12 @@ To provide a modern, AI-powered text editing experience where a browser-native A
   - **Read Selection:** Retrieve only the text currently highlighted by the user for focused tasks.
   - **Search:** Find specific words or phrases within the document without reading the whole file.
   - **Get Metadata:** Access document statistics like word count, character count, and current cursor position.
-  - **Edit:** Suggest edits (insertions, removals, or replacements) by providing the original text to be replaced and the new text.
+  - **Edit:** Suggest targeted, surgical edits (insertions, removals, or replacements) by providing a minimal snippet of the original text and the new text. Enforces strict length limits to prevent accidental full-document rewrites.
   - **Write:** Propose replacing the entire document content (e.g., when drafting a new document or completing a full rewrite).
   - **List Documents:** Retrieve a list of available supporting documents in the workspace.
   - **Read Document:** Retrieve the content of a specific supporting document to use as reference.
 - **Supporting Documents:** Users can add multiple markdown documents to their workspace. These documents can hold project metadata, style guides, character bios, or general reference material to assist in the writing process.
-- **Approval Workflow:** By default, all modifications proposed by the agent (via `edit` or `write`) require explicit user approval (accept, decline, or provide feedback) before being applied to the editor. The user can optionally enable an "approve all" mode to automatically accept changes for faster, autonomous editing.
+- **Approval Workflow:** By default, all modifications proposed by the agent (via `edit` or `write`) require explicit user approval. Tool execution pauses asynchronously until the user acts (Accept/Reject), ensuring the agent is notified of the outcome. Edits are displayed inline using a Google Docs-style aesthetic (red strikethrough for original, green monospace for new text) and automatically scroll into view. The user can optionally enable an "approve all" mode to automatically accept changes for faster editing.
 - **Interactive Sidebar:** A chat-based interface for interacting with the AI agent.
 - **Local Settings:** User preferences, credentials (like the Google AI Studio API key), and the selected AI model are securely saved in the browser's local storage to persist across sessions without requiring a backend.
 - **Token Tracking:** The application tracks the number of tokens used (prompt and completion tokens) by the agent and any sub-agents. This provides transparency to the user regarding the cost or quota consumption of their API key. The total usage for the session is visible in the UI.

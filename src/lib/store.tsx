@@ -2,6 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import * as monaco from "monaco-editor";
+
+export interface Suggestion {
+  id: string;
+  originalText: string;
+  replacementText: string;
+  status: "pending" | "accepted" | "rejected";
+  range: monaco.IRange;
+  resolve: (value: string) => void;
+}
 
 interface AppState {
   apiKey: string | null;
@@ -9,7 +19,19 @@ interface AppState {
   modelName: string;
   setModelName: (name: string) => void;
   totalTokens: number;
-  setTotalTokens: (tokens: number) => void;
+  setTotalTokens: (tokens: number | ((prev: number) => number)) => void;
+  editorContent: string;
+  setEditorContent: (content: string) => void;
+  suggestions: Suggestion[];
+  setSuggestions: (
+    suggestions: Suggestion[] | ((prev: Suggestion[]) => Suggestion[]),
+  ) => void;
+  editorInstance: monaco.editor.IStandaloneCodeEditor | null;
+  setEditorInstance: (
+    editor: monaco.editor.IStandaloneCodeEditor | null,
+  ) => void;
+  approveAll: boolean;
+  setApproveAll: (approve: boolean) => void;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -26,6 +48,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     return saved || "gemini-3.1-flash-lite-preview";
   });
   const [totalTokens, setTotalTokens] = useState<number>(0);
+  const [editorContent, setEditorContent] = useState("");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [editorInstance, setEditorInstance] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [approveAll, setApproveAll] = useState(false);
 
   useEffect(() => {
     if (apiKey) {
@@ -48,6 +75,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setModelName,
         totalTokens,
         setTotalTokens,
+        editorContent,
+        setEditorContent,
+        suggestions,
+        setSuggestions,
+        editorInstance,
+        setEditorInstance,
+        approveAll,
+        setApproveAll,
       }}
     >
       {children}

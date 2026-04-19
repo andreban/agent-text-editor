@@ -20,6 +20,9 @@ vi.mock("@google/genai", () => {
   });
 
   return {
+    ThinkingLevel: {
+      HIGH: "HIGH",
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     GoogleGenAI: vi.fn().mockImplementation(function (this: any) {
       this.models = {

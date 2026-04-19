@@ -3,9 +3,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 import { Conversation } from "@mast-ai/core";
 import { MarkdownContent } from "./MarkdownContent";
 import { ChevronDown, ChevronUp, Brain } from "lucide-react";
+import { useApp } from "@/lib/store";
 
 interface ChatSidebarProps {
   conversation: Conversation | null;
@@ -31,6 +34,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
     null,
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { approveAll, setApproveAll } = useApp();
 
   // Initialize history if conversation changes
   if (conversation !== prevConversation) {
@@ -39,7 +43,16 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
       const initialMessages: UIMessage[] = conversation.history.map((m, i) => ({
         id: `hist-${i}`,
         role: m.role,
-        text: m.content.type === "text" ? m.content.text : "[Action]",
+        text:
+          m.content.type === "text"
+            ? m.content.text
+            : m.content.type === "tool_calls"
+              ? m.content.calls
+                  .map((c) => `**Tool Call:** \`${c.name}\``)
+                  .join("\n")
+              : m.content.type === "tool_result"
+                ? `**Result:** ${typeof m.content.result === "string" ? m.content.result : JSON.stringify(m.content.result)}`
+                : "[Action]",
       }));
       setMessages(initialMessages);
     }
@@ -70,11 +83,11 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
 
     const userText = input.trim();
     const userMsgId = Date.now().toString();
-    const assistantMsgId = (Date.now() + 1).toString();
+    let currentAssistantMsgId = (Date.now() + 1).toString();
 
     const userMsg: UIMessage = { id: userMsgId, role: "user", text: userText };
     const assistantMsg: UIMessage = {
-      id: assistantMsgId,
+      id: currentAssistantMsgId,
       role: "assistant",
       text: "",
       thought: "",
@@ -85,7 +98,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput("");
     setIsLoading(true);
-    setExpandedThoughts((prev) => new Set(prev).add(assistantMsgId));
+    setExpandedThoughts((prev) => new Set(prev).add(currentAssistantMsgId));
 
     try {
       const stream = conversation.runStream(userText);
@@ -98,7 +111,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
           accumulatedThought += event.delta;
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === assistantMsgId
+              m.id === currentAssistantMsgId
                 ? { ...m, thought: accumulatedThought }
                 : m,
             ),
@@ -107,28 +120,81 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
           accumulatedText += event.delta;
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === assistantMsgId ? { ...m, text: accumulatedText } : m,
+              m.id === currentAssistantMsgId
+                ? { ...m, text: accumulatedText }
+                : m,
             ),
           );
+        } else if (event.type === "tool_call_started") {
+          const newAssistantId = `assistant-${Date.now()}`;
+          setMessages((prev) => [
+            ...prev.map((m) =>
+              m.id === currentAssistantMsgId ? { ...m, isStreaming: false } : m,
+            ),
+            {
+              id: `tool-${Date.now()}`,
+              role: "assistant",
+              text: `**Tool Call:** \`${event.name}\``,
+            },
+            {
+              id: newAssistantId,
+              role: "assistant",
+              text: "",
+              isStreaming: true,
+            },
+          ]);
+          currentAssistantMsgId = newAssistantId;
+          accumulatedText = "";
+          accumulatedThought = "";
+        } else if (event.type === "tool_call_completed") {
+          const resultText =
+            typeof event.result === "string"
+              ? event.result
+              : JSON.stringify(event.result);
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `res-${Date.now()}`,
+              role: "user",
+              text: `**Result:** ${resultText}`,
+            },
+          ]);
+
+          const finalAssistantId = `assistant-final-${Date.now()}`;
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: finalAssistantId,
+              role: "assistant",
+              text: "",
+              isStreaming: true,
+            },
+          ]);
+          currentAssistantMsgId = finalAssistantId;
+          accumulatedText = "";
+          accumulatedThought = "";
         }
       }
 
       // Mark as finished streaming
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantMsgId ? { ...m, isStreaming: false } : m,
-        ),
+        prev
+          .map((m) =>
+            m.id === currentAssistantMsgId ? { ...m, isStreaming: false } : m,
+          )
+          .filter((m) => m.text || m.thought || m.isStreaming),
       );
 
       // Auto-collapse when done
       setExpandedThoughts((prev) => {
         const next = new Set(prev);
-        next.delete(assistantMsgId);
+        next.delete(currentAssistantMsgId);
         return next;
       });
     } catch (error) {
       console.error("Chat Error:", error);
-      setMessages((prev) => prev.filter((m) => m.id !== assistantMsgId));
+      setMessages((prev) => prev.filter((m) => m.id !== currentAssistantMsgId));
     } finally {
       setIsLoading(false);
     }
@@ -136,11 +202,21 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
 
   return (
     <div className="flex flex-col h-full bg-muted/20 border-l">
-      <div className="p-4 border-b flex justify-between items-center">
-        <span className="font-medium">AI Assistant</span>
-        <span className="text-xs text-muted-foreground">
-          Tokens: {totalTokens}
-        </span>
+      <div className="p-4 border-b flex justify-between items-center gap-4">
+        <span className="font-medium whitespace-nowrap">AI Assistant</span>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground ml-auto">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="approve-all"
+              checked={approveAll}
+              onCheckedChange={setApproveAll}
+            />
+            <Label htmlFor="approve-all" className="text-xs">
+              Approve All
+            </Label>
+          </div>
+          <span className="whitespace-nowrap">Tokens: {totalTokens}</span>
+        </div>
       </div>
 
       <div
@@ -156,6 +232,10 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
         {messages.map((m) => {
           const isAssistant = m.role === "assistant";
           const isExpanded = expandedThoughts.has(m.id);
+
+          if (isAssistant && !m.text && !m.thought && !m.isStreaming) {
+            return null;
+          }
 
           return (
             <div key={m.id} className="flex flex-col gap-2">
@@ -189,33 +269,36 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
               )}
 
               {/* Message Bubble */}
-              <div
-                className={`flex flex-col ${isAssistant ? "items-start" : "items-end"}`}
-              >
+              {(m.text || m.isStreaming || !isAssistant) && (
                 <div
-                  className={`max-w-[90%] p-3 rounded-2xl text-sm shadow-sm ${
-                    isAssistant
-                      ? "bg-secondary text-secondary-foreground rounded-tl-none"
-                      : "bg-primary text-primary-foreground rounded-tr-none"
-                  }`}
+                  className={`flex flex-col ${isAssistant ? "items-start" : "items-end"}`}
                 >
-                  {m.text ? (
-                    isAssistant ? (
-                      <MarkdownContent content={m.text} />
+                  <div
+                    className={`max-w-[90%] p-3 rounded-2xl text-sm shadow-sm ${
+                      isAssistant
+                        ? "bg-secondary text-secondary-foreground rounded-tl-none"
+                        : "bg-primary text-primary-foreground rounded-tr-none"
+                    }`}
+                  >
+                    {m.text ? (
+                      isAssistant ? (
+                        <MarkdownContent content={m.text} />
+                      ) : (
+                        m.text
+                      )
                     ) : (
-                      m.text
-                    )
-                  ) : (
-                    isAssistant && (
-                      <div className="flex gap-1 h-4 items-center">
-                        <span className="animate-bounce">.</span>
-                        <span className="animate-bounce delay-100">.</span>
-                        <span className="animate-bounce delay-200">.</span>
-                      </div>
-                    )
-                  )}
+                      isAssistant &&
+                      m.isStreaming && (
+                        <div className="flex gap-1 h-4 items-center">
+                          <span className="animate-bounce">.</span>
+                          <span className="animate-bounce delay-100">.</span>
+                          <span className="animate-bounce delay-200">.</span>
+                        </div>
+                      )
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}

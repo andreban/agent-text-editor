@@ -1,7 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { GoogleGenAI, GenerateContentRequest } from "@google/genai";
+import {
+  GoogleGenAI,
+  Content,
+  FunctionDeclaration,
+  ThinkingLevel,
+} from "@google/genai";
 import {
   LlmAdapter,
   AdapterRequest,
@@ -10,13 +15,6 @@ import {
   Message,
   ToolDefinition,
 } from "@mast-ai/core";
-
-type Content = NonNullable<GenerateContentRequest["contents"]>[number];
-type FunctionDeclaration = NonNullable<
-  NonNullable<
-    NonNullable<GenerateContentRequest["config"]>["tools"]
-  >[number]["functionDeclarations"]
->[number];
 
 export interface UsageMetadata {
   promptTokenCount?: number;
@@ -69,7 +67,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         stopSequences: request.config?.stopSequences,
         thinkingConfig: {
           includeThoughts: true,
-          thinkingLevel: "HIGH",
+          thinkingLevel: ThinkingLevel.HIGH,
         },
       },
     });
@@ -107,6 +105,8 @@ export class GoogleGenAIAdapter implements LlmAdapter {
           id: fc.id || Math.random().toString(36).substring(7),
           name: fc.name,
           args: fc.args,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          thoughtSignature: (p as any).thoughtSignature,
         };
       }),
     };
@@ -145,7 +145,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         stopSequences: request.config?.stopSequences,
         thinkingConfig: {
           includeThoughts: true,
-          thinkingLevel: "HIGH",
+          thinkingLevel: ThinkingLevel.HIGH,
         },
       },
     });
@@ -179,7 +179,9 @@ export class GoogleGenAIAdapter implements LlmAdapter {
                 Math.random().toString(36).substring(7),
               name: part.functionCall.name!,
               args: part.functionCall.args,
-            },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              thoughtSignature: (part as any).thoughtSignature,
+            } as any,
           };
         }
       }
@@ -196,12 +198,16 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         parts.push({ text: m.content.text });
       } else if (m.content.type === "tool_calls") {
         m.content.calls.forEach((call) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const thoughtSignature = (call as any).thoughtSignature;
+
           parts.push({
             functionCall: {
               id: call.id,
               name: call.name,
               args: call.args as Record<string, unknown>,
             },
+            ...(thoughtSignature ? { thoughtSignature } : {}),
           });
         });
       } else if (m.content.type === "tool_result") {

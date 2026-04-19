@@ -2,35 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { EditorPanel } from "./EditorPanel";
-
-// Mock Monaco Editor
-vi.mock("@monaco-editor/react", () => ({
-  Editor: ({
-    value,
-    onChange,
-  }: {
-    value: string;
-    onChange: (val: string) => void;
-  }) => (
-    <textarea
-      data-testid="mock-monaco-editor"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  ),
-}));
+import { AppProvider } from "@/lib/store";
 
 describe("EditorPanel", () => {
   it("renders editor tab by default", () => {
-    render(<EditorPanel />);
+    render(
+      <AppProvider>
+        <EditorPanel />
+      </AppProvider>,
+    );
     expect(screen.getByTestId("mock-monaco-editor")).toBeInTheDocument();
   });
 
   it("can switch to the preview tab and render markdown", async () => {
     const user = userEvent.setup();
-    render(<EditorPanel />);
+    render(
+      <AppProvider>
+        <EditorPanel />
+      </AppProvider>,
+    );
 
     // Switch to preview tab
     const previewTab = screen.getByRole("tab", { name: "Preview" });
@@ -46,7 +38,11 @@ describe("EditorPanel", () => {
 
   it("updates preview when editor content changes", async () => {
     const user = userEvent.setup();
-    render(<EditorPanel />);
+    render(
+      <AppProvider>
+        <EditorPanel />
+      </AppProvider>,
+    );
 
     const editor = screen.getByTestId("mock-monaco-editor");
     fireEvent.change(editor, { target: { value: "# New Markdown Heading" } });

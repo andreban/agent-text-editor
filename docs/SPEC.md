@@ -93,8 +93,8 @@ Registers tools with `ToolRegistry`:
 - `read_selection()`: `() => string`. Returns text currently selected.
 - `search(query: string)`: `({ query: string }) => { results: { line: number, text: string }[] }`.
 - `get_metadata()`: `() => { wordCount: number, lineCount: number, cursor: { line: number, column: number } }`.
-- `edit(originalText: string, replacementText: string)`: `({ originalText: string, replacementText: string }) => string`. Proposes a change. The app locates `originalText` in the editor, applies a red/squiggly decoration, displays `replacementText` via a View Zone, and attaches a Content Widget with approval controls.
-- `write(content: string)`: `({ content: string }) => string`. Proposes full replacement.
+- `edit(originalText: string, replacementText: string)`: `({ originalText: string, replacementText: string }) => Promise<string>`. Proposes a targeted change. Contains hard size constraints (e.g., max 3000 chars) to enforce surgical edits; returns an instructional error if the agent attempts to rewrite too much. Uses a Promise to pause agent execution until the user resolves the change. The app applies a red strikethrough decoration to `originalText` and injects `replacementText` inline (green) via `after.content`.
+- `write(content: string)`: `({ content: string }) => Promise<string>`. Proposes full replacement, pausing execution until user approval.
 - `list_supporting_docs()`: `() => string[]`. Returns a list of names for available supporting markdown documents.
 - `read_supporting_doc(name: string)`: `({ name: string }) => string`. Returns the complete content of the requested supporting document.
 - `delegate_to_skill(skillName: string, task: string)`: `({ skillName: string, task: string }) => string`. Invokes sub-agent.
@@ -107,7 +107,8 @@ Example:
 > You are a senior editorial assistant. You help the user refine their text.
 >
 > - Always use `read()` or `read_selection()` before suggesting changes.
-> - All edits MUST be proposed via `edit()` or `write()`.
+> - CRITICAL: Prefer small, surgical edits using `edit()`. Do not rewrite the entire document unless explicitly asked to.
+> - All edits MUST be proposed via `edit()` or `write()`. When called, execution will PAUSE until user approval. Do not assume the change was applied until you get a success confirmation.
 > - Do not assume you can change text without a tool call.
 > - You have access to specialized sub-agents. Use them for focused tasks like proofreading.
 
@@ -121,8 +122,8 @@ Provides the chat interface, message history, and token usage display.
 
 ### `SuggestionWidget.tsx`
 
-- Uses Monaco's `addContentWidget` and `changeViewZones` APIs to render inline.
-- **Visuals:** Original text is highlighted light red with a squiggly line using `deltaDecorations`. Proposed text is rendered in green. Provides inline buttons for "Accept", "Reject", and a text input for "Feedback".
+- Uses Monaco's `addContentWidget` API to render a compact, hovering popup near the suggestion.
+- **Visuals:** Relies purely on Monaco `deltaDecorations` (no ViewZones) for a true inline Google Docs-style experience. Original text receives a red strikethrough. Proposed text is injected into the same line via the `after.content` property, styled in green monospace. Provides compact buttons for "Accept" and "Reject".
 
 ### `SkillsManager.tsx`
 

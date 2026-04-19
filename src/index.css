@@ -61,3 +61,20 @@ SPDX-License-Identifier: Apache-2.0
     @apply bg-background text-foreground;
   }
 }
+
+.suggestion-original {
+  color: #ef4444 !important;
+  text-decoration: line-through !important;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.suggestion-new {
+  color: #10b981 !important;
+  background-color: rgba(16, 185, 129, 0.15);
+  font-weight: 500;
+  border-radius: 2px;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace !important;
+  white-space: pre !important;
+}
