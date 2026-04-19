@@ -14,8 +14,9 @@ This file contains foundational mandates for the AI Agent Text Editor project. T
 ## Implementation Workflow
 
 - Follow the phased approach in `docs/IMPLEMENTATION_PLAN.md`.
-- Run tests (`npm run test`), lint (`npm run lint`), and format (`npm run format`) before committing.
-- Each phase must be marked as complete in the plan and committed to git before moving to the next.
+- Run tests (`npm run test`), lint (`npm run lint`), and format (`npm run format`).
+- **CRITICAL:** NEVER commit code without explicit user approval. You must pause, ask the user to manually test the implementation, and wait for their confirmation before running `git commit`.
+- Each phase must be marked as complete in the plan and committed to git (post-approval) before moving to the next.
 - Maintain a working application state at the end of every phase.
 
 ## Tech Stack Reminders

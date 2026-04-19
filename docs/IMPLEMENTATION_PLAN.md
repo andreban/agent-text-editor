@@ -8,9 +8,10 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 3. Run tests and ensure they pass.
 4. Run ESLint (`npm run lint`) and fix any issues.
 5. Format code with Prettier (`npm run format`).
-6. Verify manual functionality and ensure no regressions.
-7. Mark the phase as `[x] Complete` in this document.
-8. Commit the code using `git commit`.
+6. Verify manual functionality and ensure no regressions (Agent self-check).
+7. **Pause and ask the user to manually test the application.** Wait for their explicit approval.
+8. Mark the phase as `[x] Complete` in this document.
+9. Commit the code using `git commit` **only after user approval**.
 
 ---
 
