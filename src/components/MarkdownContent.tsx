@@ -1,8 +1,85 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import ReactMarkdown from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [
+    ...(defaultSchema.tagNames ?? []),
+    "svg",
+    "path",
+    "rect",
+    "circle",
+    "ellipse",
+    "line",
+    "polyline",
+    "polygon",
+    "text",
+    "g",
+    "defs",
+    "marker",
+    "filter",
+    "feDropShadow",
+  ],
+  attributes: {
+    ...defaultSchema.attributes,
+    svg: [
+      "xmlns",
+      "viewBox",
+      "width",
+      "height",
+      "fill",
+      "stroke",
+      "strokeWidth",
+      "class",
+      "style",
+    ],
+    path: [
+      "d",
+      "fill",
+      "stroke",
+      "strokeWidth",
+      "strokeLinecap",
+      "strokeLinejoin",
+      "opacity",
+    ],
+    rect: [
+      "x",
+      "y",
+      "width",
+      "height",
+      "rx",
+      "ry",
+      "fill",
+      "stroke",
+      "strokeWidth",
+      "opacity",
+    ],
+    circle: ["cx", "cy", "r", "fill", "stroke", "strokeWidth", "opacity"],
+    ellipse: [
+      "cx",
+      "cy",
+      "rx",
+      "ry",
+      "fill",
+      "stroke",
+      "strokeWidth",
+      "opacity",
+    ],
+    line: ["x1", "y1", "x2", "y2", "stroke", "strokeWidth", "opacity"],
+    polyline: ["points", "fill", "stroke", "strokeWidth", "opacity"],
+    polygon: ["points", "fill", "stroke", "strokeWidth", "opacity"],
+    text: ["x", "y", "fill", "fontSize", "fontFamily", "textAnchor", "opacity"],
+    g: ["fill", "stroke", "strokeWidth", "opacity", "transform"],
+    defs: [],
+    marker: ["id", "markerWidth", "markerHeight", "refX", "refY", "orient"],
+    filter: ["id"],
+    feDropShadow: ["dx", "dy", "stdDeviation", "floodColor", "floodOpacity"],
+  },
+};
 
 interface MarkdownContentProps {
   content: string;
@@ -14,7 +91,7 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
     <div className={className}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSanitize]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
         components={{
           h1: ({ ...props }) => (
             <h1
