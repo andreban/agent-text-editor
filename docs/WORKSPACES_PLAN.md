@@ -107,7 +107,7 @@ If `workspaces_index` already exists, skip migration entirely.
 
 ## Subphases
 
-### Phase 11a: Data model & context
+### ✅ Phase 11a: Data model & context
 
 **Goal:** Establish the multi-workspace data model. The app continues to work as before (single implicit workspace), but data is now persisted correctly.
 
@@ -137,7 +137,7 @@ If `workspaces_index` already exists, skip migration entirely.
 
 ---
 
-### Phase 11b: Workspace picker
+### ✅ Phase 11b: Workspace picker
 
 **Goal:** The user can create, open, and delete workspaces via a dedicated UI.
 

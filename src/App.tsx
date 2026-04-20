@@ -4,14 +4,17 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { EditorPanel } from "@/components/EditorPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { ReferenceTab } from "@/components/ReferenceTab";
+import { WorkspacePicker } from "@/components/WorkspacePicker";
 import {
   MessageCircle,
   ChevronDown,
   BookOpen,
   PanelLeftClose,
   PanelLeftOpen,
+  LayoutGrid,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useWorkspaces } from "@/lib/WorkspacesContext";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +56,8 @@ interface LayoutProps {
 
 function DesktopLayout({ conversation }: LayoutProps) {
   const [refOpen, setRefOpen] = useState(false);
+  const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
+  const activeMeta = index.find((w) => w.id === activeWorkspaceId);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
@@ -89,8 +94,25 @@ function DesktopLayout({ conversation }: LayoutProps) {
         )}
       </aside>
 
-      <main className="flex-1 min-w-0">
-        <EditorPanel />
+      <main className="flex-1 min-w-0 flex flex-col">
+        {activeMeta && (
+          <div className="flex items-center gap-2 px-3 h-10 border-b border-border shrink-0">
+            <span className="text-xs font-medium text-muted-foreground truncate flex-1">
+              {activeMeta.name}
+            </span>
+            <button
+              onClick={closeWorkspace}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/60 shrink-0"
+              aria-label="Switch workspace"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              Switch
+            </button>
+          </div>
+        )}
+        <div className="flex-1 min-h-0">
+          <EditorPanel />
+        </div>
       </main>
       <aside className="w-[400px] shrink-0 border-l border-border">
         <ChatSidebar conversation={conversation} />
@@ -102,6 +124,8 @@ function DesktopLayout({ conversation }: LayoutProps) {
 function MobileLayout({ conversation }: LayoutProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"chat" | "reference">("chat");
+  const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
+  const activeMeta = index.find((w) => w.id === activeWorkspaceId);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -124,8 +148,25 @@ function MobileLayout({ conversation }: LayoutProps) {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
       {/* Editor always mounted, full screen */}
-      <div className="h-full w-full">
-        <EditorPanel />
+      <div className="h-full w-full flex flex-col">
+        {activeMeta && (
+          <div className="flex items-center gap-2 px-3 h-10 border-b border-border shrink-0">
+            <span className="text-xs font-medium text-muted-foreground truncate flex-1">
+              {activeMeta.name}
+            </span>
+            <button
+              onClick={closeWorkspace}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/60 shrink-0"
+              aria-label="Switch workspace"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              Switch
+            </button>
+          </div>
+        )}
+        <div className="flex-1 min-h-0">
+          <EditorPanel />
+        </div>
       </div>
 
       {/* FABs */}
@@ -195,6 +236,7 @@ const BASE_INSTRUCTIONS =
   "You will then receive the user's decision (and feedback if any) as the tool result.";
 
 function App() {
+  const { activeWorkspaceId } = useWorkspaces();
   const {
     apiKey,
     setApiKey,
@@ -288,6 +330,10 @@ function App() {
       setShowKeyDialog(false);
     }
   };
+
+  if (!activeWorkspaceId) {
+    return <WorkspacePicker />;
+  }
 
   return (
     <>

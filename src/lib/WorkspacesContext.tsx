@@ -127,6 +127,8 @@ interface WorkspacesContextValue {
   createWorkspace: (name: string) => WorkspaceMeta;
   openWorkspace: (id: string) => void;
   deleteWorkspace: (id: string) => void;
+  renameWorkspace: (id: string, newName: string) => void;
+  closeWorkspace: () => void;
 
   addDocument: () => void;
   updateDocument: (
@@ -194,6 +196,20 @@ export function WorkspacesProvider({
     setActiveWorkspaceId(id);
     setActiveWorkspace(data);
     localStorage.setItem(ACTIVE_WORKSPACE_KEY, id);
+  };
+
+  const closeWorkspace = () => {
+    setActiveWorkspaceId(null);
+    setActiveWorkspace(null);
+    localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+  };
+
+  const renameWorkspace = (id: string, newName: string) => {
+    const newIndex = index.map((m) =>
+      m.id === id ? { ...m, name: newName, updatedAt: Date.now() } : m,
+    );
+    setIndex(newIndex);
+    saveIndex(newIndex);
   };
 
   const deleteWorkspace = (id: string) => {
@@ -279,6 +295,8 @@ export function WorkspacesProvider({
         createWorkspace,
         openWorkspace,
         deleteWorkspace,
+        renameWorkspace,
+        closeWorkspace,
         addDocument,
         updateDocument,
         deleteDocument,

@@ -318,6 +318,44 @@ describe("WorkspacesContext — localStorage persistence", () => {
   });
 });
 
+describe("WorkspacesContext — renameWorkspace / closeWorkspace", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("renameWorkspace updates name in index", () => {
+    const getCtx = renderWithProvider();
+    const id = getCtx().activeWorkspaceId!;
+    act(() => {
+      getCtx().renameWorkspace(id, "Renamed");
+    });
+    expect(getCtx().index.find((m) => m.id === id)?.name).toBe("Renamed");
+    expect(getIndex().find((m) => m.id === id)?.name).toBe("Renamed");
+  });
+
+  it("renameWorkspace bumps updatedAt", () => {
+    const getCtx = renderWithProvider();
+    const id = getCtx().activeWorkspaceId!;
+    const before = getCtx().index.find((m) => m.id === id)!.updatedAt;
+    act(() => {
+      getCtx().renameWorkspace(id, "New Name");
+    });
+    expect(
+      getCtx().index.find((m) => m.id === id)!.updatedAt,
+    ).toBeGreaterThanOrEqual(before);
+  });
+
+  it("closeWorkspace sets activeWorkspaceId to null", () => {
+    const getCtx = renderWithProvider();
+    expect(getCtx().activeWorkspaceId).not.toBeNull();
+    act(() => {
+      getCtx().closeWorkspace();
+    });
+    expect(getCtx().activeWorkspaceId).toBeNull();
+    expect(getCtx().activeWorkspace).toBeNull();
+    expect(localStorage.getItem("active_workspace_id")).toBeNull();
+  });
+});
+
 describe("WorkspacesContext — error guard", () => {
   it("useWorkspaces throws when used outside provider", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
