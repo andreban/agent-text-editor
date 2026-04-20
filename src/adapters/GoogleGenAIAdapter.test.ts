@@ -96,4 +96,27 @@ describe("GoogleGenAIAdapter", () => {
     expect(response.toolCalls[0].name).toBe("testTool");
     expect(response.toolCalls[0].args).toEqual({ arg1: "val1" });
   });
+
+  it("should not drop text when a part has both thought and text set", async () => {
+    const { GoogleGenAI } = await import("@google/genai");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockClient = new (GoogleGenAI as any)();
+    mockClient.models.generateContent.mockResolvedValueOnce({
+      candidates: [
+        {
+          content: {
+            parts: [{ thought: true, text: "Thinking... and also responding" }],
+          },
+        },
+      ],
+      usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 5 },
+    });
+
+    const response = await adapter.generate({
+      messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+      tools: [],
+    });
+
+    expect(response.text).toBe("Thinking... and also responding");
+  });
 });

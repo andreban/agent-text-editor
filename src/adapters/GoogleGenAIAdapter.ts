@@ -88,7 +88,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
     }
 
     const textPart = candidate.content?.parts?.find(
-      (p) => "text" in p && typeof p.text === "string" && !p.thought,
+      (p) => "text" in p && typeof p.text === "string",
     );
     const toolCallParts =
       candidate.content?.parts?.filter(
