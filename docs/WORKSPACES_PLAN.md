@@ -189,7 +189,7 @@ If `workspaces_index` already exists, skip migration entirely.
 
 ---
 
-### Phase 11d: Agent workspace tools
+### ✅ Phase 11d: Agent workspace tools
 
 **Goal:** The agent can list, read, and query any document in the active workspace.
 

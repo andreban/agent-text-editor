@@ -44,7 +44,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.read()).toBe("Initial content");
     });
@@ -54,7 +53,6 @@ describe("EditorTools", () => {
         null,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.read()).toBe("");
     });
@@ -66,7 +64,6 @@ describe("EditorTools", () => {
         null,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.search({ query: "hello" })).toBe(
         "Error: Editor not initialized.",
@@ -78,7 +75,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.search({ query: "" })).toBe(
         "Error: query parameter is required.",
@@ -91,7 +87,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.search({ query: "xyz" })).toBe(
         'No occurrences of "xyz" found.',
@@ -113,7 +108,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.search({ query: "foo" })).toBe(
         'Found 1 occurrence(s) of "foo": line 3, col 5.',
@@ -143,7 +137,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.search({ query: "foo" })).toBe(
         'Found 2 occurrence(s) of "foo": line 1, col 1; line 5, col 10.',
@@ -157,7 +150,6 @@ describe("EditorTools", () => {
         null,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.get_metadata()).toBe("Error: Editor not initialized.");
     });
@@ -168,7 +160,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.get_metadata()).toBe("Characters: 0, Words: 0, Lines: 0.");
     });
@@ -179,7 +170,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.get_metadata()).toBe("Characters: 11, Words: 2, Lines: 1.");
     });
@@ -190,7 +180,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.get_metadata()).toBe("Characters: 28, Words: 6, Lines: 3.");
     });
@@ -201,7 +190,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       expect(tools.get_metadata()).toBe("Characters: 15, Words: 2, Lines: 1.");
     });
@@ -214,7 +202,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
 
       const result = await tools.edit({
@@ -241,7 +228,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
 
       const promise = tools.edit({
@@ -282,7 +268,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         true,
-        setEditorContent,
       );
 
       const result = await tools.edit({
@@ -312,7 +297,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
       mockRun = vi.fn().mockResolvedValue({ output: "done" });
     });
@@ -419,7 +403,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         false,
-        setEditorContent,
       );
 
       const promise = tools.write({ content: "New document content" });
@@ -444,7 +427,6 @@ describe("EditorTools", () => {
         mockEditor,
         setSuggestions,
         true,
-        setEditorContent,
       );
 
       const result = await tools.write({ content: "New document content" });

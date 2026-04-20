@@ -36,6 +36,7 @@ import {
   registerEditorTools,
   createDelegateToSkillHandler,
 } from "@/lib/EditorTools";
+import { WorkspaceTools, registerWorkspaceTools } from "@/lib/WorkspaceTools";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -233,10 +234,14 @@ const BASE_INSTRUCTIONS =
   "CRITICAL: Prefer small, surgical edits using `edit()`. Do not rewrite the entire document unless explicitly asked to. " +
   "When using `edit()`, the `originalText` should be as short as possible (just the sentence or words changing), not the whole file. " +
   "When you call `edit()` or `write()`, the execution will PAUSE until the user manually Accepts or Rejects the change. " +
-  "You will then receive the user's decision (and feedback if any) as the tool result.";
+  "You will then receive the user's decision (and feedback if any) as the tool result. " +
+  "The workspace may contain multiple documents. Use `get_active_doc_info()` to get the id and title of the currently open document. " +
+  "Use `list_workspace_docs()` to discover all documents. " +
+  "Use `read_workspace_doc(id)` to read another document in full, or `query_workspace_doc(id, query)` for a targeted question. " +
+  "Use `query_workspace(query)` to synthesize an answer that draws from all workspace documents.";
 
 function App() {
-  const { activeWorkspaceId } = useWorkspaces();
+  const { activeWorkspaceId, activeWorkspace, activeDocument } = useWorkspaces();
   const {
     apiKey,
     setApiKey,
@@ -249,6 +254,20 @@ function App() {
   } = useApp();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
+
+  const docsRef = useRef(activeWorkspace?.documents ?? []);
+  useEffect(() => {
+    docsRef.current = activeWorkspace?.documents ?? [];
+  }, [activeWorkspace]);
+
+  const activeDocRef = useRef(
+    activeDocument ? { id: activeDocument.id, title: activeDocument.title } : null,
+  );
+  useEffect(() => {
+    activeDocRef.current = activeDocument
+      ? { id: activeDocument.id, title: activeDocument.title }
+      : null;
+  }, [activeDocument]);
 
   const runner = useMemo(() => {
     if (!apiKey) return null;
@@ -264,6 +283,13 @@ function App() {
     );
 
     registerEditorTools(registry, editorTools);
+
+    const workspaceTools = new WorkspaceTools(
+      docsRef,
+      activeDocRef,
+      () => new GoogleGenAIAdapter(apiKey, "gemini-2.5-flash"),
+    );
+    registerWorkspaceTools(registry, workspaceTools);
 
     registry.register({
       definition: () => ({
@@ -297,6 +323,8 @@ function App() {
     editorInstance,
     setSuggestions,
     approveAll,
+    docsRef,
+    activeDocRef,
   ]);
 
   const conversation = useMemo(() => {
@@ -317,6 +345,11 @@ function App() {
         "edit",
         "write",
         "delegate_to_skill",
+        "get_active_doc_info",
+        "list_workspace_docs",
+        "read_workspace_doc",
+        "query_workspace_doc",
+        "query_workspace",
       ],
     };
     return runner.conversation(agent);

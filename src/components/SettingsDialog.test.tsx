@@ -20,8 +20,6 @@ function mockStore(apiKey: string | null, modelName: string) {
     setModelName: mockSetModelName,
     totalTokens: 0,
     setTotalTokens: vi.fn(),
-    editorContent: "",
-    setEditorContent: vi.fn(),
     suggestions: [],
     setSuggestions: vi.fn(),
     editorInstance: null,
