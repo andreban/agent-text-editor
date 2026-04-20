@@ -30,6 +30,7 @@ Enable the main agent to delegate tasks to specialized sub-agents called **Skill
 ```
 
 Key decisions:
+
 - **Per-skill model** — a `Skill` may specify an optional `model` field. When set, `delegate_to_skill` creates a new `GoogleGenAIAdapter` for that model. When unset, the parent adapter is reused directly.
 - **Fresh registry** — each child gets its own `ToolRegistry` with the editor tools registered. `delegate_to_skill` is intentionally excluded to prevent recursion.
 - **`run()` not `runStream()`** — the child agent runs synchronously (from the parent's perspective). Edits proposed by the child still flow through the suggestion approval UI as normal.
@@ -41,11 +42,11 @@ Key decisions:
 
 ```typescript
 interface Skill {
-  id: string;            // uuid, stable across renames
-  name: string;          // displayed to user and injected into main agent prompt
-  description: string;   // one-line, injected into main agent prompt
-  instructions: string;  // full system prompt for the sub-agent
-  model?: string;        // optional override; falls back to the session model when absent
+  id: string; // uuid, stable across renames
+  name: string; // displayed to user and injected into main agent prompt
+  description: string; // one-line, injected into main agent prompt
+  instructions: string; // full system prompt for the sub-agent
+  model?: string; // optional override; falls back to the session model when absent
 }
 ```
 
@@ -57,11 +58,11 @@ Stored as `localStorage.setItem("skills", JSON.stringify(Skill[]))`.
 
 Seeded on first load (when the `"skills"` key is absent):
 
-| Name | Description | Instructions (abbreviated) |
-|------|-------------|---------------------------|
-| **Proofreader** | Fix grammar, spelling, and punctuation while preserving the author's voice | "You are a meticulous proofreader. Use the `read` tool to read the document, then use `edit` to fix spelling, grammar, and punctuation errors…" |
-| **Summarizer** | Produce a concise summary of the document | "You are a summarizer. Use `read` to read the document and return a concise summary. Do not edit the document." |
-| **Markdown Formatter** | Clean up and enforce consistent Markdown formatting | "You are a Markdown formatter. Use `read` to read the document, then use `edit` or `write` to apply consistent heading levels, list style, and code-fence languages…" |
+| Name                   | Description                                                                | Instructions (abbreviated)                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Proofreader**        | Fix grammar, spelling, and punctuation while preserving the author's voice | "You are a meticulous proofreader. Use the `read` tool to read the document, then use `edit` to fix spelling, grammar, and punctuation errors…"                       |
+| **Summarizer**         | Produce a concise summary of the document                                  | "You are a summarizer. Use `read` to read the document and return a concise summary. Do not edit the document."                                                       |
+| **Markdown Formatter** | Clean up and enforce consistent Markdown formatting                        | "You are a Markdown formatter. Use `read` to read the document, then use `edit` or `write` to apply consistent heading levels, list style, and code-fence languages…" |
 
 ---
 
@@ -72,14 +73,25 @@ Seeded on first load (when the `"skills"` key is absent):
 Exports:
 
 ```typescript
-export interface Skill { id: string; name: string; description: string; instructions: string; }
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+}
 
-export const DEFAULT_SKILLS: Skill[] = [ /* Proofreader, Summarizer, Markdown Formatter */ ];
+export const DEFAULT_SKILLS: Skill[] = [
+  /* Proofreader, Summarizer, Markdown Formatter */
+];
 
 const STORAGE_KEY = "skills";
 
-export function loadSkills(): Skill[] { /* read + JSON.parse from localStorage */ }
-export function saveSkills(skills: Skill[]): void { /* JSON.stringify + setItem */ }
+export function loadSkills(): Skill[] {
+  /* read + JSON.parse from localStorage */
+}
+export function saveSkills(skills: Skill[]): void {
+  /* JSON.stringify + setItem */
+}
 
 /** Seeds defaults if the storage key is absent. Returns the loaded skills. */
 export function initializeSkills(): Skill[] {
@@ -106,6 +118,7 @@ setSkills: (skills: Skill[]) => void;
 ```
 
 In the provider:
+
 1. Call `initializeSkills()` for the initial value (replaces a bare `loadSkills()` call).
 2. `setSkills` updates local state and calls `saveSkills(skills)`.
 
@@ -120,24 +133,29 @@ No changes to existing fields.
 A modal dialog (built on the existing shadcn `Dialog`) with three sub-views:
 
 ### List view (default)
+
 - Renders each skill as a card: bold name, description, Edit and Delete buttons.
 - "Add Skill" button in the dialog footer opens the Edit view with empty fields.
 - Default skills can be edited or deleted like any other.
 
 ### Edit / Create view
+
 Fields:
+
 - **Name** — text input, required.
 - **Description** — text input, required, one-line.
 - **Model** — text input, optional. Placeholder shows the current session model as the default. Leave blank to inherit the session model.
 - **Instructions** — `<textarea>` (or shadcn `Textarea`), required, multiline.
 
 Validation:
+
 - Name must be non-empty.
 - Name must be unique among existing skills (excluding the skill being edited).
 
 On save: call `setSkills(updatedList)` and return to list view.
 
 ### Delete confirmation
+
 Inline confirmation within the card row ("Are you sure? Delete / Cancel") to prevent accidental deletions.
 
 The dialog is controlled (`open` / `onOpenChange`) and receives no props beyond what it reads from context.
@@ -182,6 +200,7 @@ const agent: AgentConfig = {
 **File:** `src/lib/EditorTools.ts`
 
 Register alongside the existing tools. The tool needs access to:
+
 - The parent `GoogleGenAIAdapter` instance (passed as a closure parameter like the existing tools).
 - `apiKey` — to construct a new adapter when the skill specifies a different model.
 - `EditorTools` instance (for child registry).
@@ -202,7 +221,8 @@ registry.register({
         },
         task: {
           type: "string",
-          description: "The specific task or instructions to pass to the skill.",
+          description:
+            "The specific task or instructions to pass to the skill.",
         },
       },
       required: ["skillName", "task"],
@@ -228,7 +248,14 @@ registry.register({
       {
         name: skill.name,
         instructions: skill.instructions,
-        tools: ["read", "read_selection", "search", "get_metadata", "edit", "write"],
+        tools: [
+          "read",
+          "read_selection",
+          "search",
+          "get_metadata",
+          "edit",
+          "write",
+        ],
       },
       task,
     );
@@ -245,12 +272,14 @@ registry.register({
 ## Task 7 — Tests
 
 **`src/lib/skills.test.ts`** (new file):
+
 1. `initializeSkills` seeds defaults when localStorage is empty.
 2. `initializeSkills` does not overwrite existing skills.
 3. `loadSkills` returns what `saveSkills` stored.
 4. `saveSkills` / `loadSkills` round-trip preserves all fields.
 
 **`src/components/SkillsDialog.test.tsx`** (new file):
+
 1. Renders skill list from context.
 2. Clicking "Add Skill" shows empty form.
 3. Submitting a valid new skill calls `setSkills` with the new entry appended.
@@ -259,6 +288,7 @@ registry.register({
 6. Duplicate name shows a validation error.
 
 **`src/lib/EditorTools.test.ts`** (extend existing):
+
 1. `delegate_to_skill` returns error string when skill name is not found.
 2. `delegate_to_skill` creates a child `AgentRunner`, calls `run`, and returns `result.output`.
 3. `delegate_to_skill` does not register itself on the child registry (no recursion).

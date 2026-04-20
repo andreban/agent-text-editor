@@ -26,6 +26,8 @@ function mockStore(apiKey: string | null, modelName: string) {
     setEditorInstance: vi.fn(),
     approveAll: false,
     setApproveAll: vi.fn(),
+    skills: [],
+    setSkills: vi.fn(),
   });
 }
 

@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import * as monaco from "monaco-editor";
+import { Skill, initializeSkills, saveSkills } from "./skills";
 
 export interface Suggestion {
   id: string;
@@ -32,6 +33,8 @@ interface AppState {
   ) => void;
   approveAll: boolean;
   setApproveAll: (approve: boolean) => void;
+  skills: Skill[];
+  setSkills: (skills: Skill[]) => void;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -53,6 +56,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [editorInstance, setEditorInstance] =
     useState<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [approveAll, setApproveAll] = useState(false);
+  const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());
+
+  const setSkills = (updated: Skill[]) => {
+    saveSkills(updated);
+    setSkillsState(updated);
+  };
 
   useEffect(() => {
     if (apiKey) {
@@ -83,6 +92,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setEditorInstance,
         approveAll,
         setApproveAll,
+        skills,
+        setSkills,
       }}
     >
       {children}

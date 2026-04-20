@@ -14,9 +14,11 @@ import {
   Wrench,
   Check,
   Settings,
+  Wand2,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { SettingsDialog } from "./SettingsDialog";
+import { SkillsDialog } from "./SkillsDialog";
 
 interface ChatSidebarProps {
   conversation: Conversation | null;
@@ -46,6 +48,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const { approveAll, setApproveAll } = useApp();
 
   // Rebuild display items when the conversation instance changes (e.g. new session)
@@ -220,6 +223,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
   return (
     <div className="flex flex-col h-full bg-muted/20 border-l">
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SkillsDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
       <div className="p-4 border-b flex justify-between items-center gap-4">
         <span className="font-medium whitespace-nowrap">AI Assistant</span>
         <div className="flex items-center gap-4 text-xs text-muted-foreground ml-auto">
@@ -234,6 +238,15 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
             </Label>
           </div>
           <span className="whitespace-nowrap">Tokens: {totalTokens}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-11 w-11"
+            onClick={() => setSkillsOpen(true)}
+            aria-label="Open skills"
+          >
+            <Wand2 className="w-4 h-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

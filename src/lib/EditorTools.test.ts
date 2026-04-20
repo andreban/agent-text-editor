@@ -1,7 +1,9 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EditorTools } from "./EditorTools";
+import { EditorTools, createDelegateToSkillHandler } from "./EditorTools";
+import { saveSkills } from "./skills";
+import type { LlmAdapter } from "@mast-ai/core";
 
 describe("EditorTools", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -291,6 +293,118 @@ describe("EditorTools", () => {
       expect(result).toBe("Change applied automatically (Approve All is ON).");
       expect(mockModel.pushEditOperations).toHaveBeenCalled();
       expect(setSuggestions).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("delegate_to_skill", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parentAdapter: any;
+    let editorToolsInstance: EditorTools;
+    let mockRun: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      localStorage.clear();
+      parentAdapter = {
+        generate: vi.fn(),
+        generateStream: vi.fn(),
+      } as unknown as LlmAdapter;
+      editorToolsInstance = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        setEditorContent,
+      );
+      mockRun = vi.fn().mockResolvedValue({ output: "done" });
+    });
+
+    function makeHandler(adapterFactory = vi.fn()) {
+      return createDelegateToSkillHandler(
+        "test-api-key",
+        parentAdapter,
+        editorToolsInstance,
+        adapterFactory,
+        () => ({ run: mockRun }),
+      );
+    }
+
+    it("returns error string when skill name is not found", async () => {
+      saveSkills([
+        { id: "1", name: "Other", description: "d", instructions: "i" },
+      ]);
+      const result = await makeHandler()({
+        skillName: "Missing",
+        task: "do it",
+      });
+      expect(result).toContain('skill "Missing" not found');
+      expect(result).toContain("Other");
+    });
+
+    it("returns error listing 'none' when no skills exist", async () => {
+      const result = await makeHandler()({ skillName: "Any", task: "do it" });
+      expect(result).toContain("none");
+    });
+
+    it("calls run with skill instructions and returns result.output", async () => {
+      mockRun.mockResolvedValue({ output: "Proofreading complete." });
+      saveSkills([
+        {
+          id: "1",
+          name: "Proofreader",
+          description: "d",
+          instructions: "Check it",
+        },
+      ]);
+      const result = await makeHandler()({
+        skillName: "Proofreader",
+        task: "check spelling",
+      });
+      expect(mockRun).toHaveBeenCalledOnce();
+      const [agentConfig] = mockRun.mock.calls[0];
+      expect(agentConfig.instructions).toBe("Check it");
+      expect(result).toBe("Proofreading complete.");
+    });
+
+    it("does not include delegate_to_skill in child agent tool list", async () => {
+      saveSkills([
+        { id: "1", name: "Proofreader", description: "d", instructions: "i" },
+      ]);
+      await makeHandler()({ skillName: "Proofreader", task: "t" });
+      const [agentConfig] = mockRun.mock.calls[0];
+      expect(agentConfig.tools).not.toContain("delegate_to_skill");
+    });
+
+    it("reuses parent adapter when skill has no model", async () => {
+      saveSkills([
+        { id: "1", name: "Proofreader", description: "d", instructions: "i" },
+      ]);
+      const adapterFactory = vi.fn();
+      await makeHandler(adapterFactory)({
+        skillName: "Proofreader",
+        task: "t",
+      });
+      expect(adapterFactory).not.toHaveBeenCalled();
+    });
+
+    it("calls adapterFactory when skill specifies a model", async () => {
+      saveSkills([
+        {
+          id: "1",
+          name: "Proofreader",
+          description: "d",
+          instructions: "i",
+          model: "gemini-2.5-pro",
+        },
+      ]);
+      const newAdapter = { generate: vi.fn() } as unknown as LlmAdapter;
+      const adapterFactory = vi.fn().mockReturnValue(newAdapter);
+      await makeHandler(adapterFactory)({
+        skillName: "Proofreader",
+        task: "t",
+      });
+      expect(adapterFactory).toHaveBeenCalledWith(
+        "test-api-key",
+        "gemini-2.5-pro",
+      );
     });
   });
 

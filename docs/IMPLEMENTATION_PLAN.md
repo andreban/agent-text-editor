@@ -103,11 +103,13 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Enable specialized workflows through multi-agent delegation.
 
-- [ ] Implement initialization logic in `App.tsx` to populate `localStorage` with Default Skills (Proofreader, Summarizer, Markdown Formatter) if empty.
-- [ ] Build a "Skills Manager" UI for CRUD operations on custom skills.
-- [ ] Update `App.tsx` to dynamically inject skill names and descriptions into the main agent's `systemInstructions`.
-- [ ] Implement the `delegate_to_skill` tool, which spins up a child `AgentRunner` with the skill's specific instructions.
+- [x] Implement initialization logic in `App.tsx` to populate `localStorage` with Default Skills (Proofreader, Summarizer, Markdown Formatter) if empty.
+- [x] Build a "Skills Manager" UI for CRUD operations on custom skills.
+- [x] Update `App.tsx` to dynamically inject skill names and descriptions into the main agent's `systemInstructions`.
+- [x] Implement the `delegate_to_skill` tool, which spins up a child `AgentRunner` with the skill's specific instructions.
 - **Working State:** The user can ask the main agent to "proofread the document", and it successfully delegates the task to the Proofreader sub-agent. User can create a new custom skill and invoke it.
+
+- [x] Complete
 
 ## Phase 9: Dark Mode
 

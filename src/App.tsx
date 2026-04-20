@@ -21,7 +21,11 @@ import {
   Conversation,
 } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@/adapters/GoogleGenAIAdapter";
-import { EditorTools } from "@/lib/EditorTools";
+import {
+  EditorTools,
+  registerEditorTools,
+  createDelegateToSkillHandler,
+} from "@/lib/EditorTools";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -117,6 +121,17 @@ function MobileLayout({ conversation, totalTokens }: LayoutProps) {
   );
 }
 
+const BASE_INSTRUCTIONS =
+  "You are a helpful senior editorial assistant. Help the user refine their text. " +
+  "You MUST use the provided tools to interact with the editor. " +
+  "Always use `read()` or `read_selection()` before suggesting changes. " +
+  "Use `search()` to locate specific text before editing it. " +
+  "Use `get_metadata()` to answer questions about document length or word count without reading the full content. " +
+  "CRITICAL: Prefer small, surgical edits using `edit()`. Do not rewrite the entire document unless explicitly asked to. " +
+  "When using `edit()`, the `originalText` should be as short as possible (just the sentence or words changing), not the whole file. " +
+  "When you call `edit()` or `write()`, the execution will PAUSE until the user manually Accepts or Rejects the change. " +
+  "You will then receive the user's decision (and feedback if any) as the tool result.";
+
 function App() {
   const {
     apiKey,
@@ -128,6 +143,7 @@ function App() {
     setSuggestions,
     approveAll,
     setEditorContent,
+    skills,
   } = useApp();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
@@ -146,95 +162,30 @@ function App() {
       setEditorContent,
     );
 
-    registry.register({
-      definition: () => ({
-        name: "read",
-        description: "Reads the complete current editor content.",
-        parameters: { type: "object", properties: {} },
-      }),
-      call: async () => editorTools.read(),
-    });
+    registerEditorTools(registry, editorTools);
 
     registry.register({
       definition: () => ({
-        name: "read_selection",
-        description: "Reads the currently selected text in the editor.",
-        parameters: { type: "object", properties: {} },
-      }),
-      call: async () => editorTools.read_selection(),
-    });
-
-    registry.register({
-      definition: () => ({
-        name: "search",
+        name: "delegate_to_skill",
         description:
-          "Finds all occurrences of a query string in the document. Returns the line and column of each match.",
+          "Delegates a task to a named skill (sub-agent). The skill runs with its own instructions and can read and edit the document. Returns the skill's final response.",
         parameters: {
           type: "object",
           properties: {
-            query: {
+            skillName: {
               type: "string",
-              description: "The text to search for.",
+              description: "The exact name of the skill to invoke.",
             },
-          },
-          required: ["query"],
-        },
-      }),
-      call: async (args: { query: string }) => editorTools.search(args),
-    });
-
-    registry.register({
-      definition: () => ({
-        name: "get_metadata",
-        description:
-          "Returns metadata about the current document: character count, word count, and line count.",
-        parameters: { type: "object", properties: {} },
-      }),
-      call: async () => editorTools.get_metadata(),
-    });
-
-    registry.register({
-      definition: () => ({
-        name: "edit",
-        description:
-          "Proposes a targeted edit. This tool pauses and waits for user approval. ONLY use this for small, localized changes (e.g., 1-2 sentences). Never pass the entire document.",
-        parameters: {
-          type: "object",
-          properties: {
-            originalText: {
+            task: {
               type: "string",
               description:
-                "The exact, minimal string of text to replace. Must be short. Do NOT pass the whole document.",
-            },
-            replacementText: {
-              type: "string",
-              description: "The new text to replace the originalText with.",
+                "The specific task or instructions to pass to the skill.",
             },
           },
-          required: ["originalText", "replacementText"],
+          required: ["skillName", "task"],
         },
       }),
-      call: async (args: { originalText: string; replacementText: string }) =>
-        editorTools.edit(args),
-    });
-
-    registry.register({
-      definition: () => ({
-        name: "write",
-        description:
-          "Proposes a complete rewrite. This tool pauses and waits for user approval. ONLY use this when the user explicitly requests a total rewrite of the entire document.",
-        parameters: {
-          type: "object",
-          properties: {
-            content: {
-              type: "string",
-              description: "The full new document content.",
-            },
-          },
-          required: ["content"],
-        },
-      }),
-      call: async (args: { content: string }) => editorTools.write(args),
+      call: createDelegateToSkillHandler(apiKey!, adapter, editorTools),
     });
 
     return new AgentRunner(adapter, registry);
@@ -250,18 +201,14 @@ function App() {
 
   const conversation = useMemo(() => {
     if (!runner) return null;
+    const skillsSection =
+      skills.length > 0
+        ? "\n\nAvailable skills you can delegate to via the delegate_to_skill tool:\n" +
+          skills.map((s) => `- ${s.name}: ${s.description}`).join("\n")
+        : "";
     const agent: AgentConfig = {
       name: "EditorAssistant",
-      instructions:
-        "You are a helpful senior editorial assistant. Help the user refine their text. " +
-        "You MUST use the provided tools to interact with the editor. " +
-        "Always use `read()` or `read_selection()` before suggesting changes. " +
-        "Use `search()` to locate specific text before editing it. " +
-        "Use `get_metadata()` to answer questions about document length or word count without reading the full content. " +
-        "CRITICAL: Prefer small, surgical edits using `edit()`. Do not rewrite the entire document unless explicitly asked to. " +
-        "When using `edit()`, the `originalText` should be as short as possible (just the sentence or words changing), not the whole file. " +
-        "When you call `edit()` or `write()`, the execution will PAUSE until the user manually Accepts or Rejects the change. " +
-        "You will then receive the user's decision (and feedback if any) as the tool result.",
+      instructions: BASE_INSTRUCTIONS + skillsSection,
       tools: [
         "read",
         "read_selection",
@@ -269,10 +216,11 @@ function App() {
         "get_metadata",
         "edit",
         "write",
+        "delegate_to_skill",
       ],
     };
     return runner.conversation(agent);
-  }, [runner]);
+  }, [runner, skills]);
 
   const isMobile = useIsMobile();
 

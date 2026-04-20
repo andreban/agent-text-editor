@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as monaco from "monaco-editor";
+import { AgentRunner, LlmAdapter, ToolRegistry } from "@mast-ai/core";
 import { Suggestion } from "./store";
+import { loadSkills } from "./skills";
 import { v4 as uuidv4 } from "uuid";
 
 export class EditorTools {
@@ -13,17 +15,11 @@ export class EditorTools {
     private setEditorContent: (content: string) => void,
   ) {}
 
-  /**
-   * Reads the entire content of the editor.
-   */
   read(): string {
     if (!this.editor) return "";
     return this.editor.getValue();
   }
 
-  /**
-   * Reads the current selection.
-   */
   read_selection(): string {
     if (!this.editor) return "";
     const selection = this.editor.getSelection();
@@ -55,10 +51,6 @@ export class EditorTools {
     return `Characters: ${charCount}, Words: ${wordCount}, Lines: ${lineCount}.`;
   }
 
-  /**
-   * Proposes an edit by replacing originalText with replacementText.
-   * Returns a promise that resolves with the user's decision.
-   */
   edit({
     originalText,
     replacementText,
@@ -138,10 +130,6 @@ export class EditorTools {
     });
   }
 
-  /**
-   * Proposes a complete rewrite of the document.
-   * Returns a promise that resolves with the user's decision.
-   */
   write({ content }: { content: string }): Promise<string> {
     const editor = this.editor;
     if (!editor) return Promise.resolve("Error: Editor not initialized.");
@@ -176,4 +164,159 @@ export class EditorTools {
       this.setSuggestions((prev) => [...prev, newSuggestion]);
     });
   }
+}
+
+/** Registers the standard editor tools on a ToolRegistry. */
+export function registerEditorTools(
+  registry: ToolRegistry,
+  tools: EditorTools,
+): void {
+  registry.register({
+    definition: () => ({
+      name: "read",
+      description: "Reads the complete current editor content.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.read(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "read_selection",
+      description: "Reads the currently selected text in the editor.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.read_selection(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "search",
+      description:
+        "Finds all occurrences of a query string in the document. Returns the line and column of each match.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The text to search for." },
+        },
+        required: ["query"],
+      },
+    }),
+    call: async (args: { query: string }) => tools.search(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "get_metadata",
+      description:
+        "Returns metadata about the current document: character count, word count, and line count.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.get_metadata(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "edit",
+      description:
+        "Proposes a targeted edit. This tool pauses and waits for user approval. ONLY use this for small, localized changes (e.g., 1-2 sentences). Never pass the entire document.",
+      parameters: {
+        type: "object",
+        properties: {
+          originalText: {
+            type: "string",
+            description:
+              "The exact, minimal string of text to replace. Must be short. Do NOT pass the whole document.",
+          },
+          replacementText: {
+            type: "string",
+            description: "The new text to replace the originalText with.",
+          },
+        },
+        required: ["originalText", "replacementText"],
+      },
+    }),
+    call: async (args: { originalText: string; replacementText: string }) =>
+      tools.edit(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "write",
+      description:
+        "Proposes a complete rewrite. This tool pauses and waits for user approval. ONLY use this when the user explicitly requests a total rewrite of the entire document.",
+      parameters: {
+        type: "object",
+        properties: {
+          content: {
+            type: "string",
+            description: "The full new document content.",
+          },
+        },
+        required: ["content"],
+      },
+    }),
+    call: async (args: { content: string }) => tools.write(args),
+  });
+}
+
+/**
+ * Creates the delegate_to_skill tool call handler.
+ * Extracted for testability; the adapterFactory parameter can be overridden in tests.
+ */
+type RunnerLike = {
+  run: (
+    agent: import("@mast-ai/core").AgentConfig,
+    input: string,
+  ) => Promise<{ output: string }>;
+};
+
+export function createDelegateToSkillHandler(
+  apiKey: string,
+  parentAdapter: LlmAdapter,
+  editorTools: EditorTools,
+  adapterFactory: (key: string, model: string) => LlmAdapter = (key, model) => {
+    // Lazily imported to avoid a hard dep on the concrete adapter in this module.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { GoogleGenAIAdapter } = require("../adapters/GoogleGenAIAdapter");
+    return new GoogleGenAIAdapter(key, model);
+  },
+  runnerFactory: (adapter: LlmAdapter, registry: ToolRegistry) => RunnerLike = (
+    adapter,
+    registry,
+  ) => new AgentRunner(adapter, registry),
+): (args: { skillName: string; task: string }) => Promise<string> {
+  return async ({ skillName, task }) => {
+    const skills = loadSkills();
+    const skill = skills.find((s) => s.name === skillName);
+    if (!skill) {
+      const names = skills.map((s) => s.name).join(", ");
+      return `Error: skill "${skillName}" not found. Available skills: ${names || "none"}`;
+    }
+
+    const childAdapter = skill.model
+      ? adapterFactory(apiKey, skill.model)
+      : parentAdapter;
+
+    const childRegistry = new ToolRegistry();
+    registerEditorTools(childRegistry, editorTools);
+
+    const childRunner = runnerFactory(childAdapter, childRegistry);
+    const result = await childRunner.run(
+      {
+        name: skill.name,
+        instructions: skill.instructions,
+        tools: [
+          "read",
+          "read_selection",
+          "search",
+          "get_metadata",
+          "edit",
+          "write",
+        ],
+      },
+      task,
+    );
+    return result.output;
+  };
 }
