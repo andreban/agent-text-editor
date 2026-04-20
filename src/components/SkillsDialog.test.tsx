@@ -28,8 +28,6 @@ function mockStore(skills: Skill[]) {
     setModelName: vi.fn(),
     totalTokens: 0,
     setTotalTokens: vi.fn(),
-    editorContent: "",
-    setEditorContent: vi.fn(),
     suggestions: [],
     setSuggestions: vi.fn(),
     editorInstance: null,

@@ -12,7 +12,6 @@ export class EditorTools {
     private editor: monaco.editor.IStandaloneCodeEditor | null,
     private setSuggestions: (fn: (prev: Suggestion[]) => Suggestion[]) => void,
     private approveAll: boolean,
-    private setEditorContent: (content: string) => void,
   ) {}
 
   read(): string {

@@ -6,6 +6,7 @@ import App from "./App";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AppProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/ThemeProvider";
+import { WorkspacesProvider } from "./lib/WorkspacesContext";
 
 // Mock Monaco Editor
 vi.mock("@monaco-editor/react", () => ({
@@ -28,7 +29,9 @@ function renderApp() {
   return render(
     <ThemeProvider>
       <AppProvider>
-        <App />
+        <WorkspacesProvider>
+          <App />
+        </WorkspacesProvider>
       </AppProvider>
     </ThemeProvider>,
   );
@@ -79,12 +82,13 @@ describe("App responsive layout", () => {
     // Editor and sidebar both visible
     expect(screen.getByTestId("mock-monaco-editor")).toBeInTheDocument();
     expect(screen.getByText("AI Assistant")).toBeInTheDocument();
-    // No Chat trigger in any tablist
-    const tabs = screen.queryAllByRole("tab").map((t) => t.textContent ?? "");
-    expect(tabs).not.toContain("Chat");
+    // Reference drawer toggle button is present
+    expect(
+      screen.getByRole("button", { name: "Expand reference drawer" }),
+    ).toBeInTheDocument();
   });
 
-  it("renders mobile layout with FAB and no Chat tab", () => {
+  it("renders mobile layout with chat and reference FABs", () => {
     mockMatchMedia(true);
     renderApp();
 
@@ -95,8 +99,9 @@ describe("App responsive layout", () => {
     expect(
       screen.getByRole("button", { name: "Open chat" }),
     ).toBeInTheDocument();
-    const tabs = screen.queryAllByRole("tab").map((t) => t.textContent ?? "");
-    expect(tabs).not.toContain("Chat");
+    expect(
+      screen.getByRole("button", { name: "Open reference" }),
+    ).toBeInTheDocument();
   });
 
   it("opening the sheet shows the chat sidebar", async () => {

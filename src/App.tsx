@@ -3,8 +3,20 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { EditorPanel } from "@/components/EditorPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
-import { MessageCircle, ChevronDown } from "lucide-react";
+import { WorkspacePanel } from "@/components/WorkspacePanel";
+import { WorkspacePicker } from "@/components/WorkspacePicker";
+import {
+  MessageCircle,
+  ChevronDown,
+  BookOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  LayoutGrid,
+} from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useWorkspaces } from "@/lib/WorkspacesContext";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +38,7 @@ import {
   registerEditorTools,
   createDelegateToSkillHandler,
 } from "@/lib/EditorTools";
+import { WorkspaceTools, registerWorkspaceTools } from "@/lib/WorkspaceTools";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -45,13 +58,97 @@ interface LayoutProps {
 }
 
 function DesktopLayout({ conversation }: LayoutProps) {
+  const [refOpen, setRefOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+  const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
+  const activeMeta = index.find((w) => w.id === activeWorkspaceId);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-      <main className="flex-1 min-w-0">
-        <EditorPanel />
+      {/* Collapsible reference drawer */}
+      <aside
+        className={`shrink-0 border-r border-border flex flex-col overflow-hidden transition-[width] duration-300 ease-in-out ${
+          refOpen ? "w-[280px]" : "w-10"
+        }`}
+      >
+        <div className="flex items-center border-b border-border h-10 shrink-0">
+          <button
+            onClick={() => setRefOpen((v) => !v)}
+            className="flex items-center justify-center w-10 h-10 hover:bg-muted/60 text-muted-foreground"
+            aria-label={
+              refOpen ? "Collapse reference drawer" : "Expand reference drawer"
+            }
+          >
+            {refOpen ? (
+              <PanelLeftClose className="w-4 h-4" />
+            ) : (
+              <PanelLeftOpen className="w-4 h-4" />
+            )}
+          </button>
+          {refOpen && (
+            <span className="text-xs font-medium text-muted-foreground ml-1 truncate">
+              Documents
+            </span>
+          )}
+        </div>
+        {refOpen && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <WorkspacePanel />
+          </div>
+        )}
+      </aside>
+
+      <main className="flex-1 min-w-0 flex flex-col">
+        {activeMeta && (
+          <div className="flex items-center gap-2 px-3 h-10 border-b border-border shrink-0">
+            <span className="text-xs font-medium text-muted-foreground truncate flex-1">
+              {activeMeta.name}
+            </span>
+            <button
+              onClick={closeWorkspace}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/60 shrink-0"
+              aria-label="Switch workspace"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              Switch
+            </button>
+          </div>
+        )}
+        <div className="flex-1 min-h-0">
+          <EditorPanel />
+        </div>
       </main>
-      <aside className="w-[400px] shrink-0 border-l border-border">
-        <ChatSidebar conversation={conversation} />
+      {/* Collapsible chat sidebar */}
+      <aside
+        className={`shrink-0 border-l border-border flex flex-col overflow-hidden transition-[width] duration-300 ease-in-out ${
+          chatOpen ? "w-[400px]" : "w-10"
+        }`}
+      >
+        <div className="flex items-center border-b border-border h-10 shrink-0">
+          {chatOpen && (
+            <span className="text-xs font-medium text-muted-foreground ml-3 truncate flex-1">
+              AI Assistant
+            </span>
+          )}
+          <button
+            onClick={() => setChatOpen((v) => !v)}
+            className="flex items-center justify-center w-10 h-10 hover:bg-muted/60 text-muted-foreground shrink-0"
+            aria-label={
+              chatOpen ? "Collapse chat sidebar" : "Expand chat sidebar"
+            }
+          >
+            {chatOpen ? (
+              <PanelRightClose className="w-4 h-4" />
+            ) : (
+              <PanelRightOpen className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+        {chatOpen && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ChatSidebar conversation={conversation} />
+          </div>
+        )}
       </aside>
     </div>
   );
@@ -59,6 +156,9 @@ function DesktopLayout({ conversation }: LayoutProps) {
 
 function MobileLayout({ conversation }: LayoutProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"chat" | "reference">("chat");
+  const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
+  const activeMeta = index.find((w) => w.id === activeWorkspaceId);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,22 +173,53 @@ function MobileLayout({ conversation }: LayoutProps) {
     }
   }, [sheetOpen]);
 
+  const openSheet = (mode: "chat" | "reference") => {
+    setSheetMode(mode);
+    setSheetOpen(true);
+  };
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
       {/* Editor always mounted, full screen */}
-      <div className="h-full w-full">
-        <EditorPanel />
+      <div className="h-full w-full flex flex-col">
+        {activeMeta && (
+          <div className="flex items-center gap-2 px-3 h-10 border-b border-border shrink-0">
+            <span className="text-xs font-medium text-muted-foreground truncate flex-1">
+              {activeMeta.name}
+            </span>
+            <button
+              onClick={closeWorkspace}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted/60 shrink-0"
+              aria-label="Switch workspace"
+            >
+              <LayoutGrid className="w-3 h-3" />
+              Switch
+            </button>
+          </div>
+        )}
+        <div className="flex-1 min-h-0">
+          <EditorPanel />
+        </div>
       </div>
 
-      {/* FAB */}
+      {/* FABs */}
       {!sheetOpen && (
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
-          aria-label="Open chat"
-        >
-          <MessageCircle className="h-6 w-6" />
-        </button>
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+          <button
+            onClick={() => openSheet("reference")}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground shadow-lg border border-border"
+            aria-label="Open reference"
+          >
+            <BookOpen className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => openSheet("chat")}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
+            aria-label="Open chat"
+          >
+            <MessageCircle className="h-6 w-6" />
+          </button>
+        </div>
       )}
 
       {/* Bottom sheet overlay */}
@@ -100,7 +231,9 @@ function MobileLayout({ conversation }: LayoutProps) {
         style={{ height: "70vh" }}
       >
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <span className="font-medium">AI Assistant</span>
+          <span className="font-medium">
+            {sheetMode === "chat" ? "AI Assistant" : "Reference"}
+          </span>
           <button
             onClick={() => {
               (document.activeElement as HTMLElement)?.blur();
@@ -113,7 +246,11 @@ function MobileLayout({ conversation }: LayoutProps) {
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ChatSidebar conversation={conversation} />
+          {sheetMode === "chat" ? (
+            <ChatSidebar conversation={conversation} />
+          ) : (
+            <WorkspacePanel />
+          )}
         </div>
       </div>
     </div>
@@ -129,9 +266,15 @@ const BASE_INSTRUCTIONS =
   "CRITICAL: Prefer small, surgical edits using `edit()`. Do not rewrite the entire document unless explicitly asked to. " +
   "When using `edit()`, the `originalText` should be as short as possible (just the sentence or words changing), not the whole file. " +
   "When you call `edit()` or `write()`, the execution will PAUSE until the user manually Accepts or Rejects the change. " +
-  "You will then receive the user's decision (and feedback if any) as the tool result.";
+  "You will then receive the user's decision (and feedback if any) as the tool result. " +
+  "The workspace may contain multiple documents. Use `get_active_doc_info()` to get the id and title of the currently open document. " +
+  "Use `list_workspace_docs()` to discover all documents. " +
+  "Use `read_workspace_doc(id)` to read another document in full, or `query_workspace_doc(id, query)` for a targeted question. " +
+  "Use `query_workspace(query)` to synthesize an answer that draws from all workspace documents.";
 
 function App() {
+  const { activeWorkspaceId, activeWorkspace, activeDocument } =
+    useWorkspaces();
   const {
     apiKey,
     setApiKey,
@@ -140,11 +283,26 @@ function App() {
     editorInstance,
     setSuggestions,
     approveAll,
-    setEditorContent,
     skills,
   } = useApp();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
+
+  const docsRef = useRef(activeWorkspace?.documents ?? []);
+  useEffect(() => {
+    docsRef.current = activeWorkspace?.documents ?? [];
+  }, [activeWorkspace]);
+
+  const activeDocRef = useRef(
+    activeDocument
+      ? { id: activeDocument.id, title: activeDocument.title }
+      : null,
+  );
+  useEffect(() => {
+    activeDocRef.current = activeDocument
+      ? { id: activeDocument.id, title: activeDocument.title }
+      : null;
+  }, [activeDocument]);
 
   const runner = useMemo(() => {
     if (!apiKey) return null;
@@ -157,10 +315,16 @@ function App() {
       editorInstance,
       setSuggestions,
       approveAll,
-      setEditorContent,
     );
 
     registerEditorTools(registry, editorTools);
+
+    const workspaceTools = new WorkspaceTools(
+      docsRef,
+      activeDocRef,
+      () => new GoogleGenAIAdapter(apiKey, "gemini-2.5-flash"),
+    );
+    registerWorkspaceTools(registry, workspaceTools);
 
     registry.register({
       definition: () => ({
@@ -194,7 +358,8 @@ function App() {
     editorInstance,
     setSuggestions,
     approveAll,
-    setEditorContent,
+    docsRef,
+    activeDocRef,
   ]);
 
   const conversation = useMemo(() => {
@@ -215,6 +380,11 @@ function App() {
         "edit",
         "write",
         "delegate_to_skill",
+        "get_active_doc_info",
+        "list_workspace_docs",
+        "read_workspace_doc",
+        "query_workspace_doc",
+        "query_workspace",
       ],
     };
     return runner.conversation(agent);
@@ -228,6 +398,10 @@ function App() {
       setShowKeyDialog(false);
     }
   };
+
+  if (!activeWorkspaceId) {
+    return <WorkspacePicker />;
+  }
 
   return (
     <>

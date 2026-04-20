@@ -6,12 +6,15 @@ import App from "./App";
 import "./index.css";
 import { AppProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/ThemeProvider";
+import { WorkspacesProvider } from "./lib/WorkspacesContext";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
       <AppProvider>
-        <App />
+        <WorkspacesProvider>
+          <App />
+        </WorkspacesProvider>
       </AppProvider>
     </ThemeProvider>
   </React.StrictMode>,

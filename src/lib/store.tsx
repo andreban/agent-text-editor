@@ -21,8 +21,6 @@ interface AppState {
   setModelName: (name: string) => void;
   totalTokens: number;
   setTotalTokens: (tokens: number | ((prev: number) => number)) => void;
-  editorContent: string;
-  setEditorContent: (content: string) => void;
   suggestions: Suggestion[];
   setSuggestions: (
     suggestions: Suggestion[] | ((prev: Suggestion[]) => Suggestion[]),
@@ -51,7 +49,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     return saved || "gemini-3.1-flash-lite-preview";
   });
   const [totalTokens, setTotalTokens] = useState<number>(0);
-  const [editorContent, setEditorContent] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [editorInstance, setEditorInstance] =
     useState<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -84,8 +81,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setModelName,
         totalTokens,
         setTotalTokens,
-        editorContent,
-        setEditorContent,
         suggestions,
         setSuggestions,
         editorInstance,
