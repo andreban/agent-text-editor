@@ -44,7 +44,10 @@ function DocRow({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") commitEdit();
+    if (e.key === "Enter") {
+      e.stopPropagation();
+      commitEdit();
+    }
     if (e.key === "Escape") setEditing(false);
   };
 
