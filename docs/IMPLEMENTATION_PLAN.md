@@ -136,17 +136,36 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 - [x] Build `ReferenceTab` (doc list, inline editor, auto-save) as a collapsible left drawer.
 - **Working State:** The user can create, edit, and delete reference documents in a collapsible left panel. Documents survive a page reload.
 
-### Phase 10b: Basic read tools
+### Phase 10b–10d: Superseded
 
-- [ ] Implement `list_supporting_docs` and `read_supporting_doc` in the tool registry.
-- **Working State:** The agent can list and read documents directly.
+Phases 10b, 10c, and 10d have been superseded by the Workspaces feature (Phase 11). See `WORKSPACES_PLAN.md`.
 
-### Phase 10c: Single-doc query
+---
 
-- [ ] Implement `query_supporting_doc`: delegates to a short-lived sub-agent that reads one doc and returns a focused summary.
-- **Working State:** The agent can ask a focused question about a specific document without the full content entering its context.
+## Phase 11: Workspaces
 
-### Phase 10d: Multi-doc synthesis
+**Goal:** Replace the single-document model with named, persistent multi-document workspaces. Users can create, open, and delete workspaces; within a workspace any document can be edited and all are available to the agent. See `WORKSPACES_PLAN.md` for full details.
 
-- [ ] Implement `query_supporting_docs`: calls `query_supporting_doc` for each doc, then passes the summaries to a synthesizer sub-agent.
-- **Working State:** The agent can query across the entire workspace in a single tool call and receive a synthesized answer.
+### Phase 11a: Data model & context
+
+- [ ] Define `WorkspaceMeta`, `WorkspaceDocument`, `WorkspaceData` types; create `WorkspacesContext` with per-workspace localStorage persistence.
+- [ ] Migrate `SupportingDocsContext` data into a default workspace; remove `SupportingDocsContext`.
+- [ ] Bind `EditorPanel` to the active workspace document (replaces `AppState.editorContent`).
+- **Working State:** The editor reads/writes the active workspace document. Documents survive reload. Existing supporting docs are migrated.
+
+### Phase 11b: Workspace picker
+
+- [ ] Build `WorkspacePicker`: list all workspaces with open/rename/delete; "New Workspace" button with name prompt.
+- [ ] Add "Switch Workspace" button in the editor header; show `WorkspacePicker` when no workspace is active.
+- **Working State:** Users can create named workspaces, switch between them, and delete them.
+
+### Phase 11c: Document navigator
+
+- [ ] Replace `ReferenceTab` with `WorkspacePanel`: doc list scoped to the active workspace, create/rename/delete, click to activate.
+- **Working State:** Users can manage multiple documents within a workspace and switch between them in the editor.
+
+### Phase 11d: Agent workspace tools
+
+- [ ] Implement `list_workspace_docs`, `read_workspace_doc`, `query_workspace_doc`, `query_workspace` in `WorkspaceTools.ts`.
+- [ ] Wire tools in `App.tsx`; update agent system prompt.
+- **Working State:** The agent can list, read, and query any document in the active workspace.

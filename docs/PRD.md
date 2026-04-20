@@ -9,16 +9,25 @@ To provide a modern, AI-powered text editing experience where a browser-native A
 - **Monaco Editor Integration:** A high-performance text editor for a seamless writing experience.
 - **AI Agent (MAST):** A browser-native agent using the `mast-ai` library for low-latency, secure, and stateful interactions.
 - **Google Gen AI Integration:** Utilizing the latest `@google/genai` SDK. Users can choose their preferred underlying model from a list of current models (defaulting to Gemini 2.5 Flash).
-- **Editor-Aware Tools:** The agent will have access to tools that allow it to:
-  - **Read:** Retrieve the entire document content.
+- **Editor-Aware Tools:** The agent has access to tools that operate on the currently open document:
+  - **Read:** Retrieve the entire open document's content.
   - **Read Selection:** Retrieve only the text currently highlighted by the user for focused tasks.
-  - **Search:** Find specific words or phrases within the document without reading the whole file.
+  - **Search:** Find specific words or phrases within the open document without reading the whole file.
   - **Get Metadata:** Access document statistics like word count, character count, and current cursor position.
   - **Edit:** Suggest targeted, surgical edits (insertions, removals, or replacements) by providing a minimal snippet of the original text and the new text. Enforces strict length limits to prevent accidental full-document rewrites.
-  - **Write:** Propose replacing the entire document content (e.g., when drafting a new document or completing a full rewrite).
-  - **List Documents:** Retrieve a list of available supporting documents in the workspace.
-  - **Read Document:** Retrieve the content of a specific supporting document to use as reference.
-- **Supporting Documents:** Users can add multiple markdown documents to their workspace. These documents can hold project metadata, style guides, character bios, or general reference material to assist in the writing process.
+  - **Write:** Propose replacing the entire open document's content (e.g., when drafting a new document or completing a full rewrite).
+- **Workspaces:** The application organises documents into named, persistent workspaces. Each workspace is an independent collection of documents stored in the browser's local storage. Users can:
+  - **Create** a new workspace with a chosen name.
+  - **Open** an existing workspace; the last-active document is restored automatically.
+  - **Rename** a workspace at any time.
+  - **Delete** an entire workspace and all its documents.
+  - Switch between workspaces via a workspace picker screen, accessible from the editor header.
+- **Document Navigator:** Within a workspace, the left drawer lists all documents. Users can create, rename, delete, and switch between documents. The Monaco editor always shows the currently active document, and any document can become the active one.
+- **Workspace-Aware Agent Tools:** In addition to the editor tools, the agent can interact with all documents in the active workspace:
+  - **List Workspace Documents:** Returns the ID and title of every document in the workspace (no content).
+  - **Read Workspace Document:** Returns the full content of a specific document by ID.
+  - **Query Workspace Document:** Delegates to a short-lived sub-agent that reads one document and returns a focused summary relevant to a query, without loading the full content into the main context.
+  - **Query Workspace:** Queries all documents in the workspace and synthesizes the results into a single answer via a sub-agent.
 - **Approval Workflow:** By default, all modifications proposed by the agent (via `edit` or `write`) require explicit user approval. Tool execution pauses asynchronously until the user acts (Accept/Reject), ensuring the agent is notified of the outcome. Edits are displayed inline using a Google Docs-style aesthetic (red strikethrough for original, green monospace for new text) and automatically scroll into view. The user can optionally enable an "approve all" mode to automatically accept changes for faster editing.
 - **Interactive Sidebar:** A chat-based interface for interacting with the AI agent.
 - **Local Settings:** User preferences, credentials (like the Google AI Studio API key), and the selected AI model are securely saved in the browser's local storage to persist across sessions without requiring a backend.
