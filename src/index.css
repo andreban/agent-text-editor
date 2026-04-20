@@ -78,3 +78,13 @@ SPDX-License-Identifier: Apache-2.0
     "Courier New", monospace !important;
   white-space: pre !important;
 }
+
+.dark .suggestion-original {
+  color: #f87171 !important;
+  background-color: rgba(248, 113, 113, 0.15);
+}
+
+.dark .suggestion-new {
+  color: #34d399 !important;
+  background-color: rgba(52, 211, 153, 0.2);
+}

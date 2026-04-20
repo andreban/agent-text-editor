@@ -6,6 +6,8 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SettingsDialog } from "./SettingsDialog";
 import * as storeModule from "@/lib/store";
+import { ThemeProvider } from "@/lib/ThemeProvider";
+import React from "react";
 
 const mockSetApiKey = vi.fn();
 const mockSetModelName = vi.fn();
@@ -31,14 +33,23 @@ function mockStore(apiKey: string | null, modelName: string) {
   });
 }
 
+function renderDialog(open: boolean, onOpenChange = vi.fn()) {
+  return render(
+    <ThemeProvider>
+      <SettingsDialog open={open} onOpenChange={onOpenChange} />
+    </ThemeProvider>,
+  );
+}
+
 describe("SettingsDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("renders API key input and model selector when open", () => {
     mockStore("test-key", "gemini-2.5-flash");
-    render(<SettingsDialog open={true} onOpenChange={vi.fn()} />);
+    renderDialog(true);
 
     expect(screen.getByLabelText("Gemini API Key")).toBeInTheDocument();
     expect(screen.getByLabelText("Model")).toBeInTheDocument();
@@ -46,7 +57,7 @@ describe("SettingsDialog", () => {
 
   it("does not render content when closed", () => {
     mockStore("test-key", "gemini-2.5-flash");
-    render(<SettingsDialog open={false} onOpenChange={vi.fn()} />);
+    renderDialog(false);
 
     expect(screen.queryByLabelText("Gemini API Key")).not.toBeInTheDocument();
   });
@@ -56,7 +67,7 @@ describe("SettingsDialog", () => {
     const onOpenChange = vi.fn();
     mockStore("old-key", "gemini-2.5-flash");
 
-    render(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
+    renderDialog(true, onOpenChange);
 
     const keyInput = screen.getByLabelText("Gemini API Key");
     await user.clear(keyInput);
@@ -77,7 +88,7 @@ describe("SettingsDialog", () => {
     const onOpenChange = vi.fn();
     mockStore("old-key", "gemini-2.5-flash");
 
-    render(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
+    renderDialog(true, onOpenChange);
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -90,7 +101,7 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup();
     mockStore("test-key", "gemini-2.5-flash");
 
-    render(<SettingsDialog open={true} onOpenChange={vi.fn()} />);
+    renderDialog(true);
 
     const keyInput = screen.getByLabelText("Gemini API Key");
     expect(keyInput).toHaveAttribute("type", "password");
@@ -107,10 +118,16 @@ describe("SettingsDialog", () => {
     mockStore("stored-key", "gemini-2.5-pro");
 
     const { rerender } = render(
-      <SettingsDialog open={false} onOpenChange={onOpenChange} />,
+      <ThemeProvider>
+        <SettingsDialog open={false} onOpenChange={onOpenChange} />
+      </ThemeProvider>,
     );
 
-    rerender(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
+    rerender(
+      <ThemeProvider>
+        <SettingsDialog open={true} onOpenChange={onOpenChange} />
+      </ThemeProvider>,
+    );
 
     const keyInput = screen.getByLabelText(
       "Gemini API Key",
@@ -126,7 +143,7 @@ describe("SettingsDialog", () => {
     const onOpenChange = vi.fn();
     mockStore("old-key", "gemini-2.5-flash");
 
-    render(<SettingsDialog open={true} onOpenChange={onOpenChange} />);
+    renderDialog(true, onOpenChange);
 
     const keyInput = screen.getByLabelText("Gemini API Key");
     await user.clear(keyInput);

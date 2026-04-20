@@ -15,14 +15,16 @@ import {
   Check,
   Settings,
   Wand2,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
+import { useTheme } from "@/lib/ThemeProvider";
 import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
 
 interface ChatSidebarProps {
   conversation: Conversation | null;
-  totalTokens: number;
 }
 
 type StreamItem =
@@ -36,7 +38,7 @@ type StreamItem =
     }
   | { kind: "tool"; id: string; name: string; pending: boolean };
 
-export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
+export function ChatSidebar({ conversation }: ChatSidebarProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [items, setItems] = useState<StreamItem[]>([]);
@@ -50,6 +52,7 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const { approveAll, setApproveAll } = useApp();
+  const { theme, toggleTheme } = useTheme();
 
   // Rebuild display items when the conversation instance changes (e.g. new session)
   if (conversation !== prevConversation) {
@@ -225,8 +228,8 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <SkillsDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
       <div className="p-4 border-b flex justify-between items-center gap-4">
-        <span className="font-medium whitespace-nowrap">AI Assistant</span>
-        <div className="flex items-center gap-4 text-xs text-muted-foreground ml-auto">
+        <span className="text-sm font-medium whitespace-nowrap">AI Assistant</span>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
           <div className="flex items-center space-x-2 min-h-11">
             <Switch
               id="approve-all"
@@ -237,7 +240,21 @@ export function ChatSidebar({ conversation, totalTokens }: ChatSidebarProps) {
               Approve All
             </Label>
           </div>
-          <span className="whitespace-nowrap">Tokens: {totalTokens}</span>
+<Button
+            variant="ghost"
+            size="icon"
+            className="h-11 w-11"
+            onClick={toggleTheme}
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            {theme === "dark" ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="icon"

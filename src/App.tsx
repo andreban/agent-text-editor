@@ -42,23 +42,22 @@ function useIsMobile() {
 
 interface LayoutProps {
   conversation: Conversation | null;
-  totalTokens: number;
 }
 
-function DesktopLayout({ conversation, totalTokens }: LayoutProps) {
+function DesktopLayout({ conversation }: LayoutProps) {
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
       <main className="flex-1 min-w-0">
         <EditorPanel />
       </main>
       <aside className="w-[400px] shrink-0 border-l border-border">
-        <ChatSidebar conversation={conversation} totalTokens={totalTokens} />
+        <ChatSidebar conversation={conversation} />
       </aside>
     </div>
   );
 }
 
-function MobileLayout({ conversation, totalTokens }: LayoutProps) {
+function MobileLayout({ conversation }: LayoutProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -114,7 +113,7 @@ function MobileLayout({ conversation, totalTokens }: LayoutProps) {
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ChatSidebar conversation={conversation} totalTokens={totalTokens} />
+          <ChatSidebar conversation={conversation} />
         </div>
       </div>
     </div>
@@ -138,7 +137,6 @@ function App() {
     setApiKey,
     modelName,
     setTotalTokens,
-    totalTokens,
     editorInstance,
     setSuggestions,
     approveAll,
@@ -234,9 +232,9 @@ function App() {
   return (
     <>
       {isMobile ? (
-        <MobileLayout conversation={conversation} totalTokens={totalTokens} />
+        <MobileLayout conversation={conversation} />
       ) : (
-        <DesktopLayout conversation={conversation} totalTokens={totalTokens} />
+        <DesktopLayout conversation={conversation} />
       )}
 
       <Dialog open={showKeyDialog} onOpenChange={setShowKeyDialog}>

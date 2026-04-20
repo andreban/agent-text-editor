@@ -5,13 +5,16 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect } from "vitest";
 import { EditorPanel } from "./EditorPanel";
 import { AppProvider } from "@/lib/store";
+import { ThemeProvider } from "@/lib/ThemeProvider";
 
 describe("EditorPanel", () => {
   it("renders editor tab by default", () => {
     render(
-      <AppProvider>
-        <EditorPanel />
-      </AppProvider>,
+      <ThemeProvider>
+        <AppProvider>
+          <EditorPanel />
+        </AppProvider>
+      </ThemeProvider>,
     );
     expect(screen.getByTestId("mock-monaco-editor")).toBeInTheDocument();
   });
@@ -19,9 +22,11 @@ describe("EditorPanel", () => {
   it("can switch to the preview tab and render markdown", async () => {
     const user = userEvent.setup();
     render(
-      <AppProvider>
-        <EditorPanel />
-      </AppProvider>,
+      <ThemeProvider>
+        <AppProvider>
+          <EditorPanel />
+        </AppProvider>
+      </ThemeProvider>,
     );
 
     // Switch to preview tab
@@ -39,9 +44,11 @@ describe("EditorPanel", () => {
   it("updates preview when editor content changes", async () => {
     const user = userEvent.setup();
     render(
-      <AppProvider>
-        <EditorPanel />
-      </AppProvider>,
+      <ThemeProvider>
+        <AppProvider>
+          <EditorPanel />
+        </AppProvider>
+      </ThemeProvider>,
     );
 
     const editor = screen.getByTestId("mock-monaco-editor");

@@ -68,7 +68,7 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
           },
           pre: ({ ...props }) => (
             <pre
-              className="mb-4 mt-4 overflow-x-auto rounded-lg bg-zinc-950 p-4 text-xs text-zinc-50"
+              className="mb-4 mt-4 overflow-x-auto rounded-lg bg-muted text-muted-foreground p-4 text-xs"
               {...props}
             />
           ),

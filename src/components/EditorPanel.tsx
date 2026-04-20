@@ -6,6 +6,7 @@ import * as monaco from "monaco-editor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarkdownContent } from "./MarkdownContent";
 import { useApp } from "@/lib/store";
+import { useTheme } from "@/lib/ThemeProvider";
 import { SuggestionWidget } from "./SuggestionWidget";
 import { createPortal } from "react-dom";
 
@@ -21,6 +22,9 @@ export function EditorPanel() {
     setSuggestions,
     editorInstance,
   } = useApp();
+
+  const { theme } = useTheme();
+  const monacoTheme = theme === "dark" ? "vs-dark" : "light";
 
   const [suggestionNodes, setSuggestionNodes] = useState<
     { id: string; node: HTMLElement }[]
@@ -174,7 +178,7 @@ export function EditorPanel() {
               value={editorContent}
               onChange={(value) => setEditorContent(value || "")}
               onMount={handleEditorDidMount}
-              theme="light"
+              theme={monacoTheme}
               options={{
                 minimap: { enabled: false },
                 wordWrap: "on",

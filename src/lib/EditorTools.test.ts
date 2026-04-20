@@ -323,7 +323,12 @@ describe("EditorTools", () => {
         parentAdapter,
         editorToolsInstance,
         adapterFactory,
-        () => ({ run: mockRun as unknown as (agent: import("@mast-ai/core").AgentConfig, input: string) => Promise<{ output: string }> }),
+        () => ({
+          run: mockRun as unknown as (
+            agent: import("@mast-ai/core").AgentConfig,
+            input: string,
+          ) => Promise<{ output: string }>,
+        }),
       );
     }
 

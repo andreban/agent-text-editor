@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AppProvider } from "./lib/store";
+import { ThemeProvider } from "./lib/ThemeProvider";
 
 // Mock Monaco Editor
 vi.mock("@monaco-editor/react", () => ({
@@ -25,9 +26,11 @@ function mockMatchMedia(matches: boolean) {
 
 function renderApp() {
   return render(
-    <AppProvider>
-      <App />
-    </AppProvider>,
+    <ThemeProvider>
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </ThemeProvider>,
   );
 }
 

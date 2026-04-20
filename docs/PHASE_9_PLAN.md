@@ -138,8 +138,12 @@ const { theme, toggleTheme } = useTheme();
   className="h-11 w-11 flex items-center justify-center rounded-md hover:bg-muted"
   aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
 >
-  {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-</button>
+  {theme === "dark" ? (
+    <Sun className="h-5 w-5" />
+  ) : (
+    <Moon className="h-5 w-5" />
+  )}
+</button>;
 ```
 
 Place it to the left of the Settings button. The button must meet the 44 × 44 px touch-target requirement (`h-11 w-11`).
@@ -230,12 +234,12 @@ The hardcoded suggestion colors are visible on both backgrounds but the red stri
 
 ```css
 .dark .suggestion-original {
-  color: #f87171 !important;          /* red-400, lighter red for dark bg */
+  color: #f87171 !important; /* red-400, lighter red for dark bg */
   background-color: rgba(248, 113, 113, 0.15);
 }
 
 .dark .suggestion-new {
-  color: #34d399 !important;          /* emerald-400, lighter green for dark bg */
+  color: #34d399 !important; /* emerald-400, lighter green for dark bg */
   background-color: rgba(52, 211, 153, 0.2);
 }
 ```
@@ -270,15 +274,15 @@ Test against a `localStorage`-backed JSDOM environment (Vitest already provides 
 6. **Task 5** — add theme control to `SettingsDialog`
 7. **Task 6** — fix hardcoded `pre` colors in `MarkdownContent.tsx`
 8. **Task 7** — add dark-mode suggestion color overrides in `index.css`
-8. Run `npm run test`, `npm run lint`, `npm run format` — fix any failures
-9. Start dev server (`npm run dev`) and verify manually:
-   - Default load (no saved preference) matches the device `prefers-color-scheme`
-   - Toolbar Moon button toggles to dark; Sun button toggles back
-   - Monaco editor switches between `light` and `vs-dark`
-   - Settings dialog shows the current theme selected; saving from Settings changes theme
-   - Reloading the page preserves the last theme
-   - Suggestion decorations are legible in both modes
-10. Wait for user approval before committing
+9. Run `npm run test`, `npm run lint`, `npm run format` — fix any failures
+10. Start dev server (`npm run dev`) and verify manually:
+    - Default load (no saved preference) matches the device `prefers-color-scheme`
+    - Toolbar Moon button toggles to dark; Sun button toggles back
+    - Monaco editor switches between `light` and `vs-dark`
+    - Settings dialog shows the current theme selected; saving from Settings changes theme
+    - Reloading the page preserves the last theme
+    - Suggestion decorations are legible in both modes
+11. Wait for user approval before committing
 
 ---
 

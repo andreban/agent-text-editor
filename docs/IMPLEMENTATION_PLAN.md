@@ -115,14 +115,16 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Make the application comfortable to use in any lighting condition.
 
-- [ ] Enable Tailwind CSS class-based dark mode (`darkMode: 'class'` in `tailwind.config`).
-- [ ] Create a `ThemeProvider` context that reads the saved theme from `localStorage`, applies the `dark` class to `<html>`, and exposes a toggle function.
-- [ ] Add a theme toggle button (sun/moon icon) to the toolbar/header, wired to `ThemeProvider`.
-- [ ] Audit all components for hardcoded light-mode colors and replace with Tailwind dark-mode variants (`dark:` prefix).
-- [ ] Pass the matching Monaco theme (`vs` / `vs-dark`) to the `MonacoEditor` component based on the active theme.
-- [ ] Add the theme preference to the Settings dialog so it is surfaced alongside API key and model selection.
-- [ ] Write tests for `ThemeProvider` (toggle, persistence).
+- [x] Enable Tailwind CSS class-based dark mode (`darkMode: 'class'` in `tailwind.config`).
+- [x] Create a `ThemeProvider` context that reads the saved theme from `localStorage`, applies the `dark` class to `<html>`, and exposes a toggle function.
+- [x] Add a theme toggle button (sun/moon icon) to the toolbar/header, wired to `ThemeProvider`.
+- [x] Audit all components for hardcoded light-mode colors and replace with Tailwind dark-mode variants (`dark:` prefix).
+- [x] Pass the matching Monaco theme (`vs` / `vs-dark`) to the `MonacoEditor` component based on the active theme.
+- [x] Add the theme preference to the Settings dialog so it is surfaced alongside API key and model selection.
+- [x] Write tests for `ThemeProvider` (toggle, persistence).
 - **Working State:** The user can switch between light and dark themes via a toolbar button; the preference survives a page reload and all UI components — including the Monaco editor — adapt accordingly.
+
+- [x] Complete
 
 ## Phase 10: Supporting Documents Workspace
 

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useTheme, Theme } from "@/lib/ThemeProvider";
 import {
   Dialog,
   DialogContent,
@@ -38,13 +39,16 @@ function SettingsForm({
   onOpenChange: (open: boolean) => void;
 }) {
   const { apiKey, setApiKey, modelName, setModelName } = useApp();
+  const { theme: currentTheme, setTheme } = useTheme();
   const [draftKey, setDraftKey] = useState(apiKey ?? "");
   const [draftModel, setDraftModel] = useState(modelName);
+  const [draftTheme, setDraftTheme] = useState<Theme>(currentTheme);
   const [showKey, setShowKey] = useState(false);
 
   const handleSave = () => {
     setApiKey(draftKey.trim() || null);
     setModelName(draftModel);
+    setTheme(draftTheme);
     onOpenChange(false);
   };
 
@@ -95,6 +99,22 @@ function SettingsForm({
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>Theme</Label>
+          <div className="flex gap-2">
+            {(["light", "dark"] as Theme[]).map((t) => (
+              <Button
+                key={t}
+                variant={draftTheme === t ? "default" : "outline"}
+                onClick={() => setDraftTheme(t)}
+                className="flex-1 capitalize"
+              >
+                {t}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
