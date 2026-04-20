@@ -3,7 +3,14 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { EditorPanel } from "@/components/EditorPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
-import { MessageCircle, ChevronDown } from "lucide-react";
+import { ReferenceTab } from "@/components/ReferenceTab";
+import {
+  MessageCircle,
+  ChevronDown,
+  BookOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import { useApp } from "@/lib/store";
 import {
   Dialog,
@@ -45,8 +52,43 @@ interface LayoutProps {
 }
 
 function DesktopLayout({ conversation }: LayoutProps) {
+  const [refOpen, setRefOpen] = useState(false);
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+      {/* Collapsible reference drawer */}
+      <aside
+        className={`shrink-0 border-r border-border flex flex-col overflow-hidden transition-[width] duration-300 ease-in-out ${
+          refOpen ? "w-[280px]" : "w-10"
+        }`}
+      >
+        <div className="flex items-center border-b border-border h-10 shrink-0">
+          <button
+            onClick={() => setRefOpen((v) => !v)}
+            className="flex items-center justify-center w-10 h-10 hover:bg-muted/60 text-muted-foreground"
+            aria-label={
+              refOpen ? "Collapse reference drawer" : "Expand reference drawer"
+            }
+          >
+            {refOpen ? (
+              <PanelLeftClose className="w-4 h-4" />
+            ) : (
+              <PanelLeftOpen className="w-4 h-4" />
+            )}
+          </button>
+          {refOpen && (
+            <span className="text-xs font-medium text-muted-foreground ml-1 truncate">
+              Reference
+            </span>
+          )}
+        </div>
+        {refOpen && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ReferenceTab />
+          </div>
+        )}
+      </aside>
+
       <main className="flex-1 min-w-0">
         <EditorPanel />
       </main>
@@ -59,6 +101,7 @@ function DesktopLayout({ conversation }: LayoutProps) {
 
 function MobileLayout({ conversation }: LayoutProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<"chat" | "reference">("chat");
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -73,6 +116,11 @@ function MobileLayout({ conversation }: LayoutProps) {
     }
   }, [sheetOpen]);
 
+  const openSheet = (mode: "chat" | "reference") => {
+    setSheetMode(mode);
+    setSheetOpen(true);
+  };
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
       {/* Editor always mounted, full screen */}
@@ -80,15 +128,24 @@ function MobileLayout({ conversation }: LayoutProps) {
         <EditorPanel />
       </div>
 
-      {/* FAB */}
+      {/* FABs */}
       {!sheetOpen && (
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
-          aria-label="Open chat"
-        >
-          <MessageCircle className="h-6 w-6" />
-        </button>
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+          <button
+            onClick={() => openSheet("reference")}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground shadow-lg border border-border"
+            aria-label="Open reference"
+          >
+            <BookOpen className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => openSheet("chat")}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
+            aria-label="Open chat"
+          >
+            <MessageCircle className="h-6 w-6" />
+          </button>
+        </div>
       )}
 
       {/* Bottom sheet overlay */}
@@ -100,7 +157,9 @@ function MobileLayout({ conversation }: LayoutProps) {
         style={{ height: "70vh" }}
       >
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <span className="font-medium">AI Assistant</span>
+          <span className="font-medium">
+            {sheetMode === "chat" ? "AI Assistant" : "Reference"}
+          </span>
           <button
             onClick={() => {
               (document.activeElement as HTMLElement)?.blur();
@@ -113,7 +172,11 @@ function MobileLayout({ conversation }: LayoutProps) {
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <ChatSidebar conversation={conversation} />
+          {sheetMode === "chat" ? (
+            <ChatSidebar conversation={conversation} />
+          ) : (
+            <ReferenceTab />
+          )}
         </div>
       </div>
     </div>

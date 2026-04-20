@@ -130,19 +130,23 @@ This document outlines the phased implementation strategy for the AI Agent Text 
 
 **Goal:** Provide the agent with reference material via workspace documents.
 
-### Phase 10a: Docs UI
-- [ ] Add `SupportingDocsContext` with `localStorage` persistence.
-- [ ] Build `ReferenceTab` (doc list, inline editor, auto-save) and add it to the sidebar.
-- **Working State:** The user can create, edit, and delete reference documents in the sidebar. Documents survive a page reload.
+### Phase 10a: Docs UI ✅
+
+- [x] Add `SupportingDocsContext` with `localStorage` persistence.
+- [x] Build `ReferenceTab` (doc list, inline editor, auto-save) as a collapsible left drawer.
+- **Working State:** The user can create, edit, and delete reference documents in a collapsible left panel. Documents survive a page reload.
 
 ### Phase 10b: Basic read tools
+
 - [ ] Implement `list_supporting_docs` and `read_supporting_doc` in the tool registry.
 - **Working State:** The agent can list and read documents directly.
 
 ### Phase 10c: Single-doc query
+
 - [ ] Implement `query_supporting_doc`: delegates to a short-lived sub-agent that reads one doc and returns a focused summary.
 - **Working State:** The agent can ask a focused question about a specific document without the full content entering its context.
 
 ### Phase 10d: Multi-doc synthesis
+
 - [ ] Implement `query_supporting_docs`: calls `query_supporting_doc` for each doc, then passes the summaries to a synthesizer sub-agent.
 - **Working State:** The agent can query across the entire workspace in a single tool call and receive a synthesized answer.

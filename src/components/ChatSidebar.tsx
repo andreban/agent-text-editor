@@ -228,7 +228,9 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <SkillsDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
       <div className="p-4 border-b flex justify-between items-center gap-4">
-        <span className="text-sm font-medium whitespace-nowrap">AI Assistant</span>
+        <span className="text-sm font-medium whitespace-nowrap">
+          AI Assistant
+        </span>
         <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
           <div className="flex items-center space-x-2 min-h-11">
             <Switch
@@ -240,7 +242,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
               Approve All
             </Label>
           </div>
-<Button
+          <Button
             variant="ghost"
             size="icon"
             className="h-11 w-11"

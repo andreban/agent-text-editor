@@ -69,9 +69,9 @@ This mirrors the `delegate_to_skill` pattern from Phase 8, with sub-agents creat
 
 ```ts
 interface SupportingDoc {
-  id: string;        // crypto.randomUUID()
+  id: string; // crypto.randomUUID()
   title: string;
-  content: string;   // raw markdown
+  content: string; // raw markdown
   updatedAt: number; // Date.now()
 }
 ```

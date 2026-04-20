@@ -6,12 +6,15 @@ import App from "./App";
 import "./index.css";
 import { AppProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/ThemeProvider";
+import { SupportingDocsProvider } from "./lib/SupportingDocsContext";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ThemeProvider>
       <AppProvider>
-        <App />
+        <SupportingDocsProvider>
+          <App />
+        </SupportingDocsProvider>
       </AppProvider>
     </ThemeProvider>
   </React.StrictMode>,
