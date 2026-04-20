@@ -11,8 +11,24 @@ import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SuggestionWidget } from "./SuggestionWidget";
 import { createPortal } from "react-dom";
 
-const DEFAULT_CONTENT =
-  "# Welcome to the AI Agent Text Editor\n\nStart typing here, and switch to the **Preview** tab to see the rendered Markdown.\n\n- React\n- Monaco Editor\n- MAST AI";
+const DEFAULT_CONTENT = `# Welcome to the AI Agent Text Editor
+
+This is a powerful text editor assisted by an AI Agent. You can write your content here, and use the chat sidebar on the right to ask the agent to help you.
+
+## Ideas to try:
+- **Delegate to Skills**: You have access to specialized skills. Try saying:
+  - "Ask the **Proofreader** to check this for typos."
+  - "Use the **Summarizer** to give me a quick overview."
+  - "Call the **Markdown Formatter** to fix the headings."
+- **Surgical Edits**: Ask the agent to make specific changes, like:
+  - "Change the tone to be more professional."
+  - "Add a new section about the benefits of AI."
+- **Context Awareness**: The agent can read your file and any supporting documents. Try:
+  - "Check if this matches the guidelines in the supporting docs."
+
+Switch to the **Preview** tab to see the rendered Markdown.
+
+- Built with React, Monaco Editor, and MAST AI.`;
 
 const DEBOUNCE_MS = 500;
 
