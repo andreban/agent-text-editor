@@ -5,7 +5,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { WorkspacesProvider } from "@/lib/WorkspacesContext";
-import { WorkspaceMeta, WorkspaceData, WorkspaceDocument } from "@/lib/workspace";
+import {
+  WorkspaceMeta,
+  WorkspaceData,
+  WorkspaceDocument,
+} from "@/lib/workspace";
 import { WorkspacePanel } from "./WorkspacePanel";
 
 function renderPanel() {
@@ -99,7 +103,10 @@ describe("WorkspacePanel", () => {
 
   it("switches active document when a doc row is clicked", () => {
     setupWorkspace(
-      [{ id: "doc-0", title: "First" }, { id: "doc-1", title: "Second" }],
+      [
+        { id: "doc-0", title: "First" },
+        { id: "doc-1", title: "Second" },
+      ],
       1,
     );
     renderPanel();
@@ -120,23 +127,31 @@ describe("WorkspacePanel", () => {
   });
 
   it("shows confirmation before deleting a document with content", () => {
-    setupWorkspace([
-      { id: "doc-0", title: "Rich Doc", content: "some content" },
-      { id: "doc-1", title: "Empty Doc", content: "" },
-    ], 1);
+    setupWorkspace(
+      [
+        { id: "doc-0", title: "Rich Doc", content: "some content" },
+        { id: "doc-1", title: "Empty Doc", content: "" },
+      ],
+      1,
+    );
     renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /delete rich doc/i }));
 
-    expect(screen.getByRole("button", { name: /confirm delete/i })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /confirm delete/i }),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: /cancel delete/i })).toBeTruthy();
   });
 
   it("cancels deletion when Cancel is clicked in confirm dialog", () => {
-    setupWorkspace([
-      { id: "doc-0", title: "Rich Doc", content: "some content" },
-      { id: "doc-1", title: "Empty Doc", content: "" },
-    ], 1);
+    setupWorkspace(
+      [
+        { id: "doc-0", title: "Rich Doc", content: "some content" },
+        { id: "doc-1", title: "Empty Doc", content: "" },
+      ],
+      1,
+    );
     renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /delete rich doc/i }));
@@ -147,10 +162,13 @@ describe("WorkspacePanel", () => {
   });
 
   it("confirms deletion in confirm dialog", () => {
-    setupWorkspace([
-      { id: "doc-0", title: "Rich Doc", content: "some content" },
-      { id: "doc-1", title: "Empty Doc", content: "" },
-    ], 1);
+    setupWorkspace(
+      [
+        { id: "doc-0", title: "Rich Doc", content: "some content" },
+        { id: "doc-1", title: "Empty Doc", content: "" },
+      ],
+      1,
+    );
     renderPanel();
 
     fireEvent.click(screen.getByRole("button", { name: /delete rich doc/i }));

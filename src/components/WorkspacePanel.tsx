@@ -158,10 +158,17 @@ function DocRow({
 }
 
 export function WorkspacePanel() {
-  const { activeWorkspace, activeDocument, addDocument, setActiveDocumentId, index, activeWorkspaceId } =
-    useWorkspaces();
+  const {
+    activeWorkspace,
+    activeDocument,
+    addDocument,
+    setActiveDocumentId,
+    index,
+    activeWorkspaceId,
+  } = useWorkspaces();
   const docs = activeWorkspace?.documents ?? [];
-  const workspaceName = index.find((m) => m.id === activeWorkspaceId)?.name ?? "Workspace";
+  const workspaceName =
+    index.find((m) => m.id === activeWorkspaceId)?.name ?? "Workspace";
 
   return (
     <div className="flex flex-col h-full">

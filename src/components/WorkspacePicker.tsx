@@ -170,10 +170,7 @@ export function WorkspacePicker() {
           )}
         </div>
 
-        <Button
-          className="w-full gap-2"
-          onClick={() => setShowNewDialog(true)}
-        >
+        <Button className="w-full gap-2" onClick={() => setShowNewDialog(true)}>
           <Plus className="w-4 h-4" />
           New Workspace
         </Button>

@@ -155,7 +155,9 @@ describe("WorkspacePicker — delete workspace", () => {
 
   it("deletes workspace after confirmation", () => {
     renderPicker();
-    fireEvent.click(screen.getAllByRole("button", { name: /delete alpha/i })[0]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /delete alpha/i })[0],
+    );
     const dialog = screen.getByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /^delete$/i }));
     expect(getIndex().find((w) => w.name === "Alpha")).toBeUndefined();
@@ -163,7 +165,9 @@ describe("WorkspacePicker — delete workspace", () => {
 
   it("cancels deletion when cancel is clicked in dialog", () => {
     renderPicker();
-    fireEvent.click(screen.getAllByRole("button", { name: /delete alpha/i })[0]);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /delete alpha/i })[0],
+    );
     const dialog = screen.getByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
     expect(getIndex().find((w) => w.name === "Alpha")).toBeTruthy();
