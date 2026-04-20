@@ -1,6 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 interface MarkdownContentProps {
@@ -13,6 +14,7 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
     <div className={className}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSanitize]}
         components={{
           h1: ({ ...props }) => (
             <h1
