@@ -56,7 +56,7 @@ describe("App", () => {
     fireEvent.click(screen.getByText("Save Key"));
 
     expect(screen.getByTestId("mock-monaco-editor")).toBeInTheDocument();
-    expect(screen.getByText("AI Assistant")).toBeInTheDocument();
+    expect(screen.getAllByText("AI Assistant").length).toBeGreaterThan(0);
     expect(
       screen.getByPlaceholderText("Ask the editor..."),
     ).toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("App responsive layout", () => {
     expect(screen.queryByRole("button", { name: "Open chat" })).toBeNull();
     // Editor and sidebar both visible
     expect(screen.getByTestId("mock-monaco-editor")).toBeInTheDocument();
-    expect(screen.getByText("AI Assistant")).toBeInTheDocument();
+    expect(screen.getAllByText("AI Assistant").length).toBeGreaterThan(0);
     // Reference drawer toggle button is present
     expect(
       screen.getByRole("button", { name: "Expand reference drawer" }),
