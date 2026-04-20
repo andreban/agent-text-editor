@@ -322,7 +322,7 @@ function App() {
     const workspaceTools = new WorkspaceTools(
       docsRef,
       activeDocRef,
-      () => new GoogleGenAIAdapter(apiKey, "gemini-2.5-flash"),
+      () => new GoogleGenAIAdapter(apiKey, modelName),
     );
     registerWorkspaceTools(registry, workspaceTools);
 
