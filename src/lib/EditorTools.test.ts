@@ -12,8 +12,6 @@ describe("EditorTools", () => {
   let mockModel: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let setSuggestions: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let setEditorContent: any;
 
   beforeEach(() => {
     mockModel = {
@@ -35,7 +33,6 @@ describe("EditorTools", () => {
     };
 
     setSuggestions = vi.fn();
-    setEditorContent = vi.fn();
   });
 
   describe("read", () => {
@@ -44,9 +41,104 @@ describe("EditorTools", () => {
       expect(tools.read()).toBe("Initial content");
     });
 
-    it("should return empty string if editor is not initialized", () => {
+    it("should return empty string if editor is not initialized and no fallback", () => {
       const tools = new EditorTools(null, setSuggestions, false);
       expect(tools.read()).toBe("");
+    });
+
+    it("should fall back to getEditorContent when editor is not initialized", () => {
+      const tools = new EditorTools(
+        null,
+        setSuggestions,
+        false,
+        () => "fallback content",
+      );
+      expect(tools.read()).toBe("fallback content");
+    });
+
+    it("should fall back to getEditorContent when editor returns empty string", () => {
+      mockEditor.getValue.mockReturnValue("");
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        () => "fallback content",
+      );
+      expect(tools.read()).toBe("fallback content");
+    });
+
+    it("should prefer editor content over fallback when editor has content", () => {
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        () => "fallback content",
+      );
+      expect(tools.read()).toBe("Initial content");
+    });
+  });
+
+  describe("get_current_mode", () => {
+    it("should return editor mode by default", () => {
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      expect(tools.get_current_mode()).toBe("editor");
+    });
+
+    it("should return the mode from getActiveTab", () => {
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        () => "",
+        () => "preview",
+      );
+      expect(tools.get_current_mode()).toBe("preview");
+    });
+  });
+
+  describe("request_switch_to_editor", () => {
+    it("should return already-in-editor message when already in editor mode", async () => {
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        () => "",
+        () => "editor",
+      );
+      expect(await tools.request_switch_to_editor()).toBe(
+        "Already in editor mode.",
+      );
+    });
+
+    it("should return success message when user accepts the switch", async () => {
+      const requestTabSwitch = vi.fn().mockResolvedValue(true);
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        () => "",
+        () => "preview",
+        requestTabSwitch,
+      );
+      expect(await tools.request_switch_to_editor()).toBe(
+        "Switched to editor mode.",
+      );
+      expect(requestTabSwitch).toHaveBeenCalledOnce();
+    });
+
+    it("should return declined message when user rejects the switch", async () => {
+      const requestTabSwitch = vi.fn().mockResolvedValue(false);
+      const tools = new EditorTools(
+        mockEditor,
+        setSuggestions,
+        false,
+        () => "",
+        () => "preview",
+        requestTabSwitch,
+      );
+      expect(await tools.request_switch_to_editor()).toBe(
+        "User declined to switch to editor mode.",
+      );
     });
   });
 
