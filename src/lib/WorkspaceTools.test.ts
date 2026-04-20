@@ -23,9 +23,9 @@ function makeRef(docs: WorkspaceDocument[]): { current: WorkspaceDocument[] } {
   return { current: docs };
 }
 
-function makeActiveDocRef(
-  doc: { id: string; title: string } | null,
-): { current: { id: string; title: string } | null } {
+function makeActiveDocRef(doc: { id: string; title: string } | null): {
+  current: { id: string; title: string } | null;
+} {
   return { current: doc };
 }
 
@@ -38,8 +38,12 @@ describe("WorkspaceTools", () => {
 
   beforeEach(() => {
     mockRun = vi.fn().mockResolvedValue({ output: "mock answer" });
-    adapterFactory = vi.fn().mockReturnValue({} as LlmAdapter) as AdapterFactory;
-    runnerFactory = vi.fn().mockReturnValue({ run: mockRun }) as SubAgentFactory;
+    adapterFactory = vi
+      .fn()
+      .mockReturnValue({} as LlmAdapter) as AdapterFactory;
+    runnerFactory = vi
+      .fn()
+      .mockReturnValue({ run: mockRun }) as SubAgentFactory;
   });
 
   describe("get_active_doc_info", () => {
@@ -51,7 +55,11 @@ describe("WorkspaceTools", () => {
     });
 
     it("returns error when no document is active", () => {
-      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, adapterFactory);
+      const tools = new WorkspaceTools(
+        makeRef([]),
+        noActiveDoc,
+        adapterFactory,
+      );
       const result = JSON.parse(tools.get_active_doc_info());
       expect(result).toEqual({ error: "No active document" });
     });
@@ -63,7 +71,11 @@ describe("WorkspaceTools", () => {
         makeDoc({ id: "a", title: "Alpha", content: "secret" }),
         makeDoc({ id: "b", title: "Beta", content: "also secret" }),
       ];
-      const tools = new WorkspaceTools(makeRef(docs), noActiveDoc, adapterFactory);
+      const tools = new WorkspaceTools(
+        makeRef(docs),
+        noActiveDoc,
+        adapterFactory,
+      );
       const result = JSON.parse(tools.list_workspace_docs());
       expect(result).toEqual([
         { id: "a", title: "Alpha" },
@@ -72,7 +84,11 @@ describe("WorkspaceTools", () => {
     });
 
     it("returns empty array when workspace has no documents", () => {
-      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, adapterFactory);
+      const tools = new WorkspaceTools(
+        makeRef([]),
+        noActiveDoc,
+        adapterFactory,
+      );
       expect(JSON.parse(tools.list_workspace_docs())).toEqual([]);
     });
   });
@@ -84,13 +100,21 @@ describe("WorkspaceTools", () => {
         title: "My Doc",
         content: "content here",
       });
-      const tools = new WorkspaceTools(makeRef([doc]), noActiveDoc, adapterFactory);
+      const tools = new WorkspaceTools(
+        makeRef([doc]),
+        noActiveDoc,
+        adapterFactory,
+      );
       const result = JSON.parse(tools.read_workspace_doc({ id: "x" }));
       expect(result).toEqual({ title: "My Doc", content: "content here" });
     });
 
     it("returns error for an unknown id", () => {
-      const tools = new WorkspaceTools(makeRef([makeDoc()]), noActiveDoc, adapterFactory);
+      const tools = new WorkspaceTools(
+        makeRef([makeDoc()]),
+        noActiveDoc,
+        adapterFactory,
+      );
       const result = JSON.parse(tools.read_workspace_doc({ id: "unknown" }));
       expect(result).toEqual({ error: "Document not found" });
     });

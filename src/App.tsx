@@ -11,6 +11,8 @@ import {
   BookOpen,
   PanelLeftClose,
   PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   LayoutGrid,
 } from "lucide-react";
 import { useApp } from "@/lib/store";
@@ -57,6 +59,7 @@ interface LayoutProps {
 
 function DesktopLayout({ conversation }: LayoutProps) {
   const [refOpen, setRefOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
   const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
   const activeMeta = index.find((w) => w.id === activeWorkspaceId);
 
@@ -115,8 +118,37 @@ function DesktopLayout({ conversation }: LayoutProps) {
           <EditorPanel />
         </div>
       </main>
-      <aside className="w-[400px] shrink-0 border-l border-border">
-        <ChatSidebar conversation={conversation} />
+      {/* Collapsible chat sidebar */}
+      <aside
+        className={`shrink-0 border-l border-border flex flex-col overflow-hidden transition-[width] duration-300 ease-in-out ${
+          chatOpen ? "w-[400px]" : "w-10"
+        }`}
+      >
+        <div className="flex items-center border-b border-border h-10 shrink-0">
+          {chatOpen && (
+            <span className="text-xs font-medium text-muted-foreground ml-3 truncate flex-1">
+              AI Assistant
+            </span>
+          )}
+          <button
+            onClick={() => setChatOpen((v) => !v)}
+            className="flex items-center justify-center w-10 h-10 hover:bg-muted/60 text-muted-foreground shrink-0"
+            aria-label={
+              chatOpen ? "Collapse chat sidebar" : "Expand chat sidebar"
+            }
+          >
+            {chatOpen ? (
+              <PanelRightClose className="w-4 h-4" />
+            ) : (
+              <PanelRightOpen className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+        {chatOpen && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ChatSidebar conversation={conversation} />
+          </div>
+        )}
       </aside>
     </div>
   );
@@ -241,7 +273,8 @@ const BASE_INSTRUCTIONS =
   "Use `query_workspace(query)` to synthesize an answer that draws from all workspace documents.";
 
 function App() {
-  const { activeWorkspaceId, activeWorkspace, activeDocument } = useWorkspaces();
+  const { activeWorkspaceId, activeWorkspace, activeDocument } =
+    useWorkspaces();
   const {
     apiKey,
     setApiKey,
@@ -261,7 +294,9 @@ function App() {
   }, [activeWorkspace]);
 
   const activeDocRef = useRef(
-    activeDocument ? { id: activeDocument.id, title: activeDocument.title } : null,
+    activeDocument
+      ? { id: activeDocument.id, title: activeDocument.title }
+      : null,
   );
   useEffect(() => {
     activeDocRef.current = activeDocument

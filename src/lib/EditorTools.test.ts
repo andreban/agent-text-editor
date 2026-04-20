@@ -40,42 +40,26 @@ describe("EditorTools", () => {
 
   describe("read", () => {
     it("should return the editor content", () => {
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.read()).toBe("Initial content");
     });
 
     it("should return empty string if editor is not initialized", () => {
-      const tools = new EditorTools(
-        null,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(null, setSuggestions, false);
       expect(tools.read()).toBe("");
     });
   });
 
   describe("search", () => {
     it("should return error if editor is not initialized", () => {
-      const tools = new EditorTools(
-        null,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(null, setSuggestions, false);
       expect(tools.search({ query: "hello" })).toBe(
         "Error: Editor not initialized.",
       );
     });
 
     it("should return error for empty query", () => {
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.search({ query: "" })).toBe(
         "Error: query parameter is required.",
       );
@@ -83,11 +67,7 @@ describe("EditorTools", () => {
 
     it("should return not-found message when there are no matches", () => {
       mockModel.findMatches.mockReturnValue([]);
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.search({ query: "xyz" })).toBe(
         'No occurrences of "xyz" found.',
       );
@@ -104,11 +84,7 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.search({ query: "foo" })).toBe(
         'Found 1 occurrence(s) of "foo": line 3, col 5.',
       );
@@ -133,11 +109,7 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.search({ query: "foo" })).toBe(
         'Found 2 occurrence(s) of "foo": line 1, col 1; line 5, col 10.',
       );
@@ -146,51 +118,31 @@ describe("EditorTools", () => {
 
   describe("get_metadata", () => {
     it("should return error if editor is not initialized", () => {
-      const tools = new EditorTools(
-        null,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(null, setSuggestions, false);
       expect(tools.get_metadata()).toBe("Error: Editor not initialized.");
     });
 
     it("should return zero counts for an empty document", () => {
       mockEditor.getValue.mockReturnValue("");
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.get_metadata()).toBe("Characters: 0, Words: 0, Lines: 0.");
     });
 
     it("should return correct counts for a single-line document", () => {
       mockEditor.getValue.mockReturnValue("hello world");
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.get_metadata()).toBe("Characters: 11, Words: 2, Lines: 1.");
     });
 
     it("should return correct line count for a multi-line document", () => {
       mockEditor.getValue.mockReturnValue("line one\nline two\nline three");
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.get_metadata()).toBe("Characters: 28, Words: 6, Lines: 3.");
     });
 
     it("should not count leading/trailing whitespace as words", () => {
       mockEditor.getValue.mockReturnValue("  hello world  ");
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
       expect(tools.get_metadata()).toBe("Characters: 15, Words: 2, Lines: 1.");
     });
   });
@@ -198,11 +150,7 @@ describe("EditorTools", () => {
   describe("edit", () => {
     it("should return an error if text is not found", async () => {
       mockModel.findMatches.mockReturnValue([]);
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
 
       const result = await tools.edit({
         originalText: "missing",
@@ -224,11 +172,7 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
 
       const promise = tools.edit({
         originalText: "old",
@@ -264,11 +208,7 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        true,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, true);
 
       const result = await tools.edit({
         originalText: "old",
@@ -293,11 +233,7 @@ describe("EditorTools", () => {
         generate: vi.fn(),
         generateStream: vi.fn(),
       } as unknown as LlmAdapter;
-      editorToolsInstance = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      editorToolsInstance = new EditorTools(mockEditor, setSuggestions, false);
       mockRun = vi.fn().mockResolvedValue({ output: "done" });
     });
 
@@ -399,11 +335,7 @@ describe("EditorTools", () => {
 
   describe("write", () => {
     it("should create a suggestion for the full document if not approveAll", async () => {
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        false,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
 
       const promise = tools.write({ content: "New document content" });
 
@@ -423,11 +355,7 @@ describe("EditorTools", () => {
     });
 
     it("should apply full replacement immediately if approveAll is true", async () => {
-      const tools = new EditorTools(
-        mockEditor,
-        setSuggestions,
-        true,
-      );
+      const tools = new EditorTools(mockEditor, setSuggestions, true);
 
       const result = await tools.write({ content: "New document content" });
 
