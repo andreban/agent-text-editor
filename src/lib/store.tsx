@@ -14,6 +14,10 @@ export interface Suggestion {
   resolve: (value: string) => void;
 }
 
+export interface TabSwitchRequest {
+  resolve: (accepted: boolean) => void;
+}
+
 interface AppState {
   apiKey: string | null;
   setApiKey: (key: string | null) => void;
@@ -29,6 +33,12 @@ interface AppState {
   setEditorInstance: (
     editor: monaco.editor.IStandaloneCodeEditor | null,
   ) => void;
+  activeTab: "editor" | "preview";
+  setActiveTab: (tab: "editor" | "preview") => void;
+  editorContent: string;
+  setEditorContent: (content: string) => void;
+  pendingTabSwitchRequest: TabSwitchRequest | null;
+  setPendingTabSwitchRequest: (req: TabSwitchRequest | null) => void;
   approveAll: boolean;
   setApproveAll: (approve: boolean) => void;
   skills: Skill[];
@@ -52,6 +62,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [editorInstance, setEditorInstance] =
     useState<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [activeTab, setActiveTab] = useState<"editor" | "preview">("editor");
+  const [editorContent, setEditorContent] = useState<string>("");
+  const [pendingTabSwitchRequest, setPendingTabSwitchRequest] =
+    useState<TabSwitchRequest | null>(null);
   const [approveAll, setApproveAll] = useState(false);
   const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());
 
@@ -85,6 +99,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setSuggestions,
         editorInstance,
         setEditorInstance,
+        activeTab,
+        setActiveTab,
+        editorContent,
+        setEditorContent,
+        pendingTabSwitchRequest,
+        setPendingTabSwitchRequest,
         approveAll,
         setApproveAll,
         skills,

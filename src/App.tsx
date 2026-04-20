@@ -267,6 +267,8 @@ const BASE_INSTRUCTIONS =
   "When using `edit()`, the `originalText` should be as short as possible (just the sentence or words changing), not the whole file. " +
   "When you call `edit()` or `write()`, the execution will PAUSE until the user manually Accepts or Rejects the change. " +
   "You will then receive the user's decision (and feedback if any) as the tool result. " +
+  "Use `get_current_mode()` to check whether the UI is in 'editor' or 'preview' mode before making edits. " +
+  "If in 'preview' mode and you need to edit, call `request_switch_to_editor()` first — this prompts the user to switch tabs. " +
   "The workspace may contain multiple documents. Use `get_active_doc_info()` to get the id and title of the currently open document. " +
   "Use `list_workspace_docs()` to discover all documents. " +
   "Use `read_workspace_doc(id)` to read another document in full, or `query_workspace_doc(id, query)` for a targeted question. " +
@@ -284,6 +286,9 @@ function App() {
     setSuggestions,
     approveAll,
     skills,
+    activeTab,
+    editorContent,
+    setPendingTabSwitchRequest,
   } = useApp();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
@@ -315,6 +320,12 @@ function App() {
       editorInstance,
       setSuggestions,
       approveAll,
+      () => editorContent,
+      () => activeTab,
+      () =>
+        new Promise<boolean>((resolve) => {
+          setPendingTabSwitchRequest({ resolve });
+        }),
     );
 
     registerEditorTools(registry, editorTools);
@@ -360,6 +371,9 @@ function App() {
     approveAll,
     docsRef,
     activeDocRef,
+    activeTab,
+    editorContent,
+    setPendingTabSwitchRequest,
   ]);
 
   const conversation = useMemo(() => {
@@ -379,6 +393,8 @@ function App() {
         "get_metadata",
         "edit",
         "write",
+        "get_current_mode",
+        "request_switch_to_editor",
         "delegate_to_skill",
         "get_active_doc_info",
         "list_workspace_docs",

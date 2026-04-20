@@ -12,11 +12,31 @@ export class EditorTools {
     private editor: monaco.editor.IStandaloneCodeEditor | null,
     private setSuggestions: (fn: (prev: Suggestion[]) => Suggestion[]) => void,
     private approveAll: boolean,
+    private getEditorContent: () => string = () => "",
+    private getActiveTab: () => "editor" | "preview" = () => "editor",
+    private requestTabSwitch: () => Promise<boolean> = () =>
+      Promise.resolve(false),
   ) {}
 
   read(): string {
-    if (!this.editor) return "";
-    return this.editor.getValue();
+    if (!this.editor) return this.getEditorContent();
+    const value = this.editor.getValue();
+    return value || this.getEditorContent();
+  }
+
+  get_current_mode(): string {
+    return this.getActiveTab();
+  }
+
+  async request_switch_to_editor(): Promise<string> {
+    if (this.getActiveTab() === "editor") {
+      return "Already in editor mode.";
+    }
+    const accepted = await this.requestTabSwitch();
+    if (accepted) {
+      return "Switched to editor mode.";
+    }
+    return "User declined to switch to editor mode.";
   }
 
   read_selection(): string {
@@ -256,6 +276,26 @@ export function registerEditorTools(
       },
     }),
     call: async (args: { content: string }) => tools.write(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "get_current_mode",
+      description:
+        "Returns the current UI mode: 'editor' (Monaco editor is visible) or 'preview' (Markdown preview is visible). Check this before making edits to ensure the editor is accessible.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.get_current_mode(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "request_switch_to_editor",
+      description:
+        "Requests the user to switch from Preview mode to Editor mode. This will display a prompt to the user and pause until they accept or decline. Call this before attempting edits when in preview mode.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.request_switch_to_editor(),
   });
 }
 

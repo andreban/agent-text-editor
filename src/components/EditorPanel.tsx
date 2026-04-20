@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Editor, OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { MarkdownContent } from "./MarkdownContent";
 import { useApp } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
@@ -33,8 +41,17 @@ Switch to the **Preview** tab to see the rendered Markdown.
 const DEBOUNCE_MS = 500;
 
 export function EditorPanel() {
-  const { setEditorInstance, suggestions, setSuggestions, editorInstance } =
-    useApp();
+  const {
+    setEditorInstance,
+    suggestions,
+    setSuggestions,
+    editorInstance,
+    activeTab,
+    setActiveTab,
+    setEditorContent,
+    pendingTabSwitchRequest,
+    setPendingTabSwitchRequest,
+  } = useApp();
   const { activeDocument, updateDocument } = useWorkspaces();
 
   const { theme } = useTheme();
@@ -65,6 +82,16 @@ export function EditorPanel() {
   const handleEditorDidMount: OnMount = (editor) => {
     setEditorInstance(editor);
   };
+
+  useEffect(() => {
+    setEditorContent(localContent);
+  }, [localContent, setEditorContent]);
+
+  useEffect(() => {
+    if (activeTab === "editor" && editorInstance) {
+      editorInstance.layout();
+    }
+  }, [activeTab, editorInstance]);
 
   const handleChange = (value: string | undefined) => {
     const content = value || "";
@@ -190,9 +217,50 @@ export function EditorPanel() {
     }
   };
 
+  const handleTabSwitchAccept = () => {
+    if (pendingTabSwitchRequest) {
+      setActiveTab("editor");
+      pendingTabSwitchRequest.resolve(true);
+      setPendingTabSwitchRequest(null);
+    }
+  };
+
+  const handleTabSwitchDecline = () => {
+    if (pendingTabSwitchRequest) {
+      pendingTabSwitchRequest.resolve(false);
+      setPendingTabSwitchRequest(null);
+    }
+  };
+
   return (
     <div className="flex h-full w-full flex-col bg-background relative">
-      <Tabs defaultValue="editor" className="flex h-full w-full flex-col">
+      <Dialog
+        open={!!pendingTabSwitchRequest}
+        onOpenChange={(open) => {
+          if (!open) handleTabSwitchDecline();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Switch to Editor?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The AI assistant needs to edit the document, but you are currently
+            in Preview mode. Switch to the Editor tab to allow changes?
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleTabSwitchDecline}>
+              Cancel
+            </Button>
+            <Button onClick={handleTabSwitchAccept}>Switch to Editor</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "editor" | "preview")}
+        className="flex h-full w-full flex-col"
+      >
         <div className="border-b px-4 py-2">
           <TabsList>
             <TabsTrigger value="editor">Editor</TabsTrigger>
@@ -202,7 +270,8 @@ export function EditorPanel() {
 
         <TabsContent
           value="editor"
-          className="m-0 flex-1 border-0 p-0 outline-none data-[state=active]:flex data-[state=active]:flex-col relative"
+          forceMount
+          className="hidden m-0 flex-1 border-0 p-0 outline-none data-[state=active]:flex data-[state=active]:flex-col relative"
         >
           <div className="flex-1 relative">
             <Editor
