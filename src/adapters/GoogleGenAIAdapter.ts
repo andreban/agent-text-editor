@@ -102,7 +102,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fc = (p as any).functionCall;
         return {
-          id: fc.id || Math.random().toString(36).substring(7),
+          id: fc.id || crypto.randomUUID(),
           name: fc.name,
           args: fc.args,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -176,7 +176,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
               id:
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (part.functionCall as any).id ||
-                Math.random().toString(36).substring(7),
+                crypto.randomUUID(),
               name: part.functionCall.name!,
               args: part.functionCall.args,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any

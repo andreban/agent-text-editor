@@ -115,7 +115,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
 
     setItems((prev) => [
       ...prev,
-      { kind: "user", id: `user-${Date.now()}`, text: userText },
+      { kind: "user", id: `user-${crypto.randomUUID()}`, text: userText },
     ]);
 
     // IDs of in-flight items — local vars are sufficient since this all runs
@@ -125,7 +125,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
 
     const ensureAssistant = (): string => {
       if (assistantId) return assistantId;
-      const id = `asst-${Date.now()}`;
+      const id = `asst-${crypto.randomUUID()}`;
       assistantId = id;
       setItems((prev) => [
         ...prev,
@@ -170,7 +170,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
             );
             assistantId = null;
           }
-          const tid = `tool-${Date.now()}`;
+          const tid = `tool-${crypto.randomUUID()}`;
           toolId = tid;
           const name = event.name;
           setItems((prev) => [
