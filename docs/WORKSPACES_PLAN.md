@@ -13,7 +13,7 @@ The current design has two broken assumptions:
 | Current                       | Problem                                                    |
 | ----------------------------- | ---------------------------------------------------------- |
 | `AppState.editorContent`      | Ephemeral — lost on page reload. Only one document exists. |
-| `SupportingDocsContext` (10a) | Persistent, but second-class "reference" — not editable.  |
+| `SupportingDocsContext` (10a) | Persistent, but second-class "reference" — not editable.   |
 
 A workspace collapses these into a single model: all documents are peers, any can be edited, all persist, and multiple independent workspaces can be created and switched between.
 
@@ -23,14 +23,14 @@ A workspace collapses these into a single model: all documents are peers, any ca
 
 ```ts
 interface WorkspaceDocument {
-  id: string;              // crypto.randomUUID()
+  id: string; // crypto.randomUUID()
   title: string;
-  content: string;         // raw text / markdown
-  updatedAt: number;       // Date.now()
+  content: string; // raw text / markdown
+  updatedAt: number; // Date.now()
 }
 
 interface WorkspaceMeta {
-  id: string;              // crypto.randomUUID()
+  id: string; // crypto.randomUUID()
   name: string;
   createdAt: number;
   updatedAt: number;
@@ -44,11 +44,11 @@ interface WorkspaceData {
 
 `localStorage` layout — workspaces are stored separately to keep the index small and avoid loading all document content on start:
 
-| Key                        | Value                                    |
-| -------------------------- | ---------------------------------------- |
-| `workspaces_index`         | `JSON.stringify(WorkspaceMeta[])`        |
-| `workspace_{id}`           | `JSON.stringify(WorkspaceData)`          |
-| `active_workspace_id`      | the ID of the currently open workspace   |
+| Key                   | Value                                  |
+| --------------------- | -------------------------------------- |
+| `workspaces_index`    | `JSON.stringify(WorkspaceMeta[])`      |
+| `workspace_{id}`      | `JSON.stringify(WorkspaceData)`        |
+| `active_workspace_id` | the ID of the currently open workspace |
 
 ---
 
@@ -112,6 +112,7 @@ If `workspaces_index` already exists, skip migration entirely.
 **Goal:** Establish the multi-workspace data model. The app continues to work as before (single implicit workspace), but data is now persisted correctly.
 
 **Tasks:**
+
 - Define `WorkspaceMeta`, `WorkspaceDocument`, `WorkspaceData` types in `src/lib/workspace.ts`.
 - Create `WorkspacesContext` (`src/lib/WorkspacesContext.tsx`):
   - Reads `workspaces_index` and `active_workspace_id` from localStorage on init.
@@ -128,6 +129,7 @@ If `workspaces_index` already exists, skip migration entirely.
 **Files:** `src/lib/workspace.ts` (new), `src/lib/WorkspacesContext.tsx` (new, replaces `SupportingDocsContext.tsx`), `src/components/EditorPanel.tsx`, `src/lib/store.tsx`, `src/components/ReferenceTab.tsx`, `src/App.tsx` / `src/main.tsx`
 
 **Tests:**
+
 - `WorkspacesContext`: create/open/delete workspace, document CRUD within a workspace, localStorage persistence, migration from `supporting_docs`, empty initial state.
 - `EditorPanel`: content initialised from `activeDocument`, `updateDocument` called on editor change.
 
@@ -140,6 +142,7 @@ If `workspaces_index` already exists, skip migration entirely.
 **Goal:** The user can create, open, and delete workspaces via a dedicated UI.
 
 **Tasks:**
+
 - Create `WorkspacePicker` component (`src/components/WorkspacePicker.tsx`):
   - Shows the list of workspaces: name, last-modified date, **Open** button, **Rename** button (inline edit or prompt), **Delete** button (with confirmation dialog — deletes the workspace and all its documents).
   - **New Workspace** button: prompts for a name, creates the workspace, and opens it.
@@ -152,6 +155,7 @@ If `workspaces_index` already exists, skip migration entirely.
 **Files:** `src/components/WorkspacePicker.tsx` (new), `src/App.tsx`
 
 **Tests:**
+
 - `WorkspacePicker`: renders workspace list, create interaction, open sets active workspace, rename updates the name in the index, delete with confirmation removes it from index.
 - Edge: deleting the last workspace leaves `activeWorkspaceId` null.
 
@@ -164,6 +168,7 @@ If `workspaces_index` already exists, skip migration entirely.
 **Goal:** The left drawer becomes a first-class document navigator for the active workspace.
 
 **Tasks:**
+
 - Replace `ReferenceTab.tsx` with `WorkspacePanel.tsx` (`src/components/WorkspacePanel.tsx`):
   - Lists all documents in the active workspace.
   - Active document is highlighted.
@@ -177,6 +182,7 @@ If `workspaces_index` already exists, skip migration entirely.
 **Files:** `src/components/WorkspacePanel.tsx` (replaces `ReferenceTab.tsx`), `src/App.tsx`
 
 **Tests:**
+
 - `WorkspacePanel`: renders doc list, create/delete/rename interactions, clicking a doc sets `activeDocumentId`.
 
 **Working state:** Users can create multiple documents within a workspace, switch between them, rename and delete them. The Monaco editor always shows the active document's content.
@@ -190,6 +196,7 @@ If `workspaces_index` already exists, skip migration entirely.
 This phase supersedes Phases 10b, 10c, and 10d from the original Phase 10 plan.
 
 **Tasks:**
+
 - Create `src/lib/WorkspaceTools.ts` with four tools scoped to the active workspace:
   - `list_workspace_docs` — returns `[{ id, title }]` (no content).
   - `read_workspace_doc(id)` — returns `{ title, content }` or `{ error: "Document not found" }`.
@@ -201,6 +208,7 @@ This phase supersedes Phases 10b, 10c, and 10d from the original Phase 10 plan.
 **Files:** `src/lib/WorkspaceTools.ts` (new), `src/App.tsx`
 
 **Tests:**
+
 - `list_workspace_docs` returns `id` and `title` only.
 - `read_workspace_doc` returns content for a valid ID, error for unknown.
 - `query_workspace_doc` creates a child `AgentRunner` with doc content + query; factory injection allows mocking.
@@ -222,9 +230,9 @@ This phase supersedes Phases 10b, 10c, and 10d from the original Phase 10 plan.
 
 ## Impact on Phase 10
 
-| Phase 10 subphase     | Status after Workspaces plan                                                              |
-| --------------------- | ----------------------------------------------------------------------------------------- |
-| 10a: Docs UI          | ✅ Complete — data migrated into `WorkspacesContext` (11a); UI replaced by `WorkspacePanel` (11c) |
-| 10b: Basic read tools | Superseded by `list_workspace_docs` + `read_workspace_doc` in Phase 11d                  |
-| 10c: Single-doc query | Superseded by `query_workspace_doc` in Phase 11d                                         |
-| 10d: Multi-doc synthesis | Superseded by `query_workspace` in Phase 11d                                          |
+| Phase 10 subphase        | Status after Workspaces plan                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------- |
+| 10a: Docs UI             | ✅ Complete — data migrated into `WorkspacesContext` (11a); UI replaced by `WorkspacePanel` (11c) |
+| 10b: Basic read tools    | Superseded by `list_workspace_docs` + `read_workspace_doc` in Phase 11d                           |
+| 10c: Single-doc query    | Superseded by `query_workspace_doc` in Phase 11d                                                  |
+| 10d: Multi-doc synthesis | Superseded by `query_workspace` in Phase 11d                                                      |

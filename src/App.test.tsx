@@ -6,7 +6,7 @@ import App from "./App";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AppProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/ThemeProvider";
-import { SupportingDocsProvider } from "./lib/SupportingDocsContext";
+import { WorkspacesProvider } from "./lib/WorkspacesContext";
 
 // Mock Monaco Editor
 vi.mock("@monaco-editor/react", () => ({
@@ -29,9 +29,9 @@ function renderApp() {
   return render(
     <ThemeProvider>
       <AppProvider>
-        <SupportingDocsProvider>
+        <WorkspacesProvider>
           <App />
-        </SupportingDocsProvider>
+        </WorkspacesProvider>
       </AppProvider>
     </ThemeProvider>,
   );

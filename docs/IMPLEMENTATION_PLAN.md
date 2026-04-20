@@ -146,12 +146,13 @@ Phases 10b, 10c, and 10d have been superseded by the Workspaces feature (Phase 1
 
 **Goal:** Replace the single-document model with named, persistent multi-document workspaces. Users can create, open, and delete workspaces; within a workspace any document can be edited and all are available to the agent. See `WORKSPACES_PLAN.md` for full details.
 
-### Phase 11a: Data model & context
+### Phase 11a: Data model & context ✅
 
-- [ ] Define `WorkspaceMeta`, `WorkspaceDocument`, `WorkspaceData` types; create `WorkspacesContext` with per-workspace localStorage persistence.
-- [ ] Migrate `SupportingDocsContext` data into a default workspace; remove `SupportingDocsContext`.
-- [ ] Bind `EditorPanel` to the active workspace document (replaces `AppState.editorContent`).
+- [x] Define `WorkspaceMeta`, `WorkspaceDocument`, `WorkspaceData` types; create `WorkspacesContext` with per-workspace localStorage persistence.
+- [x] Migrate `SupportingDocsContext` data into a default workspace; remove `SupportingDocsContext`.
+- [x] Bind `EditorPanel` to the active workspace document (replaces `AppState.editorContent`).
 - **Working State:** The editor reads/writes the active workspace document. Documents survive reload. Existing supporting docs are migrated.
+- [x] Complete
 
 ### Phase 11b: Workspace picker
 

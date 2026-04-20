@@ -85,16 +85,16 @@ src/
 
 ```ts
 interface WorkspaceMeta {
-  id: string;        // crypto.randomUUID()
+  id: string; // crypto.randomUUID()
   name: string;
   createdAt: number; // Date.now()
   updatedAt: number; // Date.now()
 }
 
 interface WorkspaceDocument {
-  id: string;        // crypto.randomUUID()
+  id: string; // crypto.randomUUID()
   title: string;
-  content: string;   // raw text / markdown
+  content: string; // raw text / markdown
   updatedAt: number; // Date.now()
 }
 
@@ -106,11 +106,11 @@ interface WorkspaceData {
 
 `localStorage` layout:
 
-| Key                    | Value                                   |
-| ---------------------- | --------------------------------------- |
-| `workspaces_index`     | `JSON.stringify(WorkspaceMeta[])`       |
-| `workspace_{id}`       | `JSON.stringify(WorkspaceData)`         |
-| `active_workspace_id`  | ID of the currently open workspace      |
+| Key                   | Value                              |
+| --------------------- | ---------------------------------- |
+| `workspaces_index`    | `JSON.stringify(WorkspaceMeta[])`  |
+| `workspace_{id}`      | `JSON.stringify(WorkspaceData)`    |
+| `active_workspace_id` | ID of the currently open workspace |
 
 Workspaces are stored independently so listing workspaces does not require deserializing all document content. `WorkspaceData` is loaded on demand when a workspace is opened.
 
@@ -142,6 +142,7 @@ React context providing the full workspace API to the application:
 ### `WorkspacePicker.tsx`
 
 Full-screen view shown when `activeWorkspaceId` is `null`. Displays all workspaces with:
+
 - Open, Rename (inline edit), and Delete (with confirmation) actions per workspace.
 - **New Workspace** button: prompts for a name, creates the workspace, and opens it immediately.
 
@@ -150,6 +151,7 @@ Accessible from the editor header via a **Switch Workspace** button at any time.
 ### `WorkspacePanel.tsx`
 
 Left drawer content shown when a workspace is open. Displays:
+
 - The active workspace name (read-only label; rename goes via `WorkspacePicker`).
 - All documents in the active workspace: click to open, double-click to rename, delete button per document.
 - Active document is visually highlighted.

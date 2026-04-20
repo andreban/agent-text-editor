@@ -203,7 +203,6 @@ function App() {
     editorInstance,
     setSuggestions,
     approveAll,
-    setEditorContent,
     skills,
   } = useApp();
   const [tempKey, setTempKey] = useState("");
@@ -220,7 +219,6 @@ function App() {
       editorInstance,
       setSuggestions,
       approveAll,
-      setEditorContent,
     );
 
     registerEditorTools(registry, editorTools);
@@ -257,7 +255,6 @@ function App() {
     editorInstance,
     setSuggestions,
     approveAll,
-    setEditorContent,
   ]);
 
   const conversation = useMemo(() => {

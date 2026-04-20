@@ -4,12 +4,13 @@
 import { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Trash2, ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { useSupportingDocs, SupportingDoc } from "@/lib/SupportingDocsContext";
+import { useWorkspaces } from "@/lib/WorkspacesContext";
+import { WorkspaceDocument } from "@/lib/workspace";
 
 const DEBOUNCE_MS = 500;
 
-function DocEditor({ doc }: { doc: SupportingDoc }) {
-  const { updateDoc } = useSupportingDocs();
+function DocEditor({ doc }: { doc: WorkspaceDocument }) {
+  const { updateDocument } = useWorkspaces();
   const [title, setTitle] = useState(doc.title);
   const [content, setContent] = useState(doc.content);
   const titleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -19,7 +20,7 @@ function DocEditor({ doc }: { doc: SupportingDoc }) {
     setTitle(value);
     if (titleTimerRef.current) clearTimeout(titleTimerRef.current);
     titleTimerRef.current = setTimeout(() => {
-      updateDoc(doc.id, { title: value });
+      updateDocument(doc.id, { title: value });
     }, DEBOUNCE_MS);
   };
 
@@ -27,7 +28,7 @@ function DocEditor({ doc }: { doc: SupportingDoc }) {
     setContent(value);
     if (contentTimerRef.current) clearTimeout(contentTimerRef.current);
     contentTimerRef.current = setTimeout(() => {
-      updateDoc(doc.id, { content: value });
+      updateDocument(doc.id, { content: value });
     }, DEBOUNCE_MS);
   };
 
@@ -50,8 +51,8 @@ function DocEditor({ doc }: { doc: SupportingDoc }) {
   );
 }
 
-function DocRow({ doc }: { doc: SupportingDoc }) {
-  const { deleteDoc } = useSupportingDocs();
+function DocRow({ doc }: { doc: WorkspaceDocument }) {
+  const { deleteDocument } = useWorkspaces();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -73,7 +74,7 @@ function DocRow({ doc }: { doc: SupportingDoc }) {
           variant="ghost"
           size="icon"
           className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-          onClick={() => deleteDoc(doc.id)}
+          onClick={() => deleteDocument(doc.id)}
           aria-label={`Delete ${doc.title || "document"}`}
         >
           <Trash2 className="w-3 h-3" />
@@ -85,7 +86,8 @@ function DocRow({ doc }: { doc: SupportingDoc }) {
 }
 
 export function ReferenceTab() {
-  const { docs, addDoc } = useSupportingDocs();
+  const { activeWorkspace, addDocument } = useWorkspaces();
+  const docs = activeWorkspace?.documents ?? [];
 
   return (
     <div className="flex flex-col h-full">
@@ -95,7 +97,7 @@ export function ReferenceTab() {
           variant="ghost"
           size="sm"
           className="gap-1 text-xs"
-          onClick={addDoc}
+          onClick={addDocument}
           aria-label="New document"
         >
           <Plus className="w-3 h-3" />

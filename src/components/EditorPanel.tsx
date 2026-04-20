@@ -7,24 +7,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarkdownContent } from "./MarkdownContent";
 import { useApp } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
+import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SuggestionWidget } from "./SuggestionWidget";
 import { createPortal } from "react-dom";
 
 const DEFAULT_CONTENT =
   "# Welcome to the AI Agent Text Editor\n\nStart typing here, and switch to the **Preview** tab to see the rendered Markdown.\n\n- React\n- Monaco Editor\n- MAST AI";
 
+const DEBOUNCE_MS = 500;
+
 export function EditorPanel() {
-  const {
-    editorContent,
-    setEditorContent,
-    setEditorInstance,
-    suggestions,
-    setSuggestions,
-    editorInstance,
-  } = useApp();
+  const { setEditorInstance, suggestions, setSuggestions, editorInstance } =
+    useApp();
+  const { activeDocument, updateDocument } = useWorkspaces();
 
   const { theme } = useTheme();
   const monacoTheme = theme === "dark" ? "vs-dark" : "light";
+
+  const [localContent, setLocalContent] = useState<string>(
+    () => activeDocument?.content || DEFAULT_CONTENT,
+  );
+  const prevDocIdRef = useRef<string | null>(activeDocument?.id ?? null);
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [suggestionNodes, setSuggestionNodes] = useState<
     { id: string; node: HTMLElement }[]
@@ -34,14 +38,27 @@ export function EditorPanel() {
     new Map(),
   );
 
+  // Sync editor content when switching documents
   useEffect(() => {
-    if (!editorContent) {
-      setEditorContent(DEFAULT_CONTENT);
+    if (activeDocument?.id !== prevDocIdRef.current) {
+      prevDocIdRef.current = activeDocument?.id ?? null;
+      setLocalContent(activeDocument?.content || DEFAULT_CONTENT);
     }
-  }, []);
+  }, [activeDocument]);
 
   const handleEditorDidMount: OnMount = (editor) => {
     setEditorInstance(editor);
+  };
+
+  const handleChange = (value: string | undefined) => {
+    const content = value || "";
+    setLocalContent(content);
+    if (updateTimerRef.current) clearTimeout(updateTimerRef.current);
+    updateTimerRef.current = setTimeout(() => {
+      if (activeDocument) {
+        updateDocument(activeDocument.id, { content });
+      }
+    }, DEBOUNCE_MS);
   };
 
   useEffect(() => {
@@ -175,8 +192,8 @@ export function EditorPanel() {
             <Editor
               height="100%"
               defaultLanguage="markdown"
-              value={editorContent}
-              onChange={(value) => setEditorContent(value || "")}
+              value={localContent}
+              onChange={handleChange}
               onMount={handleEditorDidMount}
               theme={monacoTheme}
               options={{
@@ -207,7 +224,7 @@ export function EditorPanel() {
           className="m-0 flex-1 overflow-auto p-8 outline-none data-[state=active]:block"
         >
           <MarkdownContent
-            content={editorContent}
+            content={localContent}
             className="mx-auto max-w-3xl text-foreground"
           />
         </TabsContent>
