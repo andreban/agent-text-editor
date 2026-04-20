@@ -16,7 +16,6 @@ The application is a single-page React application bundled with Vite. It consist
 4. If a tool is called (e.g., `read`, `edit`, or `write`), the `ToolRegistry` executes the function. For modification tools (`edit`, `write`), the UI intercepts the action to present the suggestion to the user, unless "approve all" mode is enabled.
 5. The result of the tool execution (or the user's feedback/decision from a suggestion) is returned to the LLM, and the loop continues until a final response is generated.
 6. If the task requires specialized knowledge, the main agent can call a `delegate_to_skill` tool, invoking a sub-agent with specific instructions loaded from local storage. The sub-agent's results are returned to the main agent's context.
-7. Upon receiving a response from the LLM, the `GoogleGenAIAdapter` intercepts the usage metadata and updates the application's global token count.
 
 ## Technical Stack
 
@@ -83,7 +82,6 @@ Implements `LlmAdapter` interface:
 - Translates MAST messages/tools to `@google/genai` format.
 - Handles tool calls from the model.
 - Instantiated with the user's selected model name (e.g., `gemini-2.5-flash`).
-- Extracts token usage statistics (`usageMetadata` from the `@google/genai` SDK response) and reports it back to the application state, typically via an event emitter or callback passed during adapter initialization.
 
 ### `EditorTools.ts`
 
@@ -118,7 +116,7 @@ Wraps the Monaco Editor component and provides an imperative handle or context f
 
 ### `ChatSidebar.tsx`
 
-Provides the chat interface, message history, and token usage display.
+Provides the chat interface and message history.
 
 ### `SuggestionWidget.tsx`
 
@@ -133,11 +131,10 @@ A dialog or dedicated view for creating, editing, and deleting custom skills.
 
 The main entry point:
 
-- Manages global state (e.g., API key, selected model, active suggestions, "approve all" toggle, user-defined skills, supporting documents, session token usage).
+- Manages global state (e.g., API key, selected model, active suggestions, "approve all" toggle, user-defined skills, supporting documents).
 - Handles loading the API key, selected model, skills, and supporting documents from `localStorage` on initialization.
 - Includes UI components for managing both specialized skills and supporting markdown documents (creation, editing, deletion).
 - Dynamically constructs the `AgentConfig.systemInstructions` for the main `AgentRunner`. It appends only the `name` and `description` of each available skill into the main prompt, keeping it concise while ensuring the LLM knows when to use `delegate_to_skill` without needing to discover them first.
-- Renders a UI element (e.g., in the chat sidebar or footer) displaying the accumulated token usage for the current session.
 - Renders the `MonacoEditor` and `ChatSidebar` components.
 - Initializes `AgentRunner` and `Conversation`.
 

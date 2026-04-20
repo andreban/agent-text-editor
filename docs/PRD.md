@@ -24,7 +24,6 @@ To provide a modern, AI-powered text editing experience where a browser-native A
 - **Local Settings:** User preferences, credentials (like the Google AI Studio API key), and the selected AI model are securely saved in the browser's local storage to persist across sessions without requiring a backend.
 - **Dark Mode:** The application supports light and dark themes. The user can toggle between them via a UI control, and the preference is persisted across sessions. Both the Monaco editor and all UI components adapt to the selected theme.
 - **Mobile-Friendly Interface:** The application is responsive and usable on mobile devices. On small screens, the editor and chat sidebar are presented as navigable tabs rather than a side-by-side split pane, ensuring the full editing and chat experience is accessible without horizontal scrolling or cramped layouts.
-- **Token Tracking:** The application tracks the number of tokens used (prompt and completion tokens) by the agent and any sub-agents. This provides transparency to the user regarding the cost or quota consumption of their API key. The total usage for the session is visible in the UI.
 - **Custom Skills (Sub-Agents):** Users can define custom specialized agents by providing:
   - **Name:** The identifier for the skill (e.g., "Styleguide Reviewer").
   - **Description:** What the skill does and when to use it.
