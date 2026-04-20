@@ -163,7 +163,7 @@ If `workspaces_index` already exists, skip migration entirely.
 
 ---
 
-### Phase 11c: Document navigator
+### ✅ Phase 11c: Document navigator
 
 **Goal:** The left drawer becomes a first-class document navigator for the active workspace.
 

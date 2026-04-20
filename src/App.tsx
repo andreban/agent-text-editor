@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { EditorPanel } from "@/components/EditorPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
-import { ReferenceTab } from "@/components/ReferenceTab";
+import { WorkspacePanel } from "@/components/WorkspacePanel";
 import { WorkspacePicker } from "@/components/WorkspacePicker";
 import {
   MessageCircle,
@@ -83,13 +83,13 @@ function DesktopLayout({ conversation }: LayoutProps) {
           </button>
           {refOpen && (
             <span className="text-xs font-medium text-muted-foreground ml-1 truncate">
-              Reference
+              Documents
             </span>
           )}
         </div>
         {refOpen && (
           <div className="flex-1 min-h-0 overflow-hidden">
-            <ReferenceTab />
+            <WorkspacePanel />
           </div>
         )}
       </aside>
@@ -216,7 +216,7 @@ function MobileLayout({ conversation }: LayoutProps) {
           {sheetMode === "chat" ? (
             <ChatSidebar conversation={conversation} />
           ) : (
-            <ReferenceTab />
+            <WorkspacePanel />
           )}
         </div>
       </div>
