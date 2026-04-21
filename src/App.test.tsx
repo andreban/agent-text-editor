@@ -58,7 +58,7 @@ describe("App", () => {
     expect(screen.getByTestId("mock-monaco-editor")).toBeInTheDocument();
     expect(screen.getAllByText("AI Assistant").length).toBeGreaterThan(0);
     expect(
-      screen.getByPlaceholderText("Ask the editor..."),
+      screen.getByRole("textbox", { name: "Chat input" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
   });
@@ -115,7 +115,7 @@ describe("App responsive layout", () => {
 
     await user.click(screen.getByRole("button", { name: "Open chat" }));
     expect(
-      screen.getByPlaceholderText("Ask the editor..."),
+      screen.getByRole("textbox", { name: "Chat input" }),
     ).toBeInTheDocument();
   });
 

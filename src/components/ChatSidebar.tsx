@@ -3,21 +3,22 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Conversation } from "@mast-ai/core";
-import {
-  Settings,
-  Wand2,
-  Sun,
-  Moon,
-} from "lucide-react";
+import { Settings, Wand2, Sun, Moon, X } from "lucide-react";
 import { useApp } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
+import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
 import { ChatItem, StreamItem } from "./ChatItem";
+import {
+  DocRef,
+  buildPromptWithMentions,
+  extractMentionQuery,
+  removeMentionTrigger,
+} from "@/lib/mentionUtils";
 
 interface ChatSidebarProps {
   conversation: Conversation | null;
@@ -33,11 +34,27 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
   const [prevConversation, setPrevConversation] = useState<Conversation | null>(
     null,
   );
+  const [mentionedDocs, setMentionedDocs] = useState<DocRef[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [pickerIndex, setPickerIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const { approveAll, setApproveAll } = useApp();
   const { theme, toggleTheme } = useTheme();
+  const { activeWorkspace } = useWorkspaces();
+
+  const workspaceDocs = activeWorkspace?.documents ?? [];
+
+  const filteredDocs =
+    mentionQuery !== null
+      ? workspaceDocs.filter(
+          (d) =>
+            !mentionedDocs.some((m) => m.id === d.id) &&
+            d.title.toLowerCase().includes(mentionQuery.toLowerCase()),
+        )
+      : [];
 
   // Rebuild display items when the conversation instance changes (e.g. new session)
   if (conversation !== prevConversation) {
@@ -98,16 +115,79 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     });
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || !conversation || isLoading) return;
+  const selectDoc = (doc: DocRef) => {
+    setMentionedDocs((prev) =>
+      prev.some((d) => d.id === doc.id) ? prev : [...prev, doc],
+    );
+    setInput((prev) => removeMentionTrigger(prev));
+    setMentionQuery(null);
+    setPickerIndex(0);
+    inputRef.current?.focus();
+  };
 
-    const userText = input.trim();
+  const removeChip = (id: string) => {
+    setMentionedDocs((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInput(value);
+    const query = extractMentionQuery(value);
+    setMentionQuery(query);
+    setPickerIndex(0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (mentionQuery !== null && filteredDocs.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setPickerIndex((i) => (i + 1) % filteredDocs.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setPickerIndex((i) => (i === 0 ? filteredDocs.length - 1 : i - 1));
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        selectDoc(filteredDocs[pickerIndex]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMentionQuery(null);
+        return;
+      }
+    }
+    if (e.key === "Enter") {
+      handleSend();
+    }
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if ((!trimmed && mentionedDocs.length === 0) || !conversation || isLoading)
+      return;
+
+    const userText = trimmed || "(no message)";
+    const prompt = buildPromptWithMentions(userText, mentionedDocs);
+
     setInput("");
+    setMentionedDocs([]);
+    setMentionQuery(null);
     setIsLoading(true);
 
     setItems((prev) => [
       ...prev,
-      { kind: "user", id: `user-${crypto.randomUUID()}`, text: userText },
+      {
+        kind: "user",
+        id: `user-${crypto.randomUUID()}`,
+        text:
+          mentionedDocs.length > 0
+            ? `[Referenced: ${mentionedDocs.map((d) => d.title).join(", ")}] ${userText}`
+            : userText,
+      },
     ]);
 
     // IDs of in-flight items — local vars are sufficient since this all runs
@@ -128,7 +208,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     };
 
     try {
-      for await (const event of conversation.runStream(userText)) {
+      for await (const event of conversation.runStream(prompt)) {
         if (event.type === "thinking") {
           const id = ensureAssistant();
           const delta = event.delta;
@@ -214,6 +294,9 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
       setIsLoading(false);
     }
   };
+
+  const canSend =
+    (input.trim().length > 0 || mentionedDocs.length > 0) && !isLoading;
 
   return (
     <div className="flex flex-col h-full bg-muted/20 border-l">
@@ -307,19 +390,70 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
       </div>
 
       <div className="p-4 border-t bg-background/50 backdrop-blur-sm flex gap-2">
-        <Input
-          placeholder="Ask the editor..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          disabled={isLoading}
-          className="bg-background"
-        />
-        <Button
-          onClick={handleSend}
-          disabled={isLoading || !input.trim()}
-          className="min-h-11"
-        >
+        <div className="relative flex-1">
+          {/* Document picker dropdown */}
+          {mentionQuery !== null && filteredDocs.length > 0 && (
+            <div
+              className="absolute bottom-full mb-1 left-0 right-0 z-50 bg-popover border rounded-md shadow-md overflow-hidden"
+              role="listbox"
+              aria-label="Document picker"
+            >
+              {filteredDocs.map((doc, idx) => (
+                <button
+                  key={doc.id}
+                  role="option"
+                  aria-selected={idx === pickerIndex}
+                  className={`w-full text-left px-3 py-2 text-sm truncate ${
+                    idx === pickerIndex
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-muted"
+                  }`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectDoc(doc);
+                  }}
+                >
+                  {doc.title}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Compound input: chips + text field */}
+          <div className="flex flex-wrap items-center gap-1 border rounded-md bg-background px-3 py-2 min-h-11 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0">
+            {mentionedDocs.map((doc) => (
+              <span
+                key={doc.id}
+                className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium rounded px-2 py-0.5"
+              >
+                @{doc.title}
+                <button
+                  type="button"
+                  aria-label={`Remove reference to ${doc.title}`}
+                  onClick={() => removeChip(doc.id)}
+                  className="hover:text-destructive"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+            <input
+              ref={inputRef}
+              placeholder={
+                mentionedDocs.length === 0
+                  ? "Ask the editor... (@ to reference a doc)"
+                  : ""
+              }
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Chat input"
+            />
+          </div>
+        </div>
+        <Button onClick={handleSend} disabled={!canSend} className="min-h-11">
           Send
         </Button>
       </div>
