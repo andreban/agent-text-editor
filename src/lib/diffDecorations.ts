@@ -64,7 +64,6 @@ export function computeDiffDecorations(
           endColumn: pos.column,
         },
         options: {
-          description: "suggestion-insert-only",
           after: {
             content: " " + escapeNewlines(text),
             inlineClassName: "suggestion-insert",
@@ -89,7 +88,6 @@ export function computeDiffDecorations(
       decorations.push({
         range,
         options: {
-          description: "suggestion-delete",
           inlineClassName: "suggestion-delete",
           ...(insertAfter !== null
             ? {
@@ -107,7 +105,6 @@ export function computeDiffDecorations(
         decorations.push({
           range,
           options: {
-            description: "suggestion-equal-with-insert",
             after: {
               content: " " + escapeNewlines(insertAfter),
               inlineClassName: "suggestion-insert",
@@ -130,7 +127,6 @@ export function computeDiffDecorations(
         endColumn: pos.column,
       },
       options: {
-        description: "suggestion-insert-fallback",
         after: {
           content: " " + escapeNewlines(suggestion.replacementText),
           inlineClassName: "suggestion-insert",

@@ -52,7 +52,7 @@ describe("computeDiffDecorations", () => {
     const s = makeSuggestion({ originalText: "hello ", replacementText: "hello world" });
     const decorations = computeDiffDecorations(s);
     const equalDec = decorations.find(
-      (d) => d.options.description === "suggestion-equal-with-insert",
+      (d) => !d.options.inlineClassName && d.options.after !== undefined,
     );
     expect(equalDec).toBeDefined();
     expect(equalDec!.options.after?.content).toBe(" world");
@@ -66,7 +66,7 @@ describe("computeDiffDecorations", () => {
       range: { startLineNumber: 3, startColumn: 1, endLineNumber: 4, endColumn: 6 },
     });
     const decorations = computeDiffDecorations(s);
-    const deleteDec = decorations.find((d) => d.options.description === "suggestion-delete");
+    const deleteDec = decorations.find((d) => d.options.inlineClassName === "suggestion-delete");
     expect(deleteDec).toBeDefined();
     // "line2" starts on line 4 (3 + 1 for newline)
     expect(deleteDec!.range.startLineNumber).toBe(4);
