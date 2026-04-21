@@ -1,18 +1,13 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Conversation } from "@mast-ai/core";
-import { MarkdownContent } from "./MarkdownContent";
 import {
-  ChevronDown,
-  ChevronUp,
-  Brain,
-  Wrench,
-  Check,
   Settings,
   Wand2,
   Sun,
@@ -22,21 +17,11 @@ import { useApp } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
+import { ChatItem, StreamItem } from "./ChatItem";
 
 interface ChatSidebarProps {
   conversation: Conversation | null;
 }
-
-type StreamItem =
-  | { kind: "user"; id: string; text: string }
-  | {
-      kind: "assistant";
-      id: string;
-      text: string;
-      thought: string;
-      isStreaming: boolean;
-    }
-  | { kind: "tool"; id: string; name: string; pending: boolean };
 
 export function ChatSidebar({ conversation }: ChatSidebarProps) {
   const [input, setInput] = useState("");
@@ -87,11 +72,18 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     }
   }
 
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+  });
+
   const scrollToBottom = useCallback(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (items.length > 0) {
+      virtualizer.scrollToIndex(items.length - 1, { align: "end" });
     }
-  }, []);
+  }, [items.length, virtualizer]);
 
   useEffect(() => {
     scrollToBottom();
@@ -278,95 +270,40 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
         </div>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-4 flex flex-col gap-4"
-      >
-        {items.length === 0 && (
-          <div className="text-sm text-muted-foreground italic text-center mt-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        {items.length === 0 ? (
+          <div className="text-sm text-muted-foreground italic text-center mt-4 p-4">
             Start a conversation with the editor assistant.
           </div>
-        )}
-
-        {items.map((item) => {
-          if (item.kind === "user") {
-            return (
-              <div key={item.id} className="flex flex-col items-end">
-                <div className="max-w-[90%] p-3 rounded-2xl rounded-tr-none text-sm shadow-sm bg-primary text-primary-foreground">
-                  {item.text}
-                </div>
-              </div>
-            );
-          }
-
-          if (item.kind === "tool") {
-            return (
+        ) : (
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              position: "relative",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((vItem) => (
               <div
-                key={item.id}
-                className="flex items-center gap-2 text-xs text-muted-foreground self-start px-2 py-1 rounded-full border border-border bg-muted/40"
+                key={vItem.key}
+                data-index={vItem.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  transform: `translateY(${vItem.start}px)`,
+                  width: "100%",
+                  padding: "8px 16px",
+                }}
               >
-                {item.pending ? (
-                  <Wrench className="w-3 h-3 animate-pulse text-primary" />
-                ) : (
-                  <Check className="w-3 h-3 text-green-500" />
-                )}
-                <span>
-                  <code className="font-mono">{item.name}</code>
-                </span>
+                <ChatItem
+                  item={items[vItem.index]}
+                  isExpanded={expandedThoughts.has(items[vItem.index].id)}
+                  onToggle={toggleThought}
+                />
               </div>
-            );
-          }
-
-          // assistant
-          const isExpanded = expandedThoughts.has(item.id);
-          return (
-            <div key={item.id} className="flex flex-col gap-2">
-              {item.thought && (
-                <div className="max-w-[90%] self-start w-full">
-                  <div className="bg-muted border border-border rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => toggleThought(item.id)}
-                      className="flex items-center justify-between w-full p-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground hover:bg-accent"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Brain
-                          className={`w-3 h-3 ${item.isStreaming && !item.text ? "animate-pulse text-primary" : ""}`}
-                        />
-                        <span>Thinking Process</span>
-                      </div>
-                      {isExpanded ? (
-                        <ChevronUp className="w-3 h-3" />
-                      ) : (
-                        <ChevronDown className="w-3 h-3" />
-                      )}
-                    </button>
-                    {isExpanded && (
-                      <div className="p-3 text-xs text-muted-foreground border-t border-border bg-muted/30 whitespace-pre-wrap italic leading-relaxed">
-                        {item.thought}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {(item.text || item.isStreaming) && (
-                <div className="flex flex-col items-start">
-                  <div className="max-w-[90%] p-3 rounded-2xl rounded-tl-none text-sm shadow-sm bg-secondary text-secondary-foreground">
-                    {item.text ? (
-                      <MarkdownContent content={item.text} />
-                    ) : (
-                      <div className="flex gap-1 h-4 items-center">
-                        <span className="animate-bounce">.</span>
-                        <span className="animate-bounce delay-100">.</span>
-                        <span className="animate-bounce delay-200">.</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="p-4 border-t bg-background/50 backdrop-blur-sm flex gap-2">
