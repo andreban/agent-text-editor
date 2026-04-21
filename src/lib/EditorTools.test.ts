@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EditorTools, createDelegateToSkillHandler } from "./EditorTools";
+import { WorkspaceTools } from "./WorkspaceTools";
 import { saveSkills } from "./skills";
 import type { LlmAdapter } from "@mast-ai/core";
 
@@ -372,6 +373,7 @@ describe("EditorTools", () => {
         "test-api-key",
         parentAdapter,
         editorToolsInstance,
+        null,
         adapterFactory,
         () => ({
           run: mockRun as unknown as (
@@ -438,6 +440,35 @@ describe("EditorTools", () => {
         task: "t",
       });
       expect(adapterFactory).not.toHaveBeenCalled();
+    });
+
+    it("includes workspace tools in child agent when workspaceTools is provided", async () => {
+      saveSkills([
+        { id: "1", name: "Create Skill", description: "d", instructions: "i" },
+      ]);
+      const mockWorkspaceTools = new WorkspaceTools(
+        { current: [] },
+        { current: null },
+        vi.fn(),
+      );
+      const handler = createDelegateToSkillHandler(
+        "test-api-key",
+        parentAdapter,
+        editorToolsInstance,
+        mockWorkspaceTools,
+        vi.fn(),
+        () => ({
+          run: mockRun as unknown as (
+            agent: import("@mast-ai/core").AgentConfig,
+            input: string,
+          ) => Promise<{ output: string }>,
+        }),
+      );
+      await handler({ skillName: "Create Skill", task: "create a skill" });
+      const [agentConfig] = mockRun.mock.calls[0];
+      expect(agentConfig.tools).toContain("create_document");
+      expect(agentConfig.tools).toContain("list_workspace_docs");
+      expect(agentConfig.tools).toContain("switch_active_document");
     });
 
     it("calls adapterFactory when skill specifies a model", async () => {
