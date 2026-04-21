@@ -6,6 +6,9 @@ import {
   Content,
   FunctionDeclaration,
   ThinkingLevel,
+  Part,
+  FunctionCall,
+  Schema,
 } from "@google/genai";
 import {
   LlmAdapter,
@@ -14,6 +17,7 @@ import {
   AdapterStreamChunk,
   Message,
   ToolDefinition,
+  ToolCall,
 } from "@mast-ai/core";
 
 export interface UsageMetadata {
@@ -95,14 +99,12 @@ export class GoogleGenAIAdapter implements LlmAdapter {
       text:
         textPart && "text" in textPart ? (textPart.text as string) : undefined,
       toolCalls: toolCallParts.map((p) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const fc = (p as any).functionCall;
+        const fc = p.functionCall as FunctionCall;
         return {
           id: fc.id || crypto.randomUUID(),
-          name: fc.name,
+          name: fc.name!,
           args: fc.args,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          thoughtSignature: (p as any).thoughtSignature,
+          thoughtSignature: p.thoughtSignature,
         };
       }),
     };
@@ -162,18 +164,15 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         } else if ("text" in part && typeof part.text === "string") {
           yield { type: "text_delta", delta: part.text };
         } else if ("functionCall" in part && part.functionCall) {
+          const fc = part.functionCall as FunctionCall;
           yield {
             type: "tool_call",
             toolCall: {
-              id:
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (part.functionCall as any).id || crypto.randomUUID(),
-              name: part.functionCall.name!,
-              args: part.functionCall.args,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              thoughtSignature: (part as any).thoughtSignature,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any,
+              id: fc.id || crypto.randomUUID(),
+              name: fc.name!,
+              args: fc.args,
+              thoughtSignature: part.thoughtSignature,
+            } as ToolCall & { thoughtSignature?: string },
           };
         }
       }
@@ -188,15 +187,16 @@ export class GoogleGenAIAdapter implements LlmAdapter {
   private mapMessages(messages: Message[]): Content[] {
     return messages.map((m) => {
       const role = m.role === "assistant" ? "model" : "user";
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parts: any[] = [];
+      const parts: Part[] = [];
 
       if (m.content.type === "text") {
         parts.push({ text: m.content.text });
       } else if (m.content.type === "tool_calls") {
         m.content.calls.forEach((call) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const thoughtSignature = (call as any).thoughtSignature;
+          const callWithSignature = call as ToolCall & {
+            thoughtSignature?: string;
+          };
+          const thoughtSignature = callWithSignature.thoughtSignature;
 
           parts.push({
             functionCall: {
@@ -225,8 +225,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
     return {
       name: tool.name,
       description: tool.description,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      parameters: tool.parameters as any, // MAST ToolDefinition parameters are valid JSON Schema
+      parameters: tool.parameters as Schema, // MAST ToolDefinition parameters are valid JSON Schema
     };
   }
 }
