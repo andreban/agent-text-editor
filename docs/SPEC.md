@@ -10,10 +10,10 @@ The application is a single-page React application bundled with Vite. It consist
 
 ## Data Flow
 
-1. User enters a prompt in the chat sidebar.
+1. User enters a prompt in the chat sidebar. Any `@document` mention chips are resolved to `{ id, title }` pairs and prepended to the prompt.
 2. `AgentRunner` receives the prompt and passes it to the `GoogleGenAIAdapter`.
-3. The selected LLM (e.g., Gemini 2.5 Flash) decides whether to respond with text or call a tool.
-4. If a tool is called (e.g., `read`, `edit`, or `write`), the `ToolRegistry` executes the function. For modification tools (`edit`, `write`), the UI intercepts the action to present the suggestion to the user, unless "approve all" mode is enabled.
+3. The selected LLM (e.g., Gemini 3.1 Flash Lite Preview) decides whether to respond with text or call a tool.
+4. If a tool is called (e.g., `read`, `edit`, or `write`), the `ToolRegistry` executes the function. For modification tools (`edit`, `write`, workspace mutations), the UI intercepts the action to present the suggestion to the user, unless "approve all" mode is enabled.
 5. The result of the tool execution (or the user's feedback/decision from a suggestion) is returned to the LLM, and the loop continues until a final response is generated.
 6. If the task requires specialized knowledge, the main agent can call `delegate_to_skill`, invoking a sub-agent with specific instructions loaded from local storage. The sub-agent's results are returned to the main agent's context.
 7. For workspace document queries, `query_workspace_doc` and `query_workspace` spin up short-lived sub-`AgentRunners` that read document content and return focused summaries without loading the full content into the main agent's context.
@@ -60,20 +60,25 @@ src/
 ├── adapters/
 │   └── GoogleGenAIAdapter.ts
 ├── components/
-│   ├── EditorPanel.tsx
+│   ├── ChatItem.tsx
 │   ├── ChatSidebar.tsx
-│   ├── SuggestionWidget.tsx
+│   ├── EditorPanel.tsx
+│   ├── MarkdownContent.tsx
+│   ├── SettingsDialog.tsx
+│   ├── SkillsDialog.tsx
 │   ├── WorkspacePicker.tsx
-│   ├── WorkspacePanel.tsx
-│   └── SkillsManager.tsx
+│   └── WorkspacePanel.tsx
 ├── lib/
-│   ├── workspace.ts
-│   ├── WorkspacesContext.tsx
+│   ├── diffDecorations.ts
 │   ├── EditorTools.ts
-│   ├── WorkspaceTools.ts
+│   ├── mentionUtils.ts
 │   ├── skills.ts
 │   ├── store.tsx
-│   └── ThemeProvider.tsx
+│   ├── ThemeProvider.tsx
+│   ├── WebMCPTools.ts
+│   ├── workspace.ts
+│   ├── WorkspacesContext.tsx
+│   └── WorkspaceTools.ts
 ├── App.tsx
 ├── main.tsx
 └── App.css
@@ -163,8 +168,10 @@ Implements `LlmAdapter` interface:
 
 - `generate(request: AdapterRequest): Promise<AdapterResponse>`
 - Translates MAST messages/tools to `@google/genai` format.
-- Handles tool calls from the model.
-- Instantiated with the user's selected model name (e.g., `gemini-2.5-flash`).
+- Handles tool calls and streaming text/thought deltas from the model.
+- Captures `thoughtSignature` from function call parts for correct turn attribution.
+- Enables thinking mode (`ThinkingLevel.HIGH`) by default.
+- Instantiated with the user's selected model name (e.g., `gemini-3.1-flash-lite-preview`).
 
 ### `EditorTools.ts`
 
@@ -174,7 +181,9 @@ Registers tools that operate exclusively on the currently open document:
 - `read_selection()`: `() => string`. Returns text currently selected in the editor.
 - `search(query: string)`: `({ query: string }) => { results: { line: number, text: string }[] }`.
 - `get_metadata()`: `() => { wordCount: number, lineCount: number, cursor: { line: number, column: number } }`.
-- `edit(originalText, replacementText)`: Proposes a targeted change. Contains hard size constraints to enforce surgical edits. Uses a Promise to pause agent execution until the user resolves the change. Applies a red strikethrough decoration to `originalText` and injects `replacementText` inline (green) via `after.content`.
+- `get_current_mode()`: `() => "editor" | "preview"`. Returns whether the editor is in edit or Markdown preview mode.
+- `request_switch_to_editor()`: Prompts the user to switch from preview to editor mode before the agent makes edits.
+- `edit(originalText, replacementText)`: Proposes a targeted change. Contains hard size constraints to enforce surgical edits. Uses a Promise to pause agent execution until the user resolves the change. Diff decorations are computed via `diffDecorations.ts` at word granularity.
 - `write(content)`: Proposes full replacement of the open document, pausing execution until user approval.
 - `delegate_to_skill(skillName, task)`: Invokes a skill sub-agent.
 
@@ -184,25 +193,70 @@ Registers tools that operate exclusively on the currently open document:
 
 Registers tools scoped to the active workspace. Receives a ref snapshot of `WorkspaceData` at call time (same pattern as `EditorTools` receiving the Monaco editor ref):
 
+- `get_active_doc_info()`: Returns `{ id, title }` of the currently open document.
 - `list_workspace_docs()`: Returns `[{ id, title }]` — no content.
 - `read_workspace_doc(id)`: Returns `{ title, content }` or `{ error: "Document not found" }`.
-- `query_workspace_doc(id, query)`: Spins up a short-lived `AgentRunner` (`gemini-2.5-flash`) with the document content and query; returns `{ summary }`. The `AgentRunner` factory is injected as a parameter for testability.
+- `query_workspace_doc(id, query)`: Spins up a short-lived `AgentRunner` with the document content and query; returns `{ summary }`. The `AgentRunner` factory is injected as a parameter for testability.
 - `query_workspace(query)`: Calls `list_workspace_docs`, then `query_workspace_doc` for each document sequentially, then passes all summaries to a synthesizer `AgentRunner`; returns `{ answer }`.
+- `create_document(title)`: Creates a new document (requires user approval).
+- `rename_document(id, title)`: Renames an existing document (requires user approval).
+- `delete_document(id)`: Deletes a document (requires user approval).
+- `switch_active_document(id)`: Changes the active document in the editor.
+
+### `diffDecorations.ts`
+
+Computes and applies inline diff decorations to the Monaco editor for a pending suggestion:
+
+- Uses `diff_match_patch` to compute word-level diffs between `originalText` and `replacementText`.
+- Applies Monaco decorations: removed words receive a red strikethrough class; added words are injected via `after.content` styled in green monospace.
+- Exported as `applyDiffDecorations(editor, suggestion)` and `clearDiffDecorations(editor, decorationIds)`.
+
+### `mentionUtils.ts`
+
+Utilities for the `@`-mention feature in the chat input:
+
+- `extractMentionQuery(input)`: Returns the query after the last `@` if an in-progress mention is detected, otherwise `null`.
+- `removeMentionTrigger(input)`: Strips the trailing `@query` token after a document is selected.
+- `buildPromptWithMentions(userText, mentionedDocs)`: Prepends resolved `{ id, title }` pairs to the prompt so the agent can reference documents by ID without calling `list_workspace_docs`.
+
+### `WebMCPTools.ts`
+
+Registers all editor and workspace tools with `navigator.modelContext` (WebMCP API), allowing external browser agents to drive the editor. Mirrors the `EditorTools` and `WorkspaceTools` registrations so both the built-in agent and external agents share the same capabilities.
 
 ### `EditorPanel.tsx`
 
-Wraps the Monaco Editor. Reads initial content from `WorkspacesContext.activeDocument.content` and calls `updateDocument` on change (debounced 500 ms). Replaces the former `AppState.editorContent` / `setEditorContent` pattern.
+Wraps the Monaco Editor. Reads initial content from `WorkspacesContext.activeDocument.content` and calls `updateDocument` on change (debounced 500 ms). Manages pending suggestions: renders diff decorations via `diffDecorations.ts` and shows a floating Accept/Reject toolbar positioned dynamically relative to the suggestion range. Includes a tab bar to toggle between editor and Markdown preview modes.
 
 ### `ChatSidebar.tsx`
 
-Provides the streaming chat interface and message history.
+Provides the streaming chat interface and message history. Key details:
 
-### `SuggestionWidget.tsx`
+- Uses `@tanstack/react-virtual` to virtualise the message list for performance with long histories.
+- Renders individual messages via `ChatItem.tsx`.
+- Chat input supports `@`-mention autocomplete: typing `@` opens a document picker; selected documents appear as chip tokens resolved by `mentionUtils.ts` on submit.
+- On desktop, the sidebar is collapsible via a toggle button in the header.
 
-- Uses Monaco's `addContentWidget` API to render a compact, hovering popup near the suggestion.
-- **Visuals:** Relies purely on Monaco `deltaDecorations` (no ViewZones) for a true inline Google Docs-style experience. Original text receives a red strikethrough. Proposed text is injected into the same line via the `after.content` property, styled in green monospace. Provides compact buttons for "Accept" and "Reject".
+### `ChatItem.tsx`
 
-### `SkillsManager.tsx`
+Renders a single chat message, including:
+
+- Streaming text deltas rendered via `MarkdownContent`.
+- Thinking steps shown as collapsible "Thinking Process" panels.
+- Tool call and tool result events displayed inline.
+
+### `MarkdownContent.tsx`
+
+Renders Markdown content with syntax highlighting. Used in both the editor's preview tab and the chat sidebar for agent responses. HTML output is sanitised to prevent XSS.
+
+### `SettingsDialog.tsx`
+
+Modal dialog for configuring user preferences:
+
+- Google AI Studio API key input.
+- Model selector (list of supported Gemini models).
+- Theme toggle (light / dark).
+
+### `SkillsDialog.tsx`
 
 A dialog for creating, editing, and deleting custom skills.
 
@@ -212,9 +266,10 @@ The main entry point:
 
 - Manages global state (API key, selected model, active suggestions, "approve all" toggle, skills).
 - Wires `EditorTools` and `WorkspaceTools` into the `ToolRegistry`, passing the Monaco editor ref and a snapshot ref of `WorkspacesContext.activeWorkspace.documents` respectively.
+- Registers `WebMCPTools` for external browser agent access.
 - Dynamically constructs `AgentConfig.systemInstructions`: appends skill names/descriptions and workspace tool guidance.
 - Renders `WorkspacePicker` when no workspace is active, or the editor layout (`WorkspacePanel` + `EditorPanel` + `ChatSidebar`) when a workspace is open.
-- Handles responsive layout (desktop split-pane vs. mobile bottom-sheet).
+- Handles responsive layout (desktop collapsible split-pane vs. mobile bottom-sheet).
 
 ## Main Agent System Instructions
 
@@ -234,6 +289,7 @@ The primary agent should be configured with a system prompt that explains its ro
 - API keys are handled purely on the client side and are not stored on any backend.
 - Users are prompted to enter their Google AI Studio API key on first use.
 - The API key is persisted in the browser's `localStorage` so the user does not have to re-enter it on subsequent visits.
+- Markdown rendering output is HTML-sanitised to prevent XSS from untrusted document content.
 
 ## Implementation Details
 
@@ -244,6 +300,6 @@ The primary agent should be configured with a system prompt that explains its ro
 - **Error Handling:**
   - Graceful handling of API rate limits and invalid tool calls.
   - Catch and display LLM errors (e.g., safety filters) in the chat UI.
-- **Styling:** Use Tailwind CSS for utility-first styling and `shadcn/ui` for complex components (e.g., Dialogs for Skills Manager, workspace confirmation prompts).
+- **Styling:** Use Tailwind CSS for utility-first styling and `shadcn/ui` for complex components (e.g., Dialogs for Skills, workspace confirmation prompts).
 - **Dark Mode:** Use Tailwind CSS's class-based dark mode strategy (`darkMode: 'class'` in `tailwind.config`). A `ThemeProvider` wraps the app and toggles a `dark` class on the `<html>` element. The Monaco editor theme switches between `vs` (light) and `vs-dark` (dark) in sync. The selected theme is persisted in `localStorage`.
 - **Responsive Layout:** On screens narrower than the `md` breakpoint (768 px), the editor fills the screen and FABs open a bottom-sheet overlay for chat or the workspace panel. Touch targets must be at minimum 44 × 44 px. The Monaco editor renders in a flex-fill container so it uses available height without overflow.
