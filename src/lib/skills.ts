@@ -9,7 +9,30 @@ export interface Skill {
   model?: string;
 }
 
+export const CREATE_SKILL_ID = "default-create-skill";
+
 export const DEFAULT_SKILLS: Skill[] = [
+  {
+    id: CREATE_SKILL_ID,
+    name: "Create Skill",
+    description:
+      "Drafts a new skill definition and writes it to the current document.",
+    instructions:
+      "You are a skill author. Given a description of what a new skill should do, draft a complete skill definition and save it as a new workspace document.\n\n" +
+      "A skill definition uses this format:\n\n" +
+      "---\n" +
+      "name: <skill name>\n" +
+      "description: <one-line description>\n" +
+      "---\n\n" +
+      "<step-by-step instructions for the skill's sub-agent>\n\n" +
+      "Steps:\n" +
+      "1. From the task, decide on a short name, a one-line description, and detailed step-by-step instructions the sub-agent should follow.\n" +
+      "2. Call `create_document` with the skill name as the title.\n" +
+      "3. Call `list_workspace_docs` to find the new document's ID by matching the title.\n" +
+      "4. Call `switch_active_document` with that ID to open it.\n" +
+      "5. Call `write` to fill the document with the complete skill definition.\n" +
+      "6. Report the skill name and a brief summary of what it does.",
+  },
   {
     id: "default-proofreader",
     name: "Proofreader",

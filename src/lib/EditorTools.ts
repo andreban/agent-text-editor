@@ -5,6 +5,7 @@ import * as monaco from "monaco-editor";
 import { AgentRunner, LlmAdapter, ToolRegistry } from "@mast-ai/core";
 import { Suggestion } from "./store";
 import { loadSkills } from "./skills";
+import { WorkspaceTools, registerWorkspaceTools } from "./WorkspaceTools";
 import { v4 as uuidv4 } from "uuid";
 
 export class EditorTools {
@@ -310,6 +311,7 @@ export function createDelegateToSkillHandler(
   apiKey: string,
   parentAdapter: LlmAdapter,
   editorTools: EditorTools,
+  workspaceTools: WorkspaceTools | null = null,
   adapterFactory: (key: string, model: string) => LlmAdapter = (key, model) => {
     // Lazily imported to avoid a hard dep on the concrete adapter in this module.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -335,6 +337,9 @@ export function createDelegateToSkillHandler(
 
     const childRegistry = new ToolRegistry();
     registerEditorTools(childRegistry, editorTools);
+    if (workspaceTools) {
+      registerWorkspaceTools(childRegistry, workspaceTools);
+    }
 
     const childRunner = runnerFactory(childAdapter, childRegistry);
     const result = await childRunner.run(
@@ -348,6 +353,13 @@ export function createDelegateToSkillHandler(
           "get_metadata",
           "edit",
           "write",
+          ...(workspaceTools
+            ? [
+                "create_document",
+                "list_workspace_docs",
+                "switch_active_document",
+              ]
+            : []),
         ],
       },
       task,

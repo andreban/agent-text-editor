@@ -8,6 +8,7 @@ import {
   initializeSkills,
   DEFAULT_SKILLS,
   Skill,
+  CREATE_SKILL_ID,
 } from "./skills";
 
 describe("skills storage", () => {
@@ -49,6 +50,14 @@ describe("skills storage", () => {
     saveSkills(custom);
     const result = initializeSkills();
     expect(result).toEqual(custom);
+  });
+
+  it("Create Skill is included in DEFAULT_SKILLS and uses only standard editor tools", () => {
+    const createSkill = DEFAULT_SKILLS.find((s) => s.id === CREATE_SKILL_ID);
+    expect(createSkill).toBeDefined();
+    expect(createSkill!.name).toBe("Create Skill");
+    expect(createSkill!.instructions).toContain("write");
+    expect(createSkill!.instructions).not.toContain("create_skill");
   });
 
   it("model field is optional and preserved when set", () => {

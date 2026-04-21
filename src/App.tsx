@@ -414,7 +414,12 @@ function App() {
           required: ["skillName", "task"],
         },
       }),
-      call: createDelegateToSkillHandler(apiKey!, adapter, editorTools),
+      call: createDelegateToSkillHandler(
+        apiKey!,
+        adapter,
+        editorTools,
+        workspaceTools,
+      ),
     });
 
     return new AgentRunner(adapter, registry);
