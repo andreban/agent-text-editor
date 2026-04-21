@@ -24,11 +24,10 @@ vi.mock("monaco-editor", () => ({
     create: vi.fn(),
     IStandaloneCodeEditor: vi.fn(),
     IModelDeltaDecoration: vi.fn(),
-    IContentWidget: vi.fn(),
-    ContentWidgetPositionPreference: {
-      BELOW: 0,
-      EXACT: 1,
-    },
+    createDecorationsCollection: vi.fn(() => ({
+      clear: vi.fn(),
+      set: vi.fn(),
+    })),
   },
 }));
 

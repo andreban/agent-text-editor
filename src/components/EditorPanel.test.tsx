@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useEffect } from "react";
 import { EditorPanel } from "./EditorPanel";
-import { SuggestionWidget } from "./SuggestionWidget";
 import { AppProvider, useApp } from "@/lib/store";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { WorkspacesProvider } from "@/lib/WorkspacesContext";
@@ -37,11 +36,9 @@ describe("EditorPanel", () => {
     const user = userEvent.setup();
     renderEditor();
 
-    // Switch to preview tab
     const previewTab = screen.getByRole("tab", { name: "Preview" });
     await user.click(previewTab);
 
-    // Default content contains a heading "Welcome to the AI Agent Text Editor"
     expect(
       await screen.findByRole("heading", {
         name: "Welcome to the AI Agent Text Editor",
@@ -65,7 +62,7 @@ describe("EditorPanel", () => {
   });
 });
 
-describe("SuggestionWidget", () => {
+describe("EditorPanel suggestion toolbar", () => {
   function makeSuggestion(overrides?: Partial<Suggestion>): Suggestion {
     return {
       id: "test-id",
@@ -78,47 +75,63 @@ describe("SuggestionWidget", () => {
     };
   }
 
-  it("renders accept and reject buttons", () => {
-    const suggestion = makeSuggestion();
-    render(
-      <SuggestionWidget
-        suggestion={suggestion}
-        onAccept={vi.fn()}
-        onReject={vi.fn()}
-      />,
+  function SetPendingSuggestion({ suggestion }: { suggestion: Suggestion }) {
+    const { setSuggestions } = useApp();
+    useEffect(() => {
+      setSuggestions([suggestion]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return null;
+  }
+
+  function renderEditorWithSuggestion(suggestion: Suggestion) {
+    return render(
+      <ThemeProvider>
+        <AppProvider>
+          <WorkspacesProvider>
+            <SetPendingSuggestion suggestion={suggestion} />
+            <EditorPanel />
+          </WorkspacesProvider>
+        </AppProvider>
+      </ThemeProvider>,
     );
-    expect(screen.getByTitle("Accept")).toBeInTheDocument();
-    expect(screen.getByTitle("Reject")).toBeInTheDocument();
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
   });
 
-  it("calls onAccept with suggestion id when accept is clicked", async () => {
-    const user = userEvent.setup();
+  it("shows Accept and Reject buttons when a suggestion is pending", async () => {
     const suggestion = makeSuggestion();
-    const onAccept = vi.fn();
-    render(
-      <SuggestionWidget
-        suggestion={suggestion}
-        onAccept={onAccept}
-        onReject={vi.fn()}
-      />,
-    );
-    await user.click(screen.getByTitle("Accept"));
-    expect(onAccept).toHaveBeenCalledWith("test-id");
+    renderEditorWithSuggestion(suggestion);
+    expect(await screen.findByRole("button", { name: /accept/i })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /reject/i })).toBeInTheDocument();
   });
 
-  it("calls onReject with suggestion id when reject is clicked", async () => {
+  it("calls resolve with accepted message when Accept is clicked", async () => {
     const user = userEvent.setup();
     const suggestion = makeSuggestion();
-    const onReject = vi.fn();
-    render(
-      <SuggestionWidget
-        suggestion={suggestion}
-        onAccept={vi.fn()}
-        onReject={onReject}
-      />,
+    renderEditorWithSuggestion(suggestion);
+    await user.click(await screen.findByRole("button", { name: /accept/i }));
+    expect(suggestion.resolve).toHaveBeenCalledWith(
+      "User accepted the edit. The document has been updated.",
     );
-    await user.click(screen.getByTitle("Reject"));
-    expect(onReject).toHaveBeenCalledWith("test-id");
+  });
+
+  it("calls resolve with rejected message when Reject is clicked", async () => {
+    const user = userEvent.setup();
+    const suggestion = makeSuggestion();
+    renderEditorWithSuggestion(suggestion);
+    await user.click(await screen.findByRole("button", { name: /reject/i }));
+    expect(suggestion.resolve).toHaveBeenCalledWith("User rejected the edit.");
+  });
+
+  it("toolbar disappears after suggestion is resolved", async () => {
+    const user = userEvent.setup();
+    const suggestion = makeSuggestion();
+    renderEditorWithSuggestion(suggestion);
+    await user.click(await screen.findByRole("button", { name: /reject/i }));
+    expect(screen.queryByRole("button", { name: /accept/i })).not.toBeInTheDocument();
   });
 });
 
