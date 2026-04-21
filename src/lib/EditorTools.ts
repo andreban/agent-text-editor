@@ -114,72 +114,68 @@ export class EditorTools {
     // We take the first match for simplicity in this version
     const range = matches[0].range;
 
-    if (this.approveAll) {
-      model.pushEditOperations(
-        [],
-        [
-          {
-            range: range,
-            text: replacementText,
-          },
-        ],
-        () => null,
-      );
-      return Promise.resolve(
-        "Change applied automatically (Approve All is ON).",
-      );
-    }
-
-    return new Promise((resolve) => {
-      const newSuggestion: Suggestion = {
-        id: uuidv4(),
+    return this.applySuggestion(
+      {
         originalText,
         replacementText,
-        status: "pending",
         range: {
           startLineNumber: range.startLineNumber,
           startColumn: range.startColumn,
           endLineNumber: range.endLineNumber,
           endColumn: range.endColumn,
         },
-        resolve,
-      };
-
-      this.setSuggestions((prev) => [...prev, newSuggestion]);
-    });
+      },
+      () =>
+        model.pushEditOperations(
+          [],
+          [{ range: range, text: replacementText }],
+          () => null,
+        ),
+      "Change applied automatically (Approve All is ON).",
+    );
   }
 
   write({ content }: { content: string }): Promise<string> {
     const editor = this.editor;
     if (!editor) return Promise.resolve("Error: Editor not initialized.");
 
-    if (this.approveAll) {
-      editor.setValue(content);
-      return Promise.resolve(
-        "Document updated automatically (Approve All is ON).",
-      );
-    }
-
     const model = editor.getModel();
     if (!model) return Promise.resolve("Error: Model not found.");
 
     const fullRange = model.getFullModelRange();
 
-    return new Promise((resolve) => {
-      const newSuggestion: Suggestion = {
-        id: uuidv4(),
+    return this.applySuggestion(
+      {
         originalText: editor.getValue(),
         replacementText: content,
-        status: "pending",
         range: {
           startLineNumber: fullRange.startLineNumber,
           startColumn: fullRange.startColumn,
           endLineNumber: fullRange.endLineNumber,
           endColumn: fullRange.endColumn,
         },
+      },
+      () => editor.setValue(content),
+      "Document updated automatically (Approve All is ON).",
+    );
+  }
+
+  private applySuggestion(
+    data: Omit<Suggestion, "id" | "status" | "resolve">,
+    autoApply: () => void,
+    autoMessage: string,
+  ): Promise<string> {
+    if (this.approveAll) {
+      autoApply();
+      return Promise.resolve(autoMessage);
+    }
+    return new Promise((resolve) => {
+      const newSuggestion: Suggestion = {
+        id: uuidv4(),
+        ...data,
+        status: "pending",
         resolve,
       };
-
       this.setSuggestions((prev) => [...prev, newSuggestion]);
     });
   }
