@@ -195,8 +195,8 @@ describe("WorkspaceTools", () => {
       SetPendingWorkspaceActionFn;
 
     beforeEach(() => {
-      createDocumentFn = vi.fn().mockReturnValue("new-doc-id");
-      setPendingWorkspaceAction = vi.fn();
+      createDocumentFn = vi.fn().mockReturnValue("new-doc-id") as unknown as typeof createDocumentFn;
+      setPendingWorkspaceAction = vi.fn() as unknown as typeof setPendingWorkspaceAction;
     });
 
     function makeTools(approveAll = false) {
@@ -263,8 +263,8 @@ describe("WorkspaceTools", () => {
       SetPendingWorkspaceActionFn;
 
     beforeEach(() => {
-      renameDocumentFn = vi.fn();
-      setPendingWorkspaceAction = vi.fn();
+      renameDocumentFn = vi.fn() as unknown as typeof renameDocumentFn;
+      setPendingWorkspaceAction = vi.fn() as unknown as typeof setPendingWorkspaceAction;
     });
 
     function makeTools(docs: WorkspaceDocument[], approveAll = false) {
@@ -336,8 +336,8 @@ describe("WorkspaceTools", () => {
       SetPendingWorkspaceActionFn;
 
     beforeEach(() => {
-      deleteDocumentFn = vi.fn();
-      setPendingWorkspaceAction = vi.fn();
+      deleteDocumentFn = vi.fn() as unknown as typeof deleteDocumentFn;
+      setPendingWorkspaceAction = vi.fn() as unknown as typeof setPendingWorkspaceAction;
     });
 
     function makeTools(docs: WorkspaceDocument[], approveAll = false) {
@@ -398,9 +398,9 @@ describe("WorkspaceTools", () => {
     let getEditorContent: ReturnType<typeof vi.fn> & GetEditorContentFn;
 
     beforeEach(() => {
-      setActiveDocumentIdFn = vi.fn();
-      saveDocContentFn = vi.fn();
-      getEditorContent = vi.fn().mockReturnValue("editor content");
+      setActiveDocumentIdFn = vi.fn() as unknown as typeof setActiveDocumentIdFn;
+      saveDocContentFn = vi.fn() as unknown as typeof saveDocContentFn;
+      getEditorContent = vi.fn().mockReturnValue("editor content") as unknown as typeof getEditorContent;
     });
 
     function makeTools(
