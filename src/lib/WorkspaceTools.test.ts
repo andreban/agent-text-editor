@@ -3,7 +3,17 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { WorkspaceTools } from "./WorkspaceTools";
-import type { AdapterFactory, SubAgentFactory } from "./WorkspaceTools";
+import type {
+  AdapterFactory,
+  SubAgentFactory,
+  CreateDocumentFn,
+  RenameDocumentFn,
+  DeleteDocumentFn,
+  SetActiveDocumentIdFn,
+  SaveDocContentFn,
+  GetEditorContentFn,
+  SetPendingWorkspaceActionFn,
+} from "./WorkspaceTools";
 import type { WorkspaceDocument } from "./workspace";
 import type { LlmAdapter } from "@mast-ai/core";
 
@@ -176,6 +186,274 @@ describe("WorkspaceTools", () => {
       );
       await tools.query_workspace_doc({ id: "doc-1", query: "q" });
       expect(adapterFactory).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("create_document", () => {
+    let createDocumentFn: ReturnType<typeof vi.fn> & CreateDocumentFn;
+    let setPendingWorkspaceAction: ReturnType<typeof vi.fn> &
+      SetPendingWorkspaceActionFn;
+
+    beforeEach(() => {
+      createDocumentFn = vi.fn().mockReturnValue("new-doc-id");
+      setPendingWorkspaceAction = vi.fn();
+    });
+
+    function makeTools(approveAll = false) {
+      return new WorkspaceTools(
+        makeRef([]),
+        noActiveDoc,
+        adapterFactory,
+        runnerFactory,
+        createDocumentFn,
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn().mockReturnValue(""),
+        setPendingWorkspaceAction,
+        approveAll,
+      );
+    }
+
+    it("returns error when title is empty", async () => {
+      const tools = makeTools();
+      const result = JSON.parse(await tools.create_document({ title: "" }));
+      expect(result).toEqual({ error: "title is required" });
+      expect(setPendingWorkspaceAction).not.toHaveBeenCalled();
+    });
+
+    it("creates document immediately when approveAll is true", async () => {
+      const tools = makeTools(true);
+      const result = await tools.create_document({ title: "My Doc" });
+      expect(createDocumentFn).toHaveBeenCalledWith("My Doc");
+      expect(result).toContain("Approve All");
+    });
+
+    it("sets pending workspace action when approveAll is false", async () => {
+      const tools = makeTools(false);
+      const promise = tools.create_document({ title: "Draft" });
+      expect(setPendingWorkspaceAction).toHaveBeenCalledOnce();
+
+      const request = setPendingWorkspaceAction.mock.calls[0][0];
+      expect(request.description).toContain("Draft");
+      expect(typeof request.apply).toBe("function");
+      expect(typeof request.resolve).toBe("function");
+
+      request.apply();
+      expect(createDocumentFn).toHaveBeenCalledWith("Draft");
+
+      request.resolve("Action applied successfully.");
+      expect(await promise).toBe("Action applied successfully.");
+    });
+
+    it("returns rejection message when user rejects", async () => {
+      const tools = makeTools(false);
+      const promise = tools.create_document({ title: "Draft" });
+      const request = setPendingWorkspaceAction.mock.calls[0][0];
+      request.resolve("Action rejected by user.");
+      expect(await promise).toBe("Action rejected by user.");
+      expect(createDocumentFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("rename_document", () => {
+    let renameDocumentFn: ReturnType<typeof vi.fn> & RenameDocumentFn;
+    let setPendingWorkspaceAction: ReturnType<typeof vi.fn> &
+      SetPendingWorkspaceActionFn;
+
+    beforeEach(() => {
+      renameDocumentFn = vi.fn();
+      setPendingWorkspaceAction = vi.fn();
+    });
+
+    function makeTools(docs: WorkspaceDocument[], approveAll = false) {
+      return new WorkspaceTools(
+        makeRef(docs),
+        noActiveDoc,
+        adapterFactory,
+        runnerFactory,
+        vi.fn(),
+        renameDocumentFn,
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn().mockReturnValue(""),
+        setPendingWorkspaceAction,
+        approveAll,
+      );
+    }
+
+    it("returns error when document is not found", async () => {
+      const tools = makeTools([]);
+      const result = JSON.parse(
+        await tools.rename_document({ id: "nope", title: "New" }),
+      );
+      expect(result).toEqual({ error: "Document not found" });
+    });
+
+    it("returns error when title is empty", async () => {
+      const tools = makeTools([makeDoc({ id: "d1" })]);
+      const result = JSON.parse(
+        await tools.rename_document({ id: "d1", title: "" }),
+      );
+      expect(result).toEqual({ error: "title is required" });
+    });
+
+    it("renames immediately when approveAll is true", async () => {
+      const tools = makeTools([makeDoc({ id: "d1", title: "Old" })], true);
+      await tools.rename_document({ id: "d1", title: "New" });
+      expect(renameDocumentFn).toHaveBeenCalledWith("d1", "New");
+    });
+
+    it("sets pending workspace action and renames on accept", async () => {
+      const tools = makeTools([makeDoc({ id: "d1", title: "Old" })]);
+      const promise = tools.rename_document({ id: "d1", title: "New" });
+      const request = setPendingWorkspaceAction.mock.calls[0][0];
+      expect(request.description).toContain("Old");
+      expect(request.description).toContain("New");
+
+      request.apply();
+      expect(renameDocumentFn).toHaveBeenCalledWith("d1", "New");
+
+      request.resolve("Action applied successfully.");
+      expect(await promise).toBe("Action applied successfully.");
+    });
+
+    it("does not rename on rejection", async () => {
+      const tools = makeTools([makeDoc({ id: "d1", title: "Old" })]);
+      const promise = tools.rename_document({ id: "d1", title: "New" });
+      const request = setPendingWorkspaceAction.mock.calls[0][0];
+      request.resolve("Action rejected by user.");
+      expect(await promise).toBe("Action rejected by user.");
+      expect(renameDocumentFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("delete_document", () => {
+    let deleteDocumentFn: ReturnType<typeof vi.fn> & DeleteDocumentFn;
+    let setPendingWorkspaceAction: ReturnType<typeof vi.fn> &
+      SetPendingWorkspaceActionFn;
+
+    beforeEach(() => {
+      deleteDocumentFn = vi.fn();
+      setPendingWorkspaceAction = vi.fn();
+    });
+
+    function makeTools(docs: WorkspaceDocument[], approveAll = false) {
+      return new WorkspaceTools(
+        makeRef(docs),
+        noActiveDoc,
+        adapterFactory,
+        runnerFactory,
+        vi.fn(),
+        vi.fn(),
+        deleteDocumentFn,
+        vi.fn(),
+        vi.fn(),
+        vi.fn().mockReturnValue(""),
+        setPendingWorkspaceAction,
+        approveAll,
+      );
+    }
+
+    it("returns error when document is not found", async () => {
+      const tools = makeTools([]);
+      const result = JSON.parse(await tools.delete_document({ id: "nope" }));
+      expect(result).toEqual({ error: "Document not found" });
+    });
+
+    it("deletes immediately when approveAll is true", async () => {
+      const tools = makeTools([makeDoc({ id: "d1" })], true);
+      await tools.delete_document({ id: "d1" });
+      expect(deleteDocumentFn).toHaveBeenCalledWith("d1");
+    });
+
+    it("sets pending workspace action and deletes on accept", async () => {
+      const tools = makeTools([makeDoc({ id: "d1", title: "My Essay" })]);
+      const promise = tools.delete_document({ id: "d1" });
+      const request = setPendingWorkspaceAction.mock.calls[0][0];
+      expect(request.description).toContain("My Essay");
+
+      request.apply();
+      expect(deleteDocumentFn).toHaveBeenCalledWith("d1");
+
+      request.resolve("Action applied successfully.");
+      expect(await promise).toBe("Action applied successfully.");
+    });
+
+    it("does not delete on rejection", async () => {
+      const tools = makeTools([makeDoc({ id: "d1" })]);
+      const promise = tools.delete_document({ id: "d1" });
+      const request = setPendingWorkspaceAction.mock.calls[0][0];
+      request.resolve("Action rejected by user.");
+      expect(await promise).toBe("Action rejected by user.");
+      expect(deleteDocumentFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("switch_active_document", () => {
+    let setActiveDocumentIdFn: ReturnType<typeof vi.fn> & SetActiveDocumentIdFn;
+    let saveDocContentFn: ReturnType<typeof vi.fn> & SaveDocContentFn;
+    let getEditorContent: ReturnType<typeof vi.fn> & GetEditorContentFn;
+
+    beforeEach(() => {
+      setActiveDocumentIdFn = vi.fn();
+      saveDocContentFn = vi.fn();
+      getEditorContent = vi.fn().mockReturnValue("editor content");
+    });
+
+    function makeTools(
+      docs: WorkspaceDocument[],
+      activeDoc: { id: string; title: string } | null = null,
+    ) {
+      return new WorkspaceTools(
+        makeRef(docs),
+        makeActiveDocRef(activeDoc),
+        adapterFactory,
+        runnerFactory,
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
+        setActiveDocumentIdFn,
+        saveDocContentFn,
+        getEditorContent,
+        vi.fn(),
+        false,
+      );
+    }
+
+    it("returns error when document is not found", async () => {
+      const tools = makeTools([]);
+      const result = JSON.parse(
+        await tools.switch_active_document({ id: "nope" }),
+      );
+      expect(result).toEqual({ error: "Document not found" });
+    });
+
+    it("switches document without authorization", async () => {
+      const docs = [makeDoc({ id: "d1", title: "Doc 1" })];
+      const tools = makeTools(docs);
+      const result = JSON.parse(
+        await tools.switch_active_document({ id: "d1" }),
+      );
+      expect(result).toEqual({ switched: true, id: "d1", title: "Doc 1" });
+      expect(setActiveDocumentIdFn).toHaveBeenCalledWith("d1");
+    });
+
+    it("saves current document content before switching", async () => {
+      const docs = [makeDoc({ id: "d2", title: "Target" })];
+      const tools = makeTools(docs, { id: "d1", title: "Current" });
+      await tools.switch_active_document({ id: "d2" });
+      expect(saveDocContentFn).toHaveBeenCalledWith("d1", "editor content");
+      expect(setActiveDocumentIdFn).toHaveBeenCalledWith("d2");
+    });
+
+    it("does not save content when no active document", async () => {
+      const docs = [makeDoc({ id: "d1" })];
+      const tools = makeTools(docs, null);
+      await tools.switch_active_document({ id: "d1" });
+      expect(saveDocContentFn).not.toHaveBeenCalled();
     });
   });
 

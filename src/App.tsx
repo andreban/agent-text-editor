@@ -273,11 +273,22 @@ const BASE_INSTRUCTIONS =
   "The workspace may contain multiple documents. Use `get_active_doc_info()` to get the id and title of the currently open document. " +
   "Use `list_workspace_docs()` to discover all documents. " +
   "Use `read_workspace_doc(id)` to read another document in full, or `query_workspace_doc(id, query)` for a targeted question. " +
-  "Use `query_workspace(query)` to synthesize an answer that draws from all workspace documents.";
+  "Use `query_workspace(query)` to synthesize an answer that draws from all workspace documents. " +
+  "Use `create_document(title)` to create a new blank document — pauses for user authorization. " +
+  "Use `rename_document(id, title)` to rename a document — pauses for user authorization. " +
+  "Use `delete_document(id)` to delete a document — pauses for user authorization. " +
+  "Use `switch_active_document(id)` to switch to a different document — saves current content first, no authorization needed.";
 
 function App() {
-  const { activeWorkspaceId, activeWorkspace, activeDocument } =
-    useWorkspaces();
+  const {
+    activeWorkspaceId,
+    activeWorkspace,
+    activeDocument,
+    createDocumentWithTitle,
+    updateDocument,
+    deleteDocument,
+    setActiveDocumentId,
+  } = useWorkspaces();
   const {
     apiKey,
     setApiKey,
@@ -290,6 +301,8 @@ function App() {
     activeTab,
     editorContent,
     setPendingTabSwitchRequest,
+    pendingWorkspaceAction,
+    setPendingWorkspaceAction,
   } = useApp();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
@@ -339,8 +352,30 @@ function App() {
         docsRef,
         activeDocRef,
         () => new GoogleGenAIAdapter(apiKey ?? "", modelName),
+        undefined,
+        (title) => createDocumentWithTitle(title),
+        (id, title) => updateDocument(id, { title }),
+        (id) => deleteDocument(id),
+        (id) => setActiveDocumentId(id),
+        (id, content) => updateDocument(id, { content }),
+        () => editorInstance?.getValue() ?? editorContent,
+        setPendingWorkspaceAction,
+        approveAll,
       ),
-    [docsRef, activeDocRef, apiKey, modelName],
+    [
+      docsRef,
+      activeDocRef,
+      apiKey,
+      modelName,
+      createDocumentWithTitle,
+      updateDocument,
+      deleteDocument,
+      setActiveDocumentId,
+      editorInstance,
+      editorContent,
+      setPendingWorkspaceAction,
+      approveAll,
+    ],
   );
 
   useEffect(
@@ -410,6 +445,10 @@ function App() {
         "read_workspace_doc",
         "query_workspace_doc",
         "query_workspace",
+        "create_document",
+        "rename_document",
+        "delete_document",
+        "switch_active_document",
       ],
     };
     return runner.conversation(agent);
@@ -435,6 +474,47 @@ function App() {
       ) : (
         <DesktopLayout conversation={conversation} />
       )}
+
+      <Dialog
+        open={!!pendingWorkspaceAction}
+        onOpenChange={(open) => {
+          if (!open && pendingWorkspaceAction) {
+            pendingWorkspaceAction.resolve("Action rejected by user.");
+            setPendingWorkspaceAction(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Authorize Action</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              {pendingWorkspaceAction?.description}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                pendingWorkspaceAction?.resolve("Action rejected by user.");
+                setPendingWorkspaceAction(null);
+              }}
+            >
+              Reject
+            </Button>
+            <Button
+              onClick={() => {
+                pendingWorkspaceAction?.apply();
+                pendingWorkspaceAction?.resolve("Action applied successfully.");
+                setPendingWorkspaceAction(null);
+              }}
+            >
+              Accept
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showKeyDialog} onOpenChange={setShowKeyDialog}>
         <DialogContent>
