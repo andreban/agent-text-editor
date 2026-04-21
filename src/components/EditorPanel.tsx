@@ -16,8 +16,8 @@ import { MarkdownContent } from "./MarkdownContent";
 import { useApp } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
-import { SuggestionWidget } from "./SuggestionWidget";
-import { createPortal } from "react-dom";
+import { computeDiffDecorations } from "@/lib/diffDecorations";
+import { Check, X } from "lucide-react";
 
 const DEFAULT_CONTENT = `# Welcome to the AI Agent Text Editor
 
@@ -63,15 +63,10 @@ export function EditorPanel() {
   const prevDocIdRef = useRef<string | null>(activeDocument?.id ?? null);
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [suggestionNodes, setSuggestionNodes] = useState<
-    { id: string; node: HTMLElement }[]
-  >([]);
-  const decorationsRef = useRef<string[]>([]);
-  const contentWidgetsRef = useRef<Map<string, monaco.editor.IContentWidget>>(
-    new Map(),
-  );
+  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  const [toolbarTop, setToolbarTop] = useState<number>(8);
+  const pendingSuggestion = suggestions.find((s) => s.status === "pending") ?? null;
 
-  // Sync editor content when switching documents
   useEffect(() => {
     if (activeDocument?.id !== prevDocIdRef.current) {
       prevDocIdRef.current = activeDocument?.id ?? null;
@@ -107,103 +102,59 @@ export function EditorPanel() {
   useEffect(() => {
     if (!editorInstance) return;
 
-    const pendingSuggestions = suggestions.filter(
-      (s) => s.status === "pending",
+    if (!pendingSuggestion) {
+      decorationsRef.current?.clear();
+      return;
+    }
+
+    const decorations = computeDiffDecorations(pendingSuggestion);
+
+    if (!decorationsRef.current) {
+      decorationsRef.current = editorInstance.createDecorationsCollection(decorations);
+    } else {
+      decorationsRef.current.set(decorations);
+    }
+
+    editorInstance.revealLineInCenterIfOutsideViewport(
+      pendingSuggestion.range.startLineNumber,
     );
+  }, [suggestions, editorInstance, pendingSuggestion]);
 
-    // 1. Manage Decorations (Strikethrough Original + Inline Green New Text)
-    const newDecorations: monaco.editor.IModelDeltaDecoration[] =
-      pendingSuggestions.map((suggestion) => ({
-        range: suggestion.range,
-        options: {
-          description: "suggestion-edit",
-          inlineClassName: "suggestion-original",
-          after: {
-            content: " " + suggestion.replacementText.replace(/\n/g, "↵"),
-            inlineClassName: "suggestion-new",
-          },
-          hoverMessage: {
-            value: "**Proposed Edit**\nAccept or reject via the popup.",
-          },
-        },
-      }));
+  useEffect(() => {
+    if (!editorInstance || !pendingSuggestion) return;
 
-    decorationsRef.current = editorInstance.deltaDecorations(
-      decorationsRef.current,
-      newDecorations,
-    );
+    const TOOLBAR_HEIGHT = 36;
+    const GAP = 4;
 
-    // 2. Manage Content Widgets (Accept/Reject popup)
-    const pendingIds = new Set(pendingSuggestions.map((s) => s.id));
+    const computeTop = () => {
+      const lineTop =
+        editorInstance.getTopForLineNumber(pendingSuggestion.range.startLineNumber) -
+        editorInstance.getScrollTop();
+      setToolbarTop(Math.max(GAP, lineTop - TOOLBAR_HEIGHT - GAP));
+    };
 
-    // Add new widgets
-    pendingSuggestions.forEach((suggestion) => {
-      if (!contentWidgetsRef.current.has(suggestion.id)) {
-        const domNode = document.createElement("div");
-        domNode.className = "z-50";
-        // Monaco captures touchstart globally on mobile; stop propagation so
-        // the Accept/Reject buttons inside the widget receive the tap.
-        domNode.addEventListener("touchstart", (e) => e.stopPropagation(), {
-          passive: false,
-        });
-
-        const widget: monaco.editor.IContentWidget = {
-          getId: () => `suggestion-widget-${suggestion.id}`,
-          getDomNode: () => domNode,
-          getPosition: () => ({
-            position: {
-              lineNumber: suggestion.range.startLineNumber,
-              column: suggestion.range.startColumn,
-            },
-            preference: [
-              monaco.editor.ContentWidgetPositionPreference.ABOVE,
-              monaco.editor.ContentWidgetPositionPreference.BELOW,
-            ],
-          }),
-        };
-
-        editorInstance.addContentWidget(widget);
-        contentWidgetsRef.current.set(suggestion.id, widget);
-        setSuggestionNodes((prev) => [
-          ...prev,
-          { id: suggestion.id, node: domNode },
-        ]);
-
-        // Scroll to the new suggestion so the user can see it
-        editorInstance.revealRangeInCenterIfOutsideViewport(suggestion.range);
-      }
-    });
-
-    // Remove old widgets
-    Array.from(contentWidgetsRef.current.keys()).forEach((id) => {
-      if (!pendingIds.has(id)) {
-        const widget = contentWidgetsRef.current.get(id);
-        if (widget) {
-          editorInstance.removeContentWidget(widget);
-          contentWidgetsRef.current.delete(id);
-        }
-        setSuggestionNodes((prev) => prev.filter((n) => n.id !== id));
-      }
-    });
-  }, [suggestions, editorInstance]);
+    computeTop();
+    const disposable = editorInstance.onDidScrollChange(computeTop);
+    return () => disposable.dispose();
+  }, [pendingSuggestion, editorInstance]);
 
   const handleAccept = (id: string) => {
     const suggestion = suggestions.find((s) => s.id === id);
-    if (suggestion && editorInstance) {
-      const model = editorInstance.getModel();
-      if (model) {
-        model.pushEditOperations(
-          [],
-          [{ range: suggestion.range, text: suggestion.replacementText }],
-          () => null,
-        );
+    if (suggestion) {
+      if (editorInstance) {
+        const model = editorInstance.getModel();
+        if (model) {
+          model.pushEditOperations(
+            [],
+            [{ range: suggestion.range, text: suggestion.replacementText }],
+            () => null,
+          );
+        }
       }
       setSuggestions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: "accepted" } : s)),
       );
-      suggestion.resolve(
-        "User accepted the edit. The document has been updated.",
-      );
+      suggestion.resolve("User accepted the edit. The document has been updated.");
     }
   };
 
@@ -289,18 +240,32 @@ export function EditorPanel() {
                 renderLineHighlight: "none",
               }}
             />
-            {suggestionNodes.map(({ id, node }) => {
-              const suggestion = suggestions.find((s) => s.id === id);
-              if (!suggestion) return null;
-              return createPortal(
-                <SuggestionWidget
-                  suggestion={suggestion}
-                  onAccept={handleAccept}
-                  onReject={handleReject}
-                />,
-                node,
-              );
-            })}
+
+            {pendingSuggestion && (
+              <div
+                className="absolute left-0 right-0 z-10 flex justify-center pointer-events-none"
+                style={{ top: toolbarTop }}
+              >
+                <div className="flex items-center gap-2 pointer-events-auto bg-background border rounded-lg px-3 py-1.5 shadow-md text-sm">
+                  <span className="text-muted-foreground text-xs mr-1">Proposed edit</span>
+                  <button
+                    onClick={() => handleAccept(pendingSuggestion.id)}
+                    className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium"
+                  >
+                    <Check size={14} />
+                    Accept
+                  </button>
+                  <span className="text-muted-foreground">|</span>
+                  <button
+                    onClick={() => handleReject(pendingSuggestion.id)}
+                    className="flex items-center gap-1 text-red-500 hover:text-red-600 font-medium"
+                  >
+                    <X size={14} />
+                    Reject
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </TabsContent>
 

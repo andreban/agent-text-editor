@@ -62,29 +62,25 @@ SPDX-License-Identifier: Apache-2.0
   }
 }
 
-.suggestion-original {
+.suggestion-delete {
   color: #ef4444 !important;
   text-decoration: line-through !important;
-  background-color: rgba(239, 68, 68, 0.1);
+  background-color: rgba(239, 68, 68, 0.12);
 }
 
-.suggestion-new {
+.suggestion-insert {
   color: #10b981 !important;
   background-color: rgba(16, 185, 129, 0.15);
-  font-weight: 500;
+  font-style: normal;
   border-radius: 2px;
-  font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    "Courier New", monospace !important;
-  white-space: pre !important;
 }
 
-.dark .suggestion-original {
+.dark .suggestion-delete {
   color: #f87171 !important;
   background-color: rgba(248, 113, 113, 0.15);
 }
 
-.dark .suggestion-new {
+.dark .suggestion-insert {
   color: #34d399 !important;
   background-color: rgba(52, 211, 153, 0.2);
 }
