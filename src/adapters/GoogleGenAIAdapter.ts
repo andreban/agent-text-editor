@@ -40,11 +40,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
   async generate(request: AdapterRequest): Promise<AdapterResponse> {
     const contents = this.mapMessages(request.messages);
 
-    const systemInstruction: Content | undefined = request.system
-      ? {
-          parts: [{ text: request.system }],
-        }
-      : undefined;
+    const systemInstruction = this.mapSystemInstruction(request.system);
 
     const tools =
       request.tools.length > 0
@@ -117,11 +113,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
   ): AsyncIterable<AdapterStreamChunk> {
     const contents = this.mapMessages(request.messages);
 
-    const systemInstruction: Content | undefined = request.system
-      ? {
-          parts: [{ text: request.system }],
-        }
-      : undefined;
+    const systemInstruction = this.mapSystemInstruction(request.system);
 
     const tools =
       request.tools.length > 0
@@ -175,8 +167,7 @@ export class GoogleGenAIAdapter implements LlmAdapter {
             toolCall: {
               id:
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (part.functionCall as any).id ||
-                crypto.randomUUID(),
+                (part.functionCall as any).id || crypto.randomUUID(),
               name: part.functionCall.name!,
               args: part.functionCall.args,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,6 +178,11 @@ export class GoogleGenAIAdapter implements LlmAdapter {
         }
       }
     }
+  }
+
+  private mapSystemInstruction(system?: string): Content | undefined {
+    if (!system) return undefined;
+    return { parts: [{ text: system }] };
   }
 
   private mapMessages(messages: Message[]): Content[] {

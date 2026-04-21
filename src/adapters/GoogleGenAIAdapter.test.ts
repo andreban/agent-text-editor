@@ -97,6 +97,37 @@ describe("GoogleGenAIAdapter", () => {
     expect(response.toolCalls[0].args).toEqual({ arg1: "val1" });
   });
 
+  it("should forward a system instruction when provided", async () => {
+    const { GoogleGenAI } = await import("@google/genai");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockClient = new (GoogleGenAI as any)();
+
+    await adapter.generate({
+      system: "You are terse.",
+      messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+      tools: [],
+    });
+
+    const call = mockClient.models.generateContent.mock.calls.at(-1)?.[0];
+    expect(call.config.systemInstruction).toEqual({
+      parts: [{ text: "You are terse." }],
+    });
+  });
+
+  it("should omit the system instruction when not provided", async () => {
+    const { GoogleGenAI } = await import("@google/genai");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockClient = new (GoogleGenAI as any)();
+
+    await adapter.generate({
+      messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+      tools: [],
+    });
+
+    const call = mockClient.models.generateContent.mock.calls.at(-1)?.[0];
+    expect(call.config.systemInstruction).toBeUndefined();
+  });
+
   it("should not drop text when a part has both thought and text set", async () => {
     const { GoogleGenAI } = await import("@google/genai");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
