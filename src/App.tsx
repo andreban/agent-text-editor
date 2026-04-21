@@ -39,6 +39,7 @@ import {
   createDelegateToSkillHandler,
 } from "@/lib/EditorTools";
 import { WorkspaceTools, registerWorkspaceTools } from "@/lib/WorkspaceTools";
+import { registerWebMCPTools } from "@/lib/WebMCPTools";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -309,6 +310,44 @@ function App() {
       : null;
   }, [activeDocument]);
 
+  const editorTools = useMemo(
+    () =>
+      new EditorTools(
+        editorInstance,
+        setSuggestions,
+        approveAll,
+        () => editorContent,
+        () => activeTab,
+        () =>
+          new Promise<boolean>((resolve) => {
+            setPendingTabSwitchRequest({ resolve });
+          }),
+      ),
+    [
+      editorInstance,
+      setSuggestions,
+      approveAll,
+      editorContent,
+      activeTab,
+      setPendingTabSwitchRequest,
+    ],
+  );
+
+  const workspaceTools = useMemo(
+    () =>
+      new WorkspaceTools(
+        docsRef,
+        activeDocRef,
+        () => new GoogleGenAIAdapter(apiKey ?? "", modelName),
+      ),
+    [docsRef, activeDocRef, apiKey, modelName],
+  );
+
+  useEffect(
+    () => registerWebMCPTools(editorTools, workspaceTools),
+    [editorTools, workspaceTools],
+  );
+
   const runner = useMemo(() => {
     if (!apiKey) return null;
     const adapter = new GoogleGenAIAdapter(apiKey, modelName, (usage) => {
@@ -316,25 +355,7 @@ function App() {
     });
     const registry = new ToolRegistry();
 
-    const editorTools = new EditorTools(
-      editorInstance,
-      setSuggestions,
-      approveAll,
-      () => editorContent,
-      () => activeTab,
-      () =>
-        new Promise<boolean>((resolve) => {
-          setPendingTabSwitchRequest({ resolve });
-        }),
-    );
-
     registerEditorTools(registry, editorTools);
-
-    const workspaceTools = new WorkspaceTools(
-      docsRef,
-      activeDocRef,
-      () => new GoogleGenAIAdapter(apiKey, modelName),
-    );
     registerWorkspaceTools(registry, workspaceTools);
 
     registry.register({
@@ -362,19 +383,7 @@ function App() {
     });
 
     return new AgentRunner(adapter, registry);
-  }, [
-    apiKey,
-    modelName,
-    setTotalTokens,
-    editorInstance,
-    setSuggestions,
-    approveAll,
-    docsRef,
-    activeDocRef,
-    activeTab,
-    editorContent,
-    setPendingTabSwitchRequest,
-  ]);
+  }, [apiKey, modelName, setTotalTokens, editorTools, workspaceTools]);
 
   const conversation = useMemo(() => {
     if (!runner) return null;
