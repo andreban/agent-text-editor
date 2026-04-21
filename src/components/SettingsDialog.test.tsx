@@ -30,6 +30,8 @@ function mockStore(apiKey: string | null, modelName: string) {
     setEditorContent: vi.fn(),
     pendingTabSwitchRequest: null,
     setPendingTabSwitchRequest: vi.fn(),
+    pendingWorkspaceAction: null,
+    setPendingWorkspaceAction: vi.fn(),
     approveAll: false,
     setApproveAll: vi.fn(),
     skills: [],

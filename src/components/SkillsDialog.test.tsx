@@ -38,6 +38,8 @@ function mockStore(skills: Skill[]) {
     setEditorContent: vi.fn(),
     pendingTabSwitchRequest: null,
     setPendingTabSwitchRequest: vi.fn(),
+    pendingWorkspaceAction: null,
+    setPendingWorkspaceAction: vi.fn(),
     approveAll: false,
     setApproveAll: vi.fn(),
     skills,
