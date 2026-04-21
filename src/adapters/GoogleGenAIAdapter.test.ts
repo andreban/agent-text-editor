@@ -19,6 +19,12 @@ vi.mock("@google/genai", () => {
     },
   });
 
+  // Default: empty async generator
+  const generateContentStream = vi.fn().mockResolvedValue(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (async function* (): AsyncGenerator<any> {})(),
+  );
+
   return {
     ThinkingLevel: {
       HIGH: "HIGH",
@@ -27,6 +33,7 @@ vi.mock("@google/genai", () => {
     GoogleGenAI: vi.fn().mockImplementation(function (this: any) {
       this.models = {
         generateContent,
+        generateContentStream,
       };
     }),
   };
@@ -149,5 +156,174 @@ describe("GoogleGenAIAdapter", () => {
     });
 
     expect(response.text).toBe("Thinking... and also responding");
+  });
+
+  it("should throw when no candidate is returned from generate", async () => {
+    const { GoogleGenAI } = await import("@google/genai");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockClient = new (GoogleGenAI as any)();
+    mockClient.models.generateContent.mockResolvedValueOnce({
+      candidates: [],
+      usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 0 },
+    });
+
+    await expect(
+      adapter.generate({
+        messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+        tools: [],
+      }),
+    ).rejects.toThrow("No candidate returned from Gemini");
+  });
+
+  describe("generateStream", () => {
+    async function collectChunks(
+      request: Parameters<GoogleGenAIAdapter["generateStream"]>[0],
+    ) {
+      const chunks: { type: string; delta?: string; toolCall?: unknown }[] = [];
+      for await (const chunk of adapter.generateStream(request)) {
+        chunks.push(chunk as never);
+      }
+      return chunks;
+    }
+
+    it("should yield thinking chunk for thought parts", async () => {
+      const { GoogleGenAI } = await import("@google/genai");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockClient = new (GoogleGenAI as any)();
+      mockClient.models.generateContentStream.mockResolvedValueOnce(
+        (async function* () {
+          yield {
+            candidates: [
+              { content: { parts: [{ thought: true, text: "hmm..." }] } },
+            ],
+            usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2 },
+          };
+        })(),
+      );
+
+      const chunks = await collectChunks({
+        messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+        tools: [],
+      });
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0].type).toBe("thinking");
+      expect(chunks[0].delta).toBe("hmm...");
+    });
+
+    it("should yield text_delta for text parts", async () => {
+      const { GoogleGenAI } = await import("@google/genai");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockClient = new (GoogleGenAI as any)();
+      mockClient.models.generateContentStream.mockResolvedValueOnce(
+        (async function* () {
+          yield {
+            candidates: [
+              {
+                content: {
+                  parts: [{ text: "Hello " }, { text: "world" }],
+                },
+              },
+            ],
+            usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 5 },
+          };
+        })(),
+      );
+
+      const chunks = await collectChunks({
+        messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+        tools: [],
+      });
+
+      expect(chunks).toHaveLength(2);
+      expect(chunks[0]).toEqual({ type: "text_delta", delta: "Hello " });
+      expect(chunks[1]).toEqual({ type: "text_delta", delta: "world" });
+    });
+
+    it("should yield tool_call chunk for function call parts", async () => {
+      const { GoogleGenAI } = await import("@google/genai");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockClient = new (GoogleGenAI as any)();
+      mockClient.models.generateContentStream.mockResolvedValueOnce(
+        (async function* () {
+          yield {
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      functionCall: {
+                        id: "call-1",
+                        name: "read",
+                        args: {},
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+            usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 3 },
+          };
+        })(),
+      );
+
+      const chunks = await collectChunks({
+        messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+        tools: [{ name: "read", description: "reads", parameters: {} }],
+      });
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0].type).toBe("tool_call");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((chunks[0] as any).toolCall.name).toBe("read");
+    });
+
+    it("should call onUsageUpdate for each chunk with usage metadata", async () => {
+      const { GoogleGenAI } = await import("@google/genai");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockClient = new (GoogleGenAI as any)();
+      mockClient.models.generateContentStream.mockResolvedValueOnce(
+        (async function* () {
+          yield {
+            candidates: [{ content: { parts: [{ text: "hi" }] } }],
+            usageMetadata: { promptTokenCount: 3, candidatesTokenCount: 2 },
+          };
+        })(),
+      );
+
+      await collectChunks({
+        messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+        tools: [],
+      });
+
+      expect(mockUsageUpdate).toHaveBeenCalledWith({
+        promptTokenCount: 3,
+        candidatesTokenCount: 2,
+        totalTokenCount: 5,
+      });
+    });
+
+    it("should skip chunks with no candidates", async () => {
+      const { GoogleGenAI } = await import("@google/genai");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockClient = new (GoogleGenAI as any)();
+      mockClient.models.generateContentStream.mockResolvedValueOnce(
+        (async function* () {
+          yield { candidates: [], usageMetadata: {} };
+          yield {
+            candidates: [{ content: { parts: [{ text: "hello" }] } }],
+            usageMetadata: {},
+          };
+        })(),
+      );
+
+      const chunks = await collectChunks({
+        messages: [{ role: "user", content: { type: "text", text: "Hi" } }],
+        tools: [],
+      });
+
+      expect(chunks).toHaveLength(1);
+      expect(chunks[0].type).toBe("text_delta");
+    });
   });
 });
