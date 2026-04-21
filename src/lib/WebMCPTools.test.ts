@@ -14,14 +14,12 @@ function makeEditorTools(): EditorTools {
     getModel: vi.fn().mockReturnValue({
       findMatches: vi.fn().mockReturnValue([]),
       pushEditOperations: vi.fn(),
-      getFullModelRange: vi
-        .fn()
-        .mockReturnValue({
-          startLineNumber: 1,
-          startColumn: 1,
-          endLineNumber: 1,
-          endColumn: 1,
-        }),
+      getFullModelRange: vi.fn().mockReturnValue({
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 1,
+        endColumn: 1,
+      }),
     }),
     getSelection: vi.fn().mockReturnValue(null),
   };
@@ -75,7 +73,10 @@ describe("registerWebMCPTools", () => {
       }),
     };
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const cleanup = registerWebMCPTools(makeEditorTools(), makeWorkspaceTools());
+    const cleanup = registerWebMCPTools(
+      makeEditorTools(),
+      makeWorkspaceTools(),
+    );
     expect(warnSpy).toHaveBeenCalledWith(
       "WebMCP tool registration failed:",
       expect.any(TypeError),
@@ -110,6 +111,10 @@ describe("registerWebMCPTools", () => {
       "read_workspace_doc",
       "query_workspace_doc",
       "query_workspace",
+      "create_document",
+      "rename_document",
+      "delete_document",
+      "switch_active_document",
     ];
     for (const name of expected) {
       expect(registeredTools.has(name), `missing tool: ${name}`).toBe(true);

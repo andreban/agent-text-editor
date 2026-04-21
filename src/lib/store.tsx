@@ -18,6 +18,13 @@ export interface TabSwitchRequest {
   resolve: (accepted: boolean) => void;
 }
 
+export interface WorkspaceActionRequest {
+  id: string;
+  description: string;
+  apply: () => void;
+  resolve: (message: string) => void;
+}
+
 interface AppState {
   apiKey: string | null;
   setApiKey: (key: string | null) => void;
@@ -39,6 +46,8 @@ interface AppState {
   setEditorContent: (content: string) => void;
   pendingTabSwitchRequest: TabSwitchRequest | null;
   setPendingTabSwitchRequest: (req: TabSwitchRequest | null) => void;
+  pendingWorkspaceAction: WorkspaceActionRequest | null;
+  setPendingWorkspaceAction: (action: WorkspaceActionRequest | null) => void;
   approveAll: boolean;
   setApproveAll: (approve: boolean) => void;
   skills: Skill[];
@@ -66,6 +75,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [editorContent, setEditorContent] = useState<string>("");
   const [pendingTabSwitchRequest, setPendingTabSwitchRequest] =
     useState<TabSwitchRequest | null>(null);
+  const [pendingWorkspaceAction, setPendingWorkspaceAction] =
+    useState<WorkspaceActionRequest | null>(null);
   const [approveAll, setApproveAll] = useState(false);
   const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());
 
@@ -105,6 +116,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setEditorContent,
         pendingTabSwitchRequest,
         setPendingTabSwitchRequest,
+        pendingWorkspaceAction,
+        setPendingWorkspaceAction,
         approveAll,
         setApproveAll,
         skills,

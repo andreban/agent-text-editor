@@ -131,6 +131,7 @@ interface WorkspacesContextValue {
   closeWorkspace: () => void;
 
   addDocument: () => void;
+  createDocumentWithTitle: (title: string) => string;
   updateDocument: (
     id: string,
     patch: Partial<Pick<WorkspaceDocument, "title" | "content">>,
@@ -258,6 +259,21 @@ export function WorkspacesProvider({
     }));
   };
 
+  const createDocumentWithTitle = (title: string): string => {
+    const doc: WorkspaceDocument = {
+      id: crypto.randomUUID(),
+      title,
+      content: "",
+      updatedAt: Date.now(),
+    };
+    mutateActiveWorkspace((data) => ({
+      ...data,
+      documents: [...data.documents, doc],
+      activeDocumentId: doc.id,
+    }));
+    return doc.id;
+  };
+
   const updateDocument = (
     id: string,
     patch: Partial<Pick<WorkspaceDocument, "title" | "content">>,
@@ -298,6 +314,7 @@ export function WorkspacesProvider({
         renameWorkspace,
         closeWorkspace,
         addDocument,
+        createDocumentWithTitle,
         updateDocument,
         deleteDocument,
         setActiveDocumentId,
