@@ -67,6 +67,23 @@ describe("registerWebMCPTools", () => {
     delete (navigator as any).modelContext;
   });
 
+  it("returns a no-op cleanup and warns when registerTool throws (old API shape)", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).modelContext = {
+      registerTool: vi.fn(() => {
+        throw new TypeError("unregisterTool is not a function");
+      }),
+    };
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const cleanup = registerWebMCPTools(makeEditorTools(), makeWorkspaceTools());
+    expect(warnSpy).toHaveBeenCalledWith(
+      "WebMCP tool registration failed:",
+      expect.any(TypeError),
+    );
+    expect(() => cleanup()).not.toThrow();
+    warnSpy.mockRestore();
+  });
+
   it("returns a no-op cleanup when navigator.modelContext is undefined", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (navigator as any).modelContext;

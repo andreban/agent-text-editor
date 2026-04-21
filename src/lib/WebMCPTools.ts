@@ -34,6 +34,7 @@ export function registerWebMCPTools(
   const { signal } = controller;
   const mc = navigator.modelContext;
 
+  try {
   mc.registerTool(
     {
       name: "read",
@@ -242,6 +243,10 @@ export function registerWebMCPTools(
     },
     { signal },
   );
+  } catch (err) {
+    console.warn("WebMCP tool registration failed:", err);
+    return () => {};
+  }
 
   return () => controller.abort();
 }
