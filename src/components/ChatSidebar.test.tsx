@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ChatSidebar } from "./ChatSidebar";
 import { AppProvider } from "@/lib/store";
 import { ThemeProvider } from "@/lib/ThemeProvider";
+import { WorkspacesProvider } from "@/lib/WorkspacesContext";
 import type { Conversation } from "@mast-ai/core";
 
 vi.mock("@tanstack/react-virtual", () => ({
@@ -44,11 +45,17 @@ function makeConversation(
 function renderSidebar(conversation: Conversation | null = null) {
   return render(
     <ThemeProvider>
-      <AppProvider>
-        <ChatSidebar conversation={conversation} />
-      </AppProvider>
+      <WorkspacesProvider>
+        <AppProvider>
+          <ChatSidebar conversation={conversation} />
+        </AppProvider>
+      </WorkspacesProvider>
     </ThemeProvider>,
   );
+}
+
+function getInput() {
+  return screen.getByRole("textbox", { name: "Chat input" });
 }
 
 describe("ChatSidebar", () => {
@@ -71,7 +78,7 @@ describe("ChatSidebar", () => {
   it("enables send button when input has text", async () => {
     const user = userEvent.setup();
     renderSidebar(makeConversation());
-    await user.type(screen.getByPlaceholderText("Ask the editor..."), "Hello");
+    await user.type(getInput(), "Hello");
     expect(screen.getByRole("button", { name: "Send" })).not.toBeDisabled();
   });
 
@@ -79,7 +86,7 @@ describe("ChatSidebar", () => {
     const user = userEvent.setup();
     renderSidebar(makeConversation([{ type: "done" }]));
     await user.type(
-      screen.getByPlaceholderText("Ask the editor..."),
+      getInput(),
       "Hello AI",
     );
     await user.click(screen.getByRole("button", { name: "Send" }));
@@ -96,7 +103,7 @@ describe("ChatSidebar", () => {
         { type: "done" },
       ]),
     );
-    await user.type(screen.getByPlaceholderText("Ask the editor..."), "test");
+    await user.type(getInput(), "test");
     await user.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => {
       expect(screen.getByText("Thinking Process")).toBeInTheDocument();
@@ -112,7 +119,7 @@ describe("ChatSidebar", () => {
         { type: "done" },
       ]),
     );
-    await user.type(screen.getByPlaceholderText("Ask the editor..."), "test");
+    await user.type(getInput(), "test");
     await user.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => {
       expect(screen.getByText("Hello world")).toBeInTheDocument();
@@ -128,7 +135,7 @@ describe("ChatSidebar", () => {
         { type: "done" },
       ]),
     );
-    await user.type(screen.getByPlaceholderText("Ask the editor..."), "test");
+    await user.type(getInput(), "test");
     await user.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => {
       expect(screen.getByText("read")).toBeInTheDocument();
@@ -136,25 +143,31 @@ describe("ChatSidebar", () => {
   });
 
   it("reconstructs user and assistant messages from conversation history", () => {
-    const conversation = makeConversation([], [
-      { role: "user", content: { type: "text", text: "Hello from history" } },
-      { role: "assistant", content: { type: "text", text: "Hi there" } },
-    ]);
+    const conversation = makeConversation(
+      [],
+      [
+        { role: "user", content: { type: "text", text: "Hello from history" } },
+        { role: "assistant", content: { type: "text", text: "Hi there" } },
+      ],
+    );
     renderSidebar(conversation);
     expect(screen.getByText("Hello from history")).toBeInTheDocument();
     expect(screen.getByText("Hi there")).toBeInTheDocument();
   });
 
   it("reconstructs tool call items from conversation history", () => {
-    const conversation = makeConversation([], [
-      {
-        role: "assistant",
-        content: {
-          type: "tool_calls",
-          calls: [{ id: "1", name: "edit", args: {} }],
+    const conversation = makeConversation(
+      [],
+      [
+        {
+          role: "assistant",
+          content: {
+            type: "tool_calls",
+            calls: [{ id: "1", name: "edit", args: {} }],
+          },
         },
-      },
-    ]);
+      ],
+    );
     renderSidebar(conversation);
     expect(screen.getByText("edit")).toBeInTheDocument();
   });
