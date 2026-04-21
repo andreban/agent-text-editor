@@ -208,6 +208,44 @@ describe("EditorTools", () => {
     });
   });
 
+  describe("read_selection", () => {
+    it("should return empty string if editor is not initialized", () => {
+      const tools = new EditorTools(null, setSuggestions, false);
+      expect(tools.read_selection()).toBe("");
+    });
+
+    it("should return empty string when selection is null", () => {
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      expect(tools.read_selection()).toBe("");
+    });
+
+    it("should return the selected text", () => {
+      const selection = {
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 1,
+        endColumn: 6,
+      };
+      mockEditor.getSelection.mockReturnValue(selection);
+      mockModel.getValueInRange = vi.fn().mockReturnValue("hello");
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      expect(tools.read_selection()).toBe("hello");
+      expect(mockModel.getValueInRange).toHaveBeenCalledWith(selection);
+    });
+
+    it("should return empty string when model is not available", () => {
+      mockEditor.getModel.mockReturnValue(null);
+      mockEditor.getSelection.mockReturnValue({
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 1,
+        endColumn: 6,
+      });
+      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      expect(tools.read_selection()).toBe("");
+    });
+  });
+
   describe("get_metadata", () => {
     it("should return error if editor is not initialized", () => {
       const tools = new EditorTools(null, setSuggestions, false);
