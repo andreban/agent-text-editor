@@ -245,18 +245,20 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
           const tid = `tool-${crypto.randomUUID()}`;
           toolId = tid;
           const name = event.name;
+          const params = event.args;
           setItems((prev) => [
             ...prev,
-            { kind: "tool", id: tid, name, pending: true },
+            { kind: "tool", id: tid, name, pending: true, params },
           ]);
         } else if (event.type === "tool_call_completed") {
           // Mark the tool as done. Next content will lazily open a new assistant bubble.
           if (toolId) {
             const closeToolId = toolId;
+            const toolResult = event.result;
             setItems((prev) =>
               prev.map((it) =>
                 it.kind === "tool" && it.id === closeToolId
-                  ? { ...it, pending: false }
+                  ? { ...it, pending: false, result: toolResult }
                   : it,
               ),
             );
