@@ -1,5 +1,6 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
+import { useState } from "react";
 import { Brain, Check, ChevronDown, ChevronUp, Wrench } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
 
@@ -12,7 +13,76 @@ export type StreamItem =
       thought: string;
       isStreaming: boolean;
     }
-  | { kind: "tool"; id: string; name: string; pending: boolean };
+  | {
+      kind: "tool";
+      id: string;
+      name: string;
+      pending: boolean;
+      params?: unknown;
+      result?: unknown;
+    };
+
+function formatValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  return JSON.stringify(value, null, 2);
+}
+
+type ToolItem = Extract<StreamItem, { kind: "tool" }>;
+
+function ToolItem({ item }: { item: ToolItem }) {
+  const [open, setOpen] = useState(false);
+  const hasDetails = item.params !== undefined || item.result !== undefined;
+
+  return (
+    <div className="self-start border border-border rounded-lg bg-muted/40 overflow-hidden text-xs text-muted-foreground">
+      <button
+        className="flex items-center gap-2 px-2 py-1 w-full hover:bg-accent disabled:cursor-default"
+        onClick={() => hasDetails && setOpen((v) => !v)}
+        disabled={!hasDetails}
+      >
+        {item.pending ? (
+          <Wrench className="w-3 h-3 animate-pulse text-primary shrink-0" />
+        ) : (
+          <Check className="w-3 h-3 text-green-500 shrink-0" />
+        )}
+        <code className="font-mono">{item.name}</code>
+        {hasDetails && (
+          <span className="ml-auto">
+            {open ? (
+              <ChevronUp className="w-3 h-3" />
+            ) : (
+              <ChevronDown className="w-3 h-3" />
+            )}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="border-t border-border divide-y divide-border">
+          {item.params !== undefined && (
+            <div className="p-2">
+              <div className="text-[10px] uppercase tracking-wider font-bold mb-1">
+                Parameters
+              </div>
+              <pre className="whitespace-pre-wrap break-all leading-relaxed">
+                {formatValue(item.params)}
+              </pre>
+            </div>
+          )}
+          {item.result !== undefined && (
+            <div className="p-2">
+              <div className="text-[10px] uppercase tracking-wider font-bold mb-1">
+                Result
+              </div>
+              <pre className="whitespace-pre-wrap break-all leading-relaxed">
+                {formatValue(item.result)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface ChatItemProps {
   item: StreamItem;
@@ -32,18 +102,7 @@ export function ChatItem({ item, isExpanded, onToggle }: ChatItemProps) {
   }
 
   if (item.kind === "tool") {
-    return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground self-start px-2 py-1 rounded-full border border-border bg-muted/40">
-        {item.pending ? (
-          <Wrench className="w-3 h-3 animate-pulse text-primary" />
-        ) : (
-          <Check className="w-3 h-3 text-green-500" />
-        )}
-        <span>
-          <code className="font-mono">{item.name}</code>
-        </span>
-      </div>
-    );
+    return <ToolItem item={item} />;
   }
 
   // assistant
