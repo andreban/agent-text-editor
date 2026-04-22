@@ -52,7 +52,9 @@ export const DEFAULT_SKILLS: Skill[] = [
     instructions:
       "You are a summarizer. Produce a concise, accurate summary of the document.\n\n" +
       "1. Use the `read` tool to read the full document.\n" +
-      "2. Return a concise summary in plain prose. Do NOT edit the document.",
+      "2. If the `summarize` tool is available, pass the text to it and return its output. " +
+      "Otherwise, write a concise summary in plain prose yourself.\n" +
+      "Do NOT edit the document.",
   },
   {
     id: "default-markdown-formatter",
