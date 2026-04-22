@@ -40,6 +40,7 @@ import {
 } from "@/lib/EditorTools";
 import { WorkspaceTools, registerWorkspaceTools } from "@/lib/WorkspaceTools";
 import { registerWebMCPTools } from "@/lib/WebMCPTools";
+import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -260,24 +261,11 @@ function MobileLayout({ conversation }: LayoutProps) {
 
 const BASE_INSTRUCTIONS =
   "You are a helpful senior editorial assistant. Help the user refine their text. " +
-  "You MUST use the provided tools to interact with the editor. " +
-  "Always use `read()` or `read_selection()` before suggesting changes. " +
-  "Use `search()` to locate specific text before editing it. " +
-  "Use `get_metadata()` to answer questions about document length or word count without reading the full content. " +
-  "CRITICAL: Prefer small, surgical edits using `edit()`. Do not rewrite the entire document unless explicitly asked to. " +
-  "When using `edit()`, the `originalText` should be as short as possible (just the sentence or words changing), not the whole file. " +
-  "When you call `edit()` or `write()`, the execution will PAUSE until the user manually Accepts or Rejects the change. " +
-  "You will then receive the user's decision (and feedback if any) as the tool result. " +
-  "Use `get_current_mode()` to check whether the UI is in 'editor' or 'preview' mode before making edits. " +
-  "If in 'preview' mode and you need to edit, call `request_switch_to_editor()` first — this prompts the user to switch tabs. " +
-  "The workspace may contain multiple documents. Use `get_active_doc_info()` to get the id and title of the currently open document. " +
-  "Use `list_workspace_docs()` to discover all documents. " +
-  "Use `read_workspace_doc(id)` to read another document in full, or `query_workspace_doc(id, query)` for a targeted question. " +
-  "Use `query_workspace(query)` to synthesize an answer that draws from all workspace documents. " +
-  "Use `create_document(title)` to create a new blank document — pauses for user authorization. " +
-  "Use `rename_document(id, title)` to rename a document — pauses for user authorization. " +
-  "Use `delete_document(id)` to delete a document — pauses for user authorization. " +
-  "Use `switch_active_document(id)` to switch to a different document — saves current content first, no authorization needed.";
+  "Always read the document or selection before suggesting changes. " +
+  "Prefer small, surgical edits — do not rewrite the entire document unless explicitly asked. " +
+  "When editing, keep the original text span as short as possible (just the words changing). " +
+  "When an edit or write is submitted, execution pauses until the user accepts or rejects it; " +
+  "you will receive their decision (and any feedback) as the tool result.";
 
 function App() {
   const {
@@ -392,6 +380,7 @@ function App() {
 
     registerEditorTools(registry, editorTools);
     registerWorkspaceTools(registry, workspaceTools);
+    addAllBuiltInAITools(registry).catch(() => {});
 
     registry.register({
       definition: () => ({
@@ -435,26 +424,6 @@ function App() {
     const agent: AgentConfig = {
       name: "EditorAssistant",
       instructions: BASE_INSTRUCTIONS + skillsSection,
-      tools: [
-        "read",
-        "read_selection",
-        "search",
-        "get_metadata",
-        "edit",
-        "write",
-        "get_current_mode",
-        "request_switch_to_editor",
-        "delegate_to_skill",
-        "get_active_doc_info",
-        "list_workspace_docs",
-        "read_workspace_doc",
-        "query_workspace_doc",
-        "query_workspace",
-        "create_document",
-        "rename_document",
-        "delete_document",
-        "switch_active_document",
-      ],
     };
     return runner.conversation(agent);
   }, [runner, skills]);

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
+    "@mast-ai/built-in-ai": "file:../mast-ai/packages/built-in-ai",
     "@mast-ai/core": "file:../mast-ai/packages/core",
     "@mast-ai/google-genai": "file:../mast-ai/packages/google-genai",
     "@monaco-editor/react": "^4.7.0",
