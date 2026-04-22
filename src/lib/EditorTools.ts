@@ -3,6 +3,7 @@
 
 import * as monaco from "monaco-editor";
 import { AgentRunner, LlmAdapter, ToolRegistry } from "@mast-ai/core";
+import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
 import { Suggestion } from "./store";
 import { loadSkills } from "./skills";
 import { WorkspaceTools, registerWorkspaceTools } from "./WorkspaceTools";
@@ -312,12 +313,8 @@ export function createDelegateToSkillHandler(
   parentAdapter: LlmAdapter,
   editorTools: EditorTools,
   workspaceTools: WorkspaceTools | null = null,
-  adapterFactory: (key: string, model: string) => LlmAdapter = (key, model) => {
-    // Lazily imported to avoid a hard dep on the concrete adapter in this module.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { GoogleGenAIAdapter } = require("../adapters/GoogleGenAIAdapter");
-    return new GoogleGenAIAdapter(key, model);
-  },
+  adapterFactory: (key: string, model: string) => LlmAdapter = (key, model) =>
+    new GoogleGenAIAdapter(key, model),
   runnerFactory: (adapter: LlmAdapter, registry: ToolRegistry) => RunnerLike = (
     adapter,
     registry,

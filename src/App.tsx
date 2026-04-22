@@ -32,7 +32,7 @@ import {
   AgentConfig,
   Conversation,
 } from "@mast-ai/core";
-import { GoogleGenAIAdapter } from "@/adapters/GoogleGenAIAdapter";
+import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
 import {
   EditorTools,
   registerEditorTools,
