@@ -12,7 +12,7 @@ import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
-import { ChatItem, StreamItem } from "./ChatItem";
+import { ChatItem, ChildItem, StreamItem } from "./ChatItem";
 import {
   DocRef,
   Segment,
@@ -212,6 +212,9 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     let assistantId: string | null = null;
     let toolId: string | null = null;
 
+    // Tracks the active skill item and its pending child tool ID.
+    const activeSkillRef = { id: null as string | null, toolId: null as string | null };
+
     const ensureAssistant = (): string => {
       if (assistantId) return assistantId;
       const id = `asst-${crypto.randomUUID()}`;
@@ -224,8 +227,64 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
       return id;
     };
 
+    const onToolEvent = (_toolName: string, event: import("@mast-ai/core").AgentEvent) => {
+      const skillId = activeSkillRef.id;
+      if (!skillId) return;
+
+      if (event.type === "thinking" || event.type === "text_delta") {
+        const kind = event.type === "thinking" ? "thought" as const : "text" as const;
+        const delta = event.delta;
+        setItems((prev) =>
+          prev.map((it) => {
+            if (it.kind !== "skill" || it.id !== skillId) return it;
+            const last = it.childItems[it.childItems.length - 1];
+            if (last && last.kind === kind) {
+              return {
+                ...it,
+                childItems: it.childItems.map((c, i) =>
+                  i === it.childItems.length - 1 ? { ...c, text: (c as { text: string }).text + delta } : c,
+                ),
+              };
+            }
+            return {
+              ...it,
+              childItems: [...it.childItems, { kind, id: `child-${crypto.randomUUID()}`, text: delta }],
+            };
+          }),
+        );
+      } else if (event.type === "tool_call_started") {
+        const tid = `child-tool-${crypto.randomUUID()}`;
+        activeSkillRef.toolId = tid;
+        const childTool: ChildItem = { kind: "tool", id: tid, name: event.name, pending: true, params: event.args };
+        setItems((prev) =>
+          prev.map((it) =>
+            it.kind === "skill" && it.id === skillId
+              ? { ...it, childItems: [...it.childItems, childTool] }
+              : it,
+          ),
+        );
+      } else if (event.type === "tool_call_completed") {
+        const tid = activeSkillRef.toolId;
+        if (tid) {
+          const toolResult = event.result;
+          setItems((prev) =>
+            prev.map((it) => {
+              if (it.kind !== "skill" || it.id !== skillId) return it;
+              return {
+                ...it,
+                childItems: it.childItems.map((c) =>
+                  c.kind === "tool" && c.id === tid ? { ...c, pending: false, result: toolResult } : c,
+                ),
+              };
+            }),
+          );
+          activeSkillRef.toolId = null;
+        }
+      }
+    };
+
     try {
-      for await (const event of conversation.runStream(prompt)) {
+      for await (const event of conversation.runStream(prompt, undefined, onToolEvent)) {
         if (event.type === "thinking") {
           const id = ensureAssistant();
           const delta = event.delta;
@@ -247,7 +306,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
             ),
           );
         } else if (event.type === "tool_call_started") {
-          // Finalize any open assistant bubble, then open a pending tool item.
+          // Finalize any open assistant bubble, then open a pending tool/skill item.
           if (assistantId) {
             const closeId = assistantId;
             setItems((prev) =>
@@ -261,24 +320,45 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
           }
           const tid = `tool-${crypto.randomUUID()}`;
           toolId = tid;
-          const name = event.name;
-          const params = event.args;
-          setItems((prev) => [
-            ...prev,
-            { kind: "tool", id: tid, name, pending: true, params },
-          ]);
+          if (event.name === "delegate_to_skill") {
+            const args = event.args as { skillName?: string; task?: string };
+            activeSkillRef.id = tid;
+            activeSkillRef.toolId = null;
+            setItems((prev) => [
+              ...prev,
+              { kind: "skill", id: tid, name: args.skillName ?? "skill", task: args.task ?? "", pending: true, childItems: [] },
+            ]);
+          } else {
+            const name = event.name;
+            const params = event.args;
+            setItems((prev) => [
+              ...prev,
+              { kind: "tool", id: tid, name, pending: true, params },
+            ]);
+          }
         } else if (event.type === "tool_call_completed") {
-          // Mark the tool as done. Next content will lazily open a new assistant bubble.
+          // Mark the tool/skill as done. Next content will lazily open a new assistant bubble.
           if (toolId) {
             const closeToolId = toolId;
-            const toolResult = event.result;
-            setItems((prev) =>
-              prev.map((it) =>
-                it.kind === "tool" && it.id === closeToolId
-                  ? { ...it, pending: false, result: toolResult }
-                  : it,
-              ),
-            );
+            if (activeSkillRef.id === closeToolId) {
+              setItems((prev) =>
+                prev.map((it) =>
+                  it.kind === "skill" && it.id === closeToolId
+                    ? { ...it, pending: false }
+                    : it,
+                ),
+              );
+              activeSkillRef.id = null;
+            } else {
+              const toolResult = event.result;
+              setItems((prev) =>
+                prev.map((it) =>
+                  it.kind === "tool" && it.id === closeToolId
+                    ? { ...it, pending: false, result: toolResult }
+                    : it,
+                ),
+              );
+            }
             toolId = null;
           }
           assistantId = null;

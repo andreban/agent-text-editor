@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as monaco from "monaco-editor";
-import { AgentRunner, LlmAdapter, ToolRegistry } from "@mast-ai/core";
+import { AgentConfig, AgentEvent, AgentRunner, LlmAdapter, ToolContext, ToolRegistry } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
 import { Suggestion } from "./store";
 import { loadSkills } from "./skills";
@@ -302,10 +302,9 @@ export function registerEditorTools(
  * Extracted for testability; the adapterFactory parameter can be overridden in tests.
  */
 type RunnerLike = {
-  run: (
-    agent: import("@mast-ai/core").AgentConfig,
-    input: string,
-  ) => Promise<{ output: string }>;
+  runBuilder: (agent: AgentConfig) => {
+    runStream: (input: string) => AsyncIterable<AgentEvent>;
+  };
 };
 
 export function createDelegateToSkillHandler(
@@ -319,8 +318,8 @@ export function createDelegateToSkillHandler(
     adapter,
     registry,
   ) => new AgentRunner(adapter, registry),
-): (args: { skillName: string; task: string }) => Promise<string> {
-  return async ({ skillName, task }) => {
+): (args: { skillName: string; task: string }, context: ToolContext) => Promise<string> {
+  return async ({ skillName, task }, context) => {
     const skills = loadSkills();
     const skill = skills.find((s) => s.name === skillName);
     if (!skill) {
@@ -339,28 +338,31 @@ export function createDelegateToSkillHandler(
     }
 
     const childRunner = runnerFactory(childAdapter, childRegistry);
-    const result = await childRunner.run(
-      {
-        name: skill.name,
-        instructions: skill.instructions,
-        tools: [
-          "read",
-          "read_selection",
-          "search",
-          "get_metadata",
-          "edit",
-          "write",
-          ...(workspaceTools
-            ? [
-                "create_document",
-                "list_workspace_docs",
-                "switch_active_document",
-              ]
-            : []),
-        ],
-      },
-      task,
-    );
-    return result.output;
+    const agentConfig: AgentConfig = {
+      name: skill.name,
+      instructions: skill.instructions,
+      tools: [
+        "read",
+        "read_selection",
+        "search",
+        "get_metadata",
+        "edit",
+        "write",
+        ...(workspaceTools
+          ? [
+              "create_document",
+              "list_workspace_docs",
+              "switch_active_document",
+            ]
+          : []),
+      ],
+    };
+    for await (const event of childRunner.runBuilder(agentConfig).runStream(task)) {
+      if (event.type === "done") {
+        return event.output;
+      }
+      context.onEvent?.(event);
+    }
+    throw new Error("Child runner ended without a done event");
   };
 }
