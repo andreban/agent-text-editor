@@ -1,6 +1,6 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, Fragment } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
@@ -15,9 +15,9 @@ import { SkillsDialog } from "./SkillsDialog";
 import { ChatItem, StreamItem } from "./ChatItem";
 import {
   DocRef,
+  Segment,
   buildPromptWithMentions,
   extractMentionQuery,
-  removeMentionTrigger,
 } from "@/lib/mentionUtils";
 
 interface ChatSidebarProps {
@@ -25,7 +25,8 @@ interface ChatSidebarProps {
 }
 
 export function ChatSidebar({ conversation }: ChatSidebarProps) {
-  const [input, setInput] = useState("");
+  const [trailingInput, setTrailingInput] = useState("");
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [items, setItems] = useState<StreamItem[]>([]);
   const [expandedThoughts, setExpandedThoughts] = useState<Set<string>>(
@@ -34,11 +35,10 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
   const [prevConversation, setPrevConversation] = useState<Conversation | null>(
     null,
   );
-  const [mentionedDocs, setMentionedDocs] = useState<DocRef[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [pickerIndex, setPickerIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
   const { approveAll, setApproveAll } = useApp();
@@ -51,7 +51,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     mentionQuery !== null
       ? workspaceDocs.filter(
           (d) =>
-            !mentionedDocs.some((m) => m.id === d.id) &&
+            !segments.some((s) => s.doc.id === d.id) &&
             d.title.toLowerCase().includes(mentionQuery.toLowerCase()),
         )
       : [];
@@ -116,28 +116,47 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
   };
 
   const selectDoc = (doc: DocRef) => {
-    setMentionedDocs((prev) =>
-      prev.some((d) => d.id === doc.id) ? prev : [...prev, doc],
-    );
-    setInput((prev) => removeMentionTrigger(prev));
+    if (segments.some((s) => s.doc.id === doc.id)) return;
+    const atIdx = trailingInput.lastIndexOf("@");
+    const textBefore = atIdx >= 0 ? trailingInput.slice(0, atIdx) : trailingInput;
+    setSegments((prev) => [...prev, { text: textBefore, doc }]);
+    setTrailingInput("");
     setMentionQuery(null);
     setPickerIndex(0);
     inputRef.current?.focus();
   };
 
   const removeChip = (id: string) => {
-    setMentionedDocs((prev) => prev.filter((d) => d.id !== id));
+    const idx = segments.findIndex((s) => s.doc.id === id);
+    if (idx === -1) return;
+    const removedText = segments[idx].text;
+    const without = [...segments.slice(0, idx), ...segments.slice(idx + 1)];
+    if (idx < without.length) {
+      without[idx] = { ...without[idx], text: removedText + without[idx].text };
+      setSegments(without);
+    } else {
+      setSegments(without);
+      setTrailingInput((t) => removedText + t);
+    }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resizeTextarea = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
-    setInput(value);
+    setTrailingInput(value);
     const query = extractMentionQuery(value);
     setMentionQuery(query);
     setPickerIndex(0);
+    resizeTextarea();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionQuery !== null && filteredDocs.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -160,33 +179,31 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
         return;
       }
     }
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       handleSend();
     }
   };
 
   const handleSend = async () => {
-    const trimmed = input.trim();
-    if ((!trimmed && mentionedDocs.length === 0) || !conversation || isLoading)
-      return;
+    const displayText =
+      segments.map((s) => `${s.text}@${s.doc.title}`).join("") + trailingInput;
+    if (!displayText.trim() || !conversation || isLoading) return;
 
-    const userText = trimmed || "(no message)";
-    const prompt = buildPromptWithMentions(userText, mentionedDocs);
+    const prompt = buildPromptWithMentions(segments, trailingInput);
 
-    setInput("");
-    setMentionedDocs([]);
+    setTrailingInput("");
+    setSegments([]);
     setMentionQuery(null);
     setIsLoading(true);
+    if (inputRef.current) inputRef.current.style.height = "";
 
     setItems((prev) => [
       ...prev,
       {
         kind: "user",
         id: `user-${crypto.randomUUID()}`,
-        text:
-          mentionedDocs.length > 0
-            ? `[Referenced: ${mentionedDocs.map((d) => d.title).join(", ")}] ${userText}`
-            : userText,
+        text: displayText.trim(),
       },
     ]);
 
@@ -298,7 +315,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
   };
 
   const canSend =
-    (input.trim().length > 0 || mentionedDocs.length > 0) && !isLoading;
+    (trailingInput.trim().length > 0 || segments.length > 0) && !isLoading;
 
   return (
     <div className="flex flex-col h-full bg-muted/20 border-l">
@@ -391,7 +408,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
         )}
       </div>
 
-      <div className="p-4 border-t bg-background/50 backdrop-blur-sm flex gap-2">
+      <div className="p-4 border-t bg-background/50 backdrop-blur-sm flex items-end gap-2">
         <div className="relative flex-1">
           {/* Document picker dropdown */}
           {mentionQuery !== null && filteredDocs.length > 0 && (
@@ -421,36 +438,39 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
             </div>
           )}
 
-          {/* Compound input: chips + text field */}
-          <div className="flex flex-wrap items-center gap-1 border rounded-md bg-background px-3 py-2 min-h-11 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0">
-            {mentionedDocs.map((doc) => (
-              <span
-                key={doc.id}
-                className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium rounded px-2 py-0.5"
-              >
-                @{doc.title}
-                <button
-                  type="button"
-                  aria-label={`Remove reference to ${doc.title}`}
-                  onClick={() => removeChip(doc.id)}
-                  className="hover:text-destructive"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
+          {/* Compound input: inline segment chips + trailing text field */}
+          <div className="flex flex-wrap items-start gap-1 border rounded-md bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0">
+            {segments.map((seg) => (
+              <Fragment key={seg.doc.id}>
+                {seg.text && (
+                  <span className="text-sm">{seg.text}</span>
+                )}
+                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium rounded px-2 py-0.5">
+                  @{seg.doc.title}
+                  <button
+                    type="button"
+                    aria-label={`Remove reference to ${seg.doc.title}`}
+                    onClick={() => removeChip(seg.doc.id)}
+                    className="hover:text-destructive"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              </Fragment>
             ))}
-            <input
+            <textarea
               ref={inputRef}
+              rows={4}
               placeholder={
-                mentionedDocs.length === 0
+                segments.length === 0
                   ? "Ask the editor... (@ to reference a doc)"
                   : ""
               }
-              value={input}
+              value={trailingInput}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
-              className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-hidden"
               aria-label="Chat input"
             />
           </div>

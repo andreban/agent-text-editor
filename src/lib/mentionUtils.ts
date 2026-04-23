@@ -6,19 +6,27 @@ export interface DocRef {
   title: string;
 }
 
+export interface Segment {
+  text: string;
+  doc: DocRef;
+}
+
 /**
  * Builds the final prompt string by prepending referenced document context
  * so the agent can use document IDs directly without calling list_workspace_docs.
+ * The inline user text preserves @mentions at their original positions.
  */
 export function buildPromptWithMentions(
-  userText: string,
-  mentionedDocs: DocRef[],
+  segments: Segment[],
+  trailingText: string,
 ): string {
-  if (mentionedDocs.length === 0) return userText;
-  const docList = mentionedDocs
-    .map((d) => `"${d.title}" (id: ${d.id})`)
+  const inlineText =
+    segments.map((s) => `${s.text}@${s.doc.title}`).join("") + trailingText;
+  if (segments.length === 0) return inlineText;
+  const docList = segments
+    .map((s) => `"${s.doc.title}" (id: ${s.doc.id})`)
     .join(", ");
-  return `The user has referenced the following documents: ${docList}.\n\n${userText}`;
+  return `The user has referenced the following documents: ${docList}.\n\n${inlineText}`;
 }
 
 /**

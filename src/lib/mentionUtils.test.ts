@@ -9,37 +9,51 @@ import {
 } from "./mentionUtils";
 
 describe("buildPromptWithMentions", () => {
-  it("returns the input unchanged when no docs are mentioned", () => {
-    expect(buildPromptWithMentions("Hello", [])).toBe("Hello");
+  it("returns trailing text unchanged when no segments", () => {
+    expect(buildPromptWithMentions([], "Hello")).toBe("Hello");
   });
 
   it("prepends document context when one doc is mentioned", () => {
-    const result = buildPromptWithMentions("Compare these", [
-      { id: "abc-123", title: "My Notes" },
-    ]);
+    const result = buildPromptWithMentions(
+      [{ text: "", doc: { id: "abc-123", title: "My Notes" } }],
+      " Compare these",
+    );
     expect(result).toContain('"My Notes"');
     expect(result).toContain("abc-123");
     expect(result).toContain("Compare these");
   });
 
   it("includes all mentioned documents in the preamble", () => {
-    const result = buildPromptWithMentions("text", [
-      { id: "1", title: "Doc A" },
-      { id: "2", title: "Doc B" },
-    ]);
+    const result = buildPromptWithMentions(
+      [
+        { text: "", doc: { id: "1", title: "Doc A" } },
+        { text: " and ", doc: { id: "2", title: "Doc B" } },
+      ],
+      " text",
+    );
     expect(result).toContain('"Doc A"');
     expect(result).toContain('"Doc B"');
     expect(result).toContain("id: 1");
     expect(result).toContain("id: 2");
   });
 
-  it("places user text after the preamble", () => {
-    const result = buildPromptWithMentions("do the thing", [
-      { id: "x", title: "Notes" },
-    ]);
+  it("places inline user text (with @mentions) after the preamble", () => {
+    const result = buildPromptWithMentions(
+      [{ text: "do the thing ", doc: { id: "x", title: "Notes" } }],
+      "",
+    );
     const preambleEnd = result.indexOf("\n\n");
     expect(preambleEnd).toBeGreaterThan(0);
-    expect(result.slice(preambleEnd + 2)).toBe("do the thing");
+    expect(result.slice(preambleEnd + 2)).toBe("do the thing @Notes");
+  });
+
+  it("preserves inline position of mentions relative to surrounding text", () => {
+    const result = buildPromptWithMentions(
+      [{ text: "before ", doc: { id: "1", title: "Doc" } }],
+      " after",
+    );
+    const preambleEnd = result.indexOf("\n\n");
+    expect(result.slice(preambleEnd + 2)).toBe("before @Doc after");
   });
 });
 
