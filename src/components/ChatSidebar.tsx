@@ -37,6 +37,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
   );
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [pickerIndex, setPickerIndex] = useState(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -195,6 +196,8 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     setTrailingInput("");
     setSegments([]);
     setMentionQuery(null);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     setIsLoading(true);
     if (inputRef.current) inputRef.current.style.height = "";
 
@@ -284,7 +287,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     };
 
     try {
-      for await (const event of conversation.runStream(prompt, undefined, onToolEvent)) {
+      for await (const event of conversation.runStream(prompt, abortController.signal, onToolEvent)) {
         if (event.type === "thinking") {
           const id = ensureAssistant();
           const delta = event.delta;
@@ -383,13 +386,16 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
         }
       }
     } catch (error) {
-      console.error("Chat Error:", error);
-      // Remove any open (empty) assistant bubble on failure.
+      if ((error as { name?: string }).name !== "AbortError") {
+        console.error("Chat Error:", error);
+      }
+      // Remove any open (empty) assistant bubble on failure/cancel.
       if (assistantId) {
         const removeId = assistantId;
         setItems((prev) => prev.filter((it) => it.id !== removeId));
       }
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
     }
   };
@@ -555,9 +561,19 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
             />
           </div>
         </div>
-        <Button onClick={handleSend} disabled={!canSend} className="min-h-11">
-          Send
-        </Button>
+        {isLoading ? (
+          <Button
+            variant="outline"
+            onClick={() => abortControllerRef.current?.abort()}
+            className="min-h-11"
+          >
+            Cancel
+          </Button>
+        ) : (
+          <Button onClick={handleSend} disabled={!canSend} className="min-h-11">
+            Send
+          </Button>
+        )}
       </div>
     </div>
   );
