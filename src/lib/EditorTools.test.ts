@@ -356,7 +356,18 @@ describe("EditorTools", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parentAdapter: any;
     let editorToolsInstance: EditorTools;
-    let mockRun: ReturnType<typeof vi.fn>;
+    let mockRunStream: ReturnType<typeof vi.fn>;
+    let mockRunBuilder: ReturnType<typeof vi.fn>;
+
+    function makeMockStream(
+      output: string,
+      extraEvents: import("@mast-ai/core").AgentEvent[] = [],
+    ): AsyncIterable<import("@mast-ai/core").AgentEvent> {
+      return (async function* () {
+        for (const e of extraEvents) yield e;
+        yield { type: "done", output, history: [] };
+      })();
+    }
 
     beforeEach(() => {
       localStorage.clear();
@@ -365,7 +376,8 @@ describe("EditorTools", () => {
         generateStream: vi.fn(),
       } as unknown as LlmAdapter;
       editorToolsInstance = new EditorTools(mockEditor, setSuggestions, false);
-      mockRun = vi.fn().mockResolvedValue({ output: "done" });
+      mockRunStream = vi.fn().mockReturnValue(makeMockStream("done"));
+      mockRunBuilder = vi.fn().mockReturnValue({ runStream: mockRunStream });
     });
 
     function makeHandler(adapterFactory = vi.fn()) {
@@ -375,12 +387,8 @@ describe("EditorTools", () => {
         editorToolsInstance,
         null,
         adapterFactory,
-        () => ({
-          run: mockRun as unknown as (
-            agent: import("@mast-ai/core").AgentConfig,
-            input: string,
-          ) => Promise<{ output: string }>,
-        }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        () => ({ runBuilder: mockRunBuilder }) as any,
       );
     }
 
@@ -388,21 +396,24 @@ describe("EditorTools", () => {
       saveSkills([
         { id: "1", name: "Other", description: "d", instructions: "i" },
       ]);
-      const result = await makeHandler()({
-        skillName: "Missing",
-        task: "do it",
-      });
+      const result = await makeHandler()(
+        { skillName: "Missing", task: "do it" },
+        {},
+      );
       expect(result).toContain('skill "Missing" not found');
       expect(result).toContain("Other");
     });
 
     it("returns error listing 'none' when no skills exist", async () => {
-      const result = await makeHandler()({ skillName: "Any", task: "do it" });
+      const result = await makeHandler()(
+        { skillName: "Any", task: "do it" },
+        {},
+      );
       expect(result).toContain("none");
     });
 
-    it("calls run with skill instructions and returns result.output", async () => {
-      mockRun.mockResolvedValue({ output: "Proofreading complete." });
+    it("calls runBuilder with skill instructions and returns done output", async () => {
+      mockRunStream.mockReturnValue(makeMockStream("Proofreading complete."));
       saveSkills([
         {
           id: "1",
@@ -411,12 +422,12 @@ describe("EditorTools", () => {
           instructions: "Check it",
         },
       ]);
-      const result = await makeHandler()({
-        skillName: "Proofreader",
-        task: "check spelling",
-      });
-      expect(mockRun).toHaveBeenCalledOnce();
-      const [agentConfig] = mockRun.mock.calls[0];
+      const result = await makeHandler()(
+        { skillName: "Proofreader", task: "check spelling" },
+        {},
+      );
+      expect(mockRunBuilder).toHaveBeenCalledOnce();
+      const [agentConfig] = mockRunBuilder.mock.calls[0];
       expect(agentConfig.instructions).toBe("Check it");
       expect(result).toBe("Proofreading complete.");
     });
@@ -425,8 +436,8 @@ describe("EditorTools", () => {
       saveSkills([
         { id: "1", name: "Proofreader", description: "d", instructions: "i" },
       ]);
-      await makeHandler()({ skillName: "Proofreader", task: "t" });
-      const [agentConfig] = mockRun.mock.calls[0];
+      await makeHandler()({ skillName: "Proofreader", task: "t" }, {});
+      const [agentConfig] = mockRunBuilder.mock.calls[0];
       expect(agentConfig.tools).not.toContain("delegate_to_skill");
     });
 
@@ -435,11 +446,30 @@ describe("EditorTools", () => {
         { id: "1", name: "Proofreader", description: "d", instructions: "i" },
       ]);
       const adapterFactory = vi.fn();
-      await makeHandler(adapterFactory)({
-        skillName: "Proofreader",
-        task: "t",
-      });
+      await makeHandler(adapterFactory)(
+        { skillName: "Proofreader", task: "t" },
+        {},
+      );
       expect(adapterFactory).not.toHaveBeenCalled();
+    });
+
+    it("forwards non-done child events via context.onEvent", async () => {
+      mockRunStream.mockReturnValue(
+        makeMockStream("done", [
+          { type: "text_delta", delta: "hello" },
+          { type: "thinking", delta: "hmm" },
+        ]),
+      );
+      saveSkills([
+        { id: "1", name: "Proofreader", description: "d", instructions: "i" },
+      ]);
+      const onEvent = vi.fn();
+      await makeHandler()({ skillName: "Proofreader", task: "t" }, { onEvent });
+      expect(onEvent).toHaveBeenCalledWith({ type: "text_delta", delta: "hello" });
+      expect(onEvent).toHaveBeenCalledWith({ type: "thinking", delta: "hmm" });
+      expect(onEvent).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: "done" }),
+      );
     });
 
     it("includes workspace tools in child agent when workspaceTools is provided", async () => {
@@ -457,15 +487,14 @@ describe("EditorTools", () => {
         editorToolsInstance,
         mockWorkspaceTools,
         vi.fn(),
-        () => ({
-          run: mockRun as unknown as (
-            agent: import("@mast-ai/core").AgentConfig,
-            input: string,
-          ) => Promise<{ output: string }>,
-        }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        () => ({ runBuilder: mockRunBuilder }) as any,
       );
-      await handler({ skillName: "Create Skill", task: "create a skill" });
-      const [agentConfig] = mockRun.mock.calls[0];
+      await handler(
+        { skillName: "Create Skill", task: "create a skill" },
+        {},
+      );
+      const [agentConfig] = mockRunBuilder.mock.calls[0];
       expect(agentConfig.tools).toContain("create_document");
       expect(agentConfig.tools).toContain("list_workspace_docs");
       expect(agentConfig.tools).toContain("switch_active_document");
@@ -483,10 +512,10 @@ describe("EditorTools", () => {
       ]);
       const newAdapter = { generate: vi.fn() } as unknown as LlmAdapter;
       const adapterFactory = vi.fn().mockReturnValue(newAdapter);
-      await makeHandler(adapterFactory)({
-        skillName: "Proofreader",
-        task: "t",
-      });
+      await makeHandler(adapterFactory)(
+        { skillName: "Proofreader", task: "t" },
+        {},
+      );
       expect(adapterFactory).toHaveBeenCalledWith(
         "test-api-key",
         "gemini-2.5-pro",

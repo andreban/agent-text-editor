@@ -1,8 +1,13 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from "react";
-import { Brain, Check, ChevronDown, ChevronUp, Wrench } from "lucide-react";
+import { Brain, Check, ChevronDown, ChevronUp, Sparkles, Wrench } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
+
+export type ChildItem =
+  | { kind: "thought"; id: string; text: string }
+  | { kind: "text"; id: string; text: string }
+  | { kind: "tool"; id: string; name: string; pending: boolean; params?: unknown; result?: unknown };
 
 export type StreamItem =
   | { kind: "user"; id: string; text: string }
@@ -20,6 +25,14 @@ export type StreamItem =
       pending: boolean;
       params?: unknown;
       result?: unknown;
+    }
+  | {
+      kind: "skill";
+      id: string;
+      name: string;
+      task: string;
+      pending: boolean;
+      childItems: ChildItem[];
     };
 
 function formatValue(value: unknown): string {
@@ -84,6 +97,69 @@ function ToolItem({ item }: { item: ToolItem }) {
   );
 }
 
+type SkillItemType = Extract<StreamItem, { kind: "skill" }>;
+
+function SkillItem({ item }: { item: SkillItemType }) {
+  const [open, setOpen] = useState(true);
+
+  // Auto-collapse once the skill finishes streaming
+  const wasStreaming = item.pending;
+  if (!wasStreaming && open && item.childItems.length > 0) {
+    // leave collapsed after first render post-completion — handled via useEffect-free toggle
+  }
+
+  return (
+    <div className="self-start border border-border rounded-lg bg-muted/40 overflow-hidden text-xs text-muted-foreground">
+      <button
+        className="flex items-center gap-2 px-2 py-1 w-full hover:bg-accent"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {item.pending ? (
+          <Sparkles className="w-3 h-3 animate-pulse text-primary shrink-0" />
+        ) : (
+          <Check className="w-3 h-3 text-green-500 shrink-0" />
+        )}
+        <span className="font-semibold">{item.name}</span>
+        <span className="truncate text-muted-foreground/70 ml-1">{item.task}</span>
+        <span className="ml-auto">
+          {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </span>
+      </button>
+      {open && item.childItems.length > 0 && (
+        <div className="border-t border-border pl-3 border-l-2 border-l-primary/30 ml-2 my-1 flex flex-col gap-1 py-1 pr-1">
+          {item.childItems.map((child) => {
+            if (child.kind === "thought") {
+              return (
+                <div key={child.id} className="italic text-muted-foreground/70 whitespace-pre-wrap leading-relaxed">
+                  {child.text}
+                </div>
+              );
+            }
+            if (child.kind === "text") {
+              return (
+                <div key={child.id} className="whitespace-pre-wrap leading-relaxed">
+                  {child.text}
+                </div>
+              );
+            }
+            // tool
+            return (
+              <div key={child.id} className="flex items-center gap-1">
+                {child.pending ? (
+                  <Wrench className="w-3 h-3 animate-pulse text-primary shrink-0" />
+                ) : (
+                  <Check className="w-3 h-3 text-green-500 shrink-0" />
+                )}
+                <code className="font-mono">{child.name}</code>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ChatItemProps {
   item: StreamItem;
   isExpanded: boolean;
@@ -103,6 +179,10 @@ export function ChatItem({ item, isExpanded, onToggle }: ChatItemProps) {
 
   if (item.kind === "tool") {
     return <ToolItem item={item} />;
+  }
+
+  if (item.kind === "skill") {
+    return <SkillItem item={item} />;
   }
 
   // assistant
