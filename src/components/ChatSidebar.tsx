@@ -22,9 +22,10 @@ import {
 
 interface ChatSidebarProps {
   conversation: Conversation | null;
+  onBeforeSend?: () => void;
 }
 
-export function ChatSidebar({ conversation }: ChatSidebarProps) {
+export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
   const [trailingInput, setTrailingInput] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -287,6 +288,7 @@ export function ChatSidebar({ conversation }: ChatSidebarProps) {
     };
 
     try {
+      onBeforeSend?.();
       for await (const event of conversation.runStream(prompt, abortController.signal, onToolEvent)) {
         if (event.type === "thinking") {
           const id = ensureAssistant();
