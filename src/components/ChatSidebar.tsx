@@ -558,7 +558,7 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
-              className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-hidden"
+              className="w-full min-w-0 bg-transparent outline-none text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-hidden"
               aria-label="Chat input"
             />
           </div>
