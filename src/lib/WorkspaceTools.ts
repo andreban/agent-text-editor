@@ -93,7 +93,13 @@ export class WorkspaceTools {
     return JSON.stringify({ summary: result.output });
   }
 
-  create_document({ title }: { title: string }): Promise<string> {
+  create_document({
+    title,
+    content,
+  }: {
+    title: string;
+    content?: string;
+  }): Promise<string> {
     if (!title?.trim()) {
       return Promise.resolve(JSON.stringify({ error: "title is required" }));
     }
@@ -104,10 +110,14 @@ export class WorkspaceTools {
         if (currentDoc) {
           this.saveDocContentFn(currentDoc.id, this.getEditorContent());
         }
-        this.createDocumentFn(title);
-        // Immediately clear Monaco so subsequent reads see the new empty doc
+        const newId = this.createDocumentFn(title);
+        const initialContent = content ?? "";
+        // Immediately sync Monaco so subsequent reads see the correct content
         // before React's async re-render cycle completes.
-        this.setEditorValueFn("");
+        this.setEditorValueFn(initialContent);
+        if (content && newId) {
+          this.saveDocContentFn(newId, content);
+        }
       },
       `Document "${title}" created automatically (Approve All is ON).`,
     );
@@ -276,7 +286,7 @@ export function registerWorkspaceTools(
     definition: () => ({
       name: "create_document",
       description:
-        "Creates a new blank document in the workspace with the given title. Pauses for user authorization before creating.",
+        "Creates a new document in the workspace with the given title and optional initial content. Providing content avoids a separate write step. Pauses for user authorization before creating.",
       parameters: {
         type: "object",
         properties: {
@@ -284,11 +294,17 @@ export function registerWorkspaceTools(
             type: "string",
             description: "The title for the new document.",
           },
+          content: {
+            type: "string",
+            description:
+              "Optional initial content for the new document. If omitted the document is created blank.",
+          },
         },
         required: ["title"],
       },
     }),
-    call: async (args: { title: string }) => tools.create_document(args),
+    call: async (args: { title: string; content?: string }) =>
+      tools.create_document(args),
   });
 
   registry.register({
