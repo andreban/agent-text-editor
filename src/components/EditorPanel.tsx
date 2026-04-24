@@ -18,25 +18,7 @@ import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { computeDiffDecorations } from "@/lib/diffDecorations";
 import { Check, X } from "lucide-react";
-
-const DEFAULT_CONTENT = `# Welcome to the AI Agent Text Editor
-
-This is a powerful text editor assisted by an AI Agent. You can write your content here, and use the chat sidebar on the right to ask the agent to help you.
-
-## Ideas to try:
-- **Delegate to Skills**: You have access to specialized skills. Try saying:
-  - "Ask the **Proofreader** to check this for typos."
-  - "Use the **Summarizer** to give me a quick overview."
-  - "Call the **Markdown Formatter** to fix the headings."
-- **Surgical Edits**: Ask the agent to make specific changes, like:
-  - "Change the tone to be more professional."
-  - "Add a new section about the benefits of AI."
-- **Context Awareness**: The agent can read your file and any supporting documents. Try:
-  - "Check if this matches the guidelines in the supporting docs."
-
-Switch to the **Preview** tab to see the rendered Markdown.
-
-- Built with React, Monaco Editor, and MAST AI.`;
+import { DEFAULT_EDITOR_CONTENT } from "@/lib/constants";
 
 const DEBOUNCE_MS = 500;
 
@@ -58,7 +40,7 @@ export function EditorPanel() {
   const monacoTheme = theme === "dark" ? "vs-dark" : "light";
 
   const [localContent, setLocalContent] = useState<string>(
-    () => activeDocument?.content || DEFAULT_CONTENT,
+    () => activeDocument?.content || DEFAULT_EDITOR_CONTENT,
   );
   const prevDocIdRef = useRef<string | null>(activeDocument?.id ?? null);
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,7 +58,7 @@ export function EditorPanel() {
         clearTimeout(updateTimerRef.current);
         updateTimerRef.current = null;
       }
-      setLocalContent(activeDocument?.content || DEFAULT_CONTENT);
+      setLocalContent(activeDocument?.content || DEFAULT_EDITOR_CONTENT);
     }
   }, [activeDocument]);
 
