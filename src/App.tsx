@@ -1,6 +1,6 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { EditorPanel } from "@/components/EditorPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { WorkspacePanel } from "@/components/WorkspacePanel";
@@ -57,9 +57,10 @@ function useIsMobile() {
 
 interface LayoutProps {
   conversation: Conversation | null;
+  onBeforeSend?: () => void;
 }
 
-function DesktopLayout({ conversation }: LayoutProps) {
+function DesktopLayout({ conversation, onBeforeSend }: LayoutProps) {
   const [refOpen, setRefOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(true);
   const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
@@ -148,7 +149,7 @@ function DesktopLayout({ conversation }: LayoutProps) {
         </div>
         {chatOpen && (
           <div className="flex-1 min-h-0 overflow-hidden">
-            <ChatSidebar conversation={conversation} />
+            <ChatSidebar conversation={conversation} onBeforeSend={onBeforeSend} />
           </div>
         )}
       </aside>
@@ -156,7 +157,7 @@ function DesktopLayout({ conversation }: LayoutProps) {
   );
 }
 
-function MobileLayout({ conversation }: LayoutProps) {
+function MobileLayout({ conversation, onBeforeSend }: LayoutProps) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"chat" | "reference">("chat");
   const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
@@ -249,7 +250,7 @@ function MobileLayout({ conversation }: LayoutProps) {
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           {sheetMode === "chat" ? (
-            <ChatSidebar conversation={conversation} />
+            <ChatSidebar conversation={conversation} onBeforeSend={onBeforeSend} />
           ) : (
             <WorkspacePanel />
           )}
@@ -431,6 +432,13 @@ function App() {
 
   const isMobile = useIsMobile();
 
+  const flushEditorContent = useCallback(() => {
+    if (activeDocument) {
+      const content = editorInstance?.getValue() ?? editorContent;
+      updateDocument(activeDocument.id, { content });
+    }
+  }, [activeDocument, editorInstance, editorContent, updateDocument]);
+
   const handleSaveKey = () => {
     if (tempKey.trim()) {
       setApiKey(tempKey.trim());
@@ -445,9 +453,9 @@ function App() {
   return (
     <>
       {isMobile ? (
-        <MobileLayout conversation={conversation} />
+        <MobileLayout conversation={conversation} onBeforeSend={flushEditorContent} />
       ) : (
-        <DesktopLayout conversation={conversation} />
+        <DesktopLayout conversation={conversation} onBeforeSend={flushEditorContent} />
       )}
 
       <Dialog
