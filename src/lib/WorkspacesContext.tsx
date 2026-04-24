@@ -232,17 +232,22 @@ export function WorkspacesProvider({
   };
 
   function mutateActiveWorkspace(fn: (data: WorkspaceData) => WorkspaceData) {
-    if (!activeWorkspaceId || !activeWorkspace) return;
-    const updated = fn(activeWorkspace);
-    setActiveWorkspace(updated);
-    saveWorkspaceData(activeWorkspaceId, updated);
+    if (!activeWorkspaceId) return;
+    setActiveWorkspace((prev) => {
+      if (!prev) return prev;
+      const updated = fn(prev);
+      saveWorkspaceData(activeWorkspaceId, updated);
+      return updated;
+    });
 
     const now = Date.now();
-    const newIndex = index.map((m) =>
-      m.id === activeWorkspaceId ? { ...m, updatedAt: now } : m,
-    );
-    setIndex(newIndex);
-    saveIndex(newIndex);
+    setIndex((prev) => {
+      const newIndex = prev.map((m) =>
+        m.id === activeWorkspaceId ? { ...m, updatedAt: now } : m,
+      );
+      saveIndex(newIndex);
+      return newIndex;
+    });
   }
 
   const addDocument = () => {
