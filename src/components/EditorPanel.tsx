@@ -63,13 +63,19 @@ export function EditorPanel() {
   const prevDocIdRef = useRef<string | null>(activeDocument?.id ?? null);
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+  const decorationsRef =
+    useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
   const [toolbarTop, setToolbarTop] = useState<number>(8);
-  const pendingSuggestion = suggestions.find((s) => s.status === "pending") ?? null;
+  const pendingSuggestion =
+    suggestions.find((s) => s.status === "pending") ?? null;
 
   useEffect(() => {
     if (activeDocument?.id !== prevDocIdRef.current) {
       prevDocIdRef.current = activeDocument?.id ?? null;
+      if (updateTimerRef.current) {
+        clearTimeout(updateTimerRef.current);
+        updateTimerRef.current = null;
+      }
       setLocalContent(activeDocument?.content || DEFAULT_CONTENT);
     }
   }, [activeDocument]);
@@ -110,7 +116,8 @@ export function EditorPanel() {
     const decorations = computeDiffDecorations(pendingSuggestion);
 
     if (!decorationsRef.current) {
-      decorationsRef.current = editorInstance.createDecorationsCollection(decorations);
+      decorationsRef.current =
+        editorInstance.createDecorationsCollection(decorations);
     } else {
       decorationsRef.current.set(decorations);
     }
@@ -128,8 +135,9 @@ export function EditorPanel() {
 
     const computeTop = () => {
       const lineTop =
-        editorInstance.getTopForLineNumber(pendingSuggestion.range.startLineNumber) -
-        editorInstance.getScrollTop();
+        editorInstance.getTopForLineNumber(
+          pendingSuggestion.range.startLineNumber,
+        ) - editorInstance.getScrollTop();
       setToolbarTop(Math.max(GAP, lineTop - TOOLBAR_HEIGHT - GAP));
     };
 
@@ -154,7 +162,9 @@ export function EditorPanel() {
       setSuggestions((prev) =>
         prev.map((s) => (s.id === id ? { ...s, status: "accepted" } : s)),
       );
-      suggestion.resolve("User accepted the edit. The document has been updated.");
+      suggestion.resolve(
+        "User accepted the edit. The document has been updated.",
+      );
     }
   };
 
@@ -247,7 +257,9 @@ export function EditorPanel() {
                 style={{ top: toolbarTop }}
               >
                 <div className="flex items-center gap-2 pointer-events-auto bg-background border rounded-lg px-3 py-1.5 shadow-md text-sm">
-                  <span className="text-muted-foreground text-xs mr-1">Proposed edit</span>
+                  <span className="text-muted-foreground text-xs mr-1">
+                    Proposed edit
+                  </span>
                   <button
                     onClick={() => handleAccept(pendingSuggestion.id)}
                     className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium"
