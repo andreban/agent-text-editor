@@ -19,6 +19,7 @@ export type DeleteDocumentFn = (id: string) => void;
 export type SetActiveDocumentIdFn = (id: string) => void;
 export type SaveDocContentFn = (id: string, content: string) => void;
 export type GetEditorContentFn = () => string;
+export type SetEditorValueFn = (content: string) => void;
 export type SetPendingWorkspaceActionFn = (
   action: WorkspaceActionRequest | null,
 ) => void;
@@ -47,6 +48,7 @@ export class WorkspaceTools {
     private setActiveDocumentIdFn: SetActiveDocumentIdFn = () => {},
     private saveDocContentFn: SaveDocContentFn = () => {},
     private getEditorContent: GetEditorContentFn = () => "",
+    private setEditorValueFn: SetEditorValueFn = () => {},
     private setPendingWorkspaceAction: SetPendingWorkspaceActionFn = () => {},
     private approveAll: boolean = false,
   ) {}
@@ -97,7 +99,16 @@ export class WorkspaceTools {
     }
     return this.applyWorkspaceAction(
       `Create document "${title}"`,
-      () => this.createDocumentFn(title),
+      () => {
+        const currentDoc = this.activeDocRef.current;
+        if (currentDoc) {
+          this.saveDocContentFn(currentDoc.id, this.getEditorContent());
+        }
+        this.createDocumentFn(title);
+        // Immediately clear Monaco so subsequent reads see the new empty doc
+        // before React's async re-render cycle completes.
+        this.setEditorValueFn("");
+      },
       `Document "${title}" created automatically (Approve All is ON).`,
     );
   }
@@ -141,6 +152,9 @@ export class WorkspaceTools {
       this.saveDocContentFn(currentDoc.id, this.getEditorContent());
     }
     this.setActiveDocumentIdFn(id);
+    // Immediately sync Monaco so subsequent read/edit calls see the new content
+    // before React's async re-render cycle completes.
+    this.setEditorValueFn(doc.content);
     return JSON.stringify({ switched: true, id, title: doc.title });
   }
 

@@ -347,6 +347,7 @@ function App() {
         (id) => setActiveDocumentId(id),
         (id, content) => updateDocument(id, { content }),
         () => editorInstance?.getValue() ?? editorContent,
+        (content) => editorInstance?.setValue(content),
         setPendingWorkspaceAction,
         approveAll,
       ),

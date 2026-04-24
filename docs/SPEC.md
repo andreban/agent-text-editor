@@ -198,10 +198,14 @@ Registers tools scoped to the active workspace. Receives a ref snapshot of `Work
 - `read_workspace_doc(id)`: Returns `{ title, content }` or `{ error: "Document not found" }`.
 - `query_workspace_doc(id, query)`: Spins up a short-lived `AgentRunner` with the document content and query; returns `{ summary }`. The `AgentRunner` factory is injected as a parameter for testability.
 - `query_workspace(query)`: Calls `list_workspace_docs`, then `query_workspace_doc` for each document sequentially, then passes all summaries to a synthesizer `AgentRunner`; returns `{ answer }`.
-- `create_document(title)`: Creates a new document (requires user approval).
+- `create_document(title)`: Creates a new document (requires user approval). On apply, saves the current document's content and immediately syncs the Monaco model to `""` via `setEditorValueFn` — see "React State Synchronization for Agent Tools" below.
 - `rename_document(id, title)`: Renames an existing document (requires user approval).
 - `delete_document(id)`: Deletes a document (requires user approval).
-- `switch_active_document(id)`: Changes the active document in the editor.
+- `switch_active_document(id)`: Changes the active document in the editor. Saves the current document's content then immediately syncs Monaco to the new document's content via `setEditorValueFn` — see "React State Synchronization for Agent Tools" below.
+
+**Constructor parameters relevant to state sync:**
+
+- `setEditorValueFn: (content: string) => void` — calls `editorInstance.setValue(content)` on the Monaco instance. Used by `switch_active_document` and `create_document` to eagerly load the new document's content into Monaco before React's render cycle catches up. See "React State Synchronization for Agent Tools" below.
 
 ### `diffDecorations.ts`
 
@@ -283,6 +287,27 @@ The primary agent should be configured with a system prompt that explains its ro
 > - All edits MUST be proposed via `edit()` or `write()`. Execution will PAUSE until user approval. Do not assume the change was applied until you receive a success confirmation.
 > - Use `list_workspace_docs`, `read_workspace_doc`, or `query_workspace_doc` / `query_workspace` to access other documents in the workspace.
 > - You have access to specialized sub-agents. Use them for focused tasks like proofreading.
+
+## React State Synchronization for Agent Tools
+
+### The Problem
+
+Agent tools execute as async JavaScript outside React's event loop. When a tool calls a React state setter (e.g., `setActiveDocumentId`), React schedules a re-render — it does **not** update state synchronously. The tool's Promise can resolve before React has committed the new state to the DOM.
+
+For document-switching operations this creates a concrete bug: `switch_active_document` calls `setActiveDocumentId(id)` and returns. The agent immediately calls `read()` or `edit()`. But `EditorPanel` drives Monaco via two chained `useEffect` hooks (the first fires when `activeDocument` changes and calls `setLocalContent`; the second propagates `localContent` to the store as `editorContent`). Both effects are deferred until after the browser paints. Monaco therefore still holds the *previous* document's content when the agent reads or edits it.
+
+The same race applies to `create_document`: the newly created document is switched in by the workspace context, but Monaco doesn't reflect it until the effects run.
+
+### The Fix: Eager Monaco Sync
+
+After calling any state setter that changes the active document, immediately call `editorInstance.setValue(newContent)` on the Monaco instance. This is safe because:
+
+1. `@monaco-editor/react` guards its controlled `value` prop: it calls `editor.setValue` only when the incoming prop differs from the current model value. Once we've set the model directly, the subsequent prop update from React's render cycle is a no-op.
+2. Monaco's `onChange` fires synchronously from `setValue`. In `EditorPanel`, `handleChange` updates `localContent` and starts a debounced `updateDocument` save. By the time that debounce fires (500 ms), React has re-rendered and `activeDocument` refers to the new document — so the save targets the correct document.
+
+### Rule for Future Tools
+
+Any tool that changes the active document — whether by switching, creating, or any other mechanism — **must** call `setEditorValueFn(newContent)` after mutating React state. The canonical content to pass is the new document's `content` field from `docsRef`, or `""` for a newly created empty document. Do **not** rely on a `setTimeout` or `flushSync` to delay the Promise resolution; eagerly syncing Monaco is both more reliable and avoids artificial latency in the agent loop.
 
 ## Security
 
