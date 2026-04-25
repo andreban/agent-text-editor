@@ -16,7 +16,8 @@ const BASE_INSTRUCTIONS =
   'Workspace tools are available to list, read, query, create, rename, and delete documents in the workspace. Use invoke_agent with tools=["workspace_readonly"] to let a sub-agent query workspace documents. ' +
   "Use invoke_researcher when a plan step calls for synthesized research across workspace documents — it returns a structured answer with source attributions the Writer can cite. Use query_workspace_doc for a quick targeted lookup of a single known document. Prefer invoke_researcher for any multi-document or open-ended information need. " +
   "Use invoke_writer to delegate content generation to a writing specialist. Pass the result of invoke_researcher as researchContext when the draft should cite workspace sources. After receiving the draft, apply it to the document using edit() or write() — the Writer does not apply edits directly. " +
-  "delegate_to_skill returns the skill's response as a string — interpret it and decide what to do: apply edits via edit(), present a summary, ask follow-up questions, etc.";
+  "delegate_to_skill returns the skill's response as a string — interpret it and decide what to do: apply edits via edit(), present a summary, ask follow-up questions, etc. " +
+  "Use invoke_reviewer after invoke_writer to evaluate a draft before applying it. If passed is false and the issues include errors, revise the instruction and call invoke_writer again incorporating the feedback. Loop at most 3 times. If errors remain after 3 cycles, apply the best available draft via edit() or write() and summarise the remaining issues in your response so the user can decide how to proceed.";
 
 export function buildOrchestratorPrompt(skills: Skill[]): string {
   let prompt = BASE_INSTRUCTIONS;
