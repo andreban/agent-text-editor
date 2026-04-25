@@ -259,6 +259,7 @@ interface ResearchResult {
 - Returns structured output so the Orchestrator and Writer can consume it reliably.
 - Source excerpts allow the Writer to attribute claims without re-querying.
 - Can run in parallel with other agents when the plan has no dependency.
+- **No specialized chat UI.** `invoke_researcher` doesn't stream child events, so it renders as a plain ToolItem showing params + result. The Orchestrator's text response conveys attribution naturally.
 
 ---
 
@@ -285,6 +286,7 @@ interface ResearchResult {
 - The Orchestrator then calls `edit()` / `write()` with the draft, triggering the normal approval workflow.
 - Separating generation from application keeps the approval model clean.
 - Uses the user's globally selected model.
+- **No specialized chat UI.** `invoke_writer` renders as a plain ToolItem. The user sees the result when the Orchestrator surfaces it through the edit/write approval flow.
 
 ---
 
@@ -348,6 +350,7 @@ interface ReviewResult {
 - The Orchestrator decides whether to apply fixes automatically or present them to the user.
 - If `passed: false` with `errors`, the Orchestrator can re-invoke the Writer with the feedback before presenting to the user.
 - The existing user-defined Skills can map cleanly onto this interface.
+- **No specialized chat UI.** `invoke_reviewer` renders as a plain ToolItem showing the `ReviewResult` JSON.
 
 ---
 
@@ -433,40 +436,21 @@ Orchestrator
 
 ### Agent Attribution in Chat
 
-Each message in `ChatSidebar` gains an optional `agentRole` label:
+Only delegation tools that stream child events get attributed `AgentItem` blocks in `ChatSidebar`:
 
-```
-┌─────────────────────────────────────────┐
-│ 🤖 Orchestrator                         │
-│  I'll plan this task first...           │
-├─────────────────────────────────────────┤
-│ 📋 Planner                  [collapsed] │
-│  ▶ Step 1: Research key points          │
-│  ▶ Step 2: Draft conclusion             │
-│  ▶ Step 3: Proofread                    │
-├─────────────────────────────────────────┤
-│ 🔍 Research Agent           [collapsed] │
-│  Queried 3 documents...                 │
-├─────────────────────────────────────────┤
-│ ✏️  Writer Agent             [collapsed] │
-│  Drafted 2 paragraphs...               │
-└─────────────────────────────────────────┘
-```
+- `invoke_agent` → `AgentItem` with `agentRole: "Agent"` (already implemented)
+- `invoke_planner` → rendered as a plain ToolItem (the plan is surfaced via `PlanConfirmationWidget`, not a streaming block)
 
-Sub-agent activity blocks are collapsible, similar to the existing thinking chunk panels.
+All other delegation tools (`invoke_researcher`, `invoke_writer`, `invoke_reviewer`) render as plain ToolItems showing their params and result. Attributed chat blocks add complexity only worth paying when there are streaming child events to display.
 
 ### Plan Confirmation Widget
 
 When the Orchestrator invokes the Planner, the resulting plan is displayed as an interactive checklist in the chat. The user can:
 
 - **Confirm** — proceed with all steps.
-- **Edit** — modify a step's instruction before confirming.
-- **Remove step** — exclude a step from execution.
 - **Cancel** — abort the workflow.
 
-### Parallel Progress Indicator
-
-When the plan has parallel branches, the chat shows them as concurrent progress bars until all complete.
+Step editing and removal are deferred — confirm/cancel is sufficient for now.
 
 ---
 
@@ -539,6 +523,8 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ## Implementation Phases
 
+> **PR workflow reminder:** each phase uses `multi-agent-phase-<x>` branched off `multi-agent`, with a PR back to `multi-agent` — never to `main`. See the Branching Strategy section above for the exact commands.
+
 ### Phase A: Foundation ✅
 
 **Goal:** Establish the shared infrastructure all agents depend on — factory, delegation tools, generic agent, streaming attribution, and `WorkflowState`.
@@ -581,7 +567,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase C: Planner Agent
+### Phase C: Planner Agent ✅
 
 **Goal:** Implement the LLM agent that decomposes a task into a structured `Plan` and wire it as an invokable tool. No UI gate yet — `invoke_planner` returns the plan as a string and the Orchestrator proceeds immediately.
 
@@ -599,7 +585,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase D: Plan Confirmation
+### Phase D: Plan Confirmation ✅
 
 **Goal:** Gate plan execution behind explicit user approval. `invoke_planner` pauses after producing a plan, populates `WorkflowState`, and waits for the user to confirm or cancel — the same pattern as `pendingTabSwitchRequest`.
 
@@ -619,7 +605,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase E: Eval Infrastructure
+### Phase E: Eval Infrastructure ✅
 
 **Goal:** Add the two-tier eval harness and the first eval suite (planning quality). All subsequent phases drop their eval files straight into this structure.
 
@@ -663,15 +649,15 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 - Implement `src/lib/agents/writer.ts` + `invoke_writer` tool in `DelegationTools.ts` (no tool access, text generation only).
 - Orchestrator receives draft text and applies it via `edit()` / `write()` through the normal approval workflow.
-- Writer Agent block in chat, streaming.
+- `invoke_writer` renders as a plain ToolItem — no specialized chat UI.
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/components/ChatItem.tsx`, `src/components/ChatSidebar.tsx` (detect `invoke_writer` calls → create attributed writer block).
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`.
 
 **Files created:** `src/lib/agents/writer.ts`, `src/lib/agents/evals/writing.eval.ts`, `src/lib/agents/evals/fixtures/writing.json`.
 
 **Tests:** Writer factory has no tools; `invoke_writer` returns raw text; Orchestrator correctly passes research context through to the prompt.
 
-**Evals:** `fixtures/writing.json` + `writing.eval.ts` — score draft on relevance, coherence, and style match using the `judge` helper from Phase D.
+**Evals:** `fixtures/writing.json` + `writing.eval.ts` — score draft on relevance, coherence, and style match using the `judge` helper.
 
 **Working state:** Orchestrator can delegate drafting to a specialist and apply the result through the approval workflow.
 
@@ -679,43 +665,40 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ### Phase H: Review Agent + Iterative Refinement
 
-**Goal:** Structured feedback loop before content is applied; Writer → Reviewer cycles with hard iteration cap and error recovery.
+**Goal:** Structured feedback loop before content is applied; Writer → Reviewer cycles guided by the Orchestrator's system prompt.
 
 - Implement `src/lib/agents/reviewer.ts` + `invoke_reviewer` tool in `DelegationTools.ts`.
-- Orchestrator loops Writer → Reviewer up to 3 times before forcing user approval.
-- Error recovery: retry a failed step once; skip and report to user on second failure.
-- Map existing user-defined Skills onto `criteria` so they act as reviewer configurations.
-- Review Agent block in chat with expandable issue list.
+- Orchestrator loops Writer → Reviewer; the iteration cap and retry behaviour are expressed in the Orchestrator's system prompt ("loop at most 3 times; if a step fails twice, report to the user and stop"), not in application state.
+- `invoke_reviewer` renders as a plain ToolItem — no specialized chat UI.
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/store.tsx` (iteration counter in `WorkflowState`/`EditorUIState`), `src/components/ChatItem.tsx`, `src/components/ChatSidebar.tsx` (detect `invoke_reviewer` calls → create attributed review block), `src/lib/agents/orchestrator.ts` (add Orchestrator guidance for Writer → Reviewer loop and iteration cap).
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/agents/orchestrator.ts` (add Writer → Reviewer loop guidance and iteration cap instruction).
 
 **Files created:** `src/lib/agents/reviewer.ts`, `src/lib/agents/evals/reviewing.eval.ts`, `src/lib/agents/evals/fixtures/reviewing.json`.
 
-**Tests:** Reviewer returns valid `ReviewResult`; iteration counter enforces 3-cycle limit; retry logic retries once then marks step skipped; skipped step surfaced in chat.
+**Tests:** Reviewer returns valid `ReviewResult`; `invoke_reviewer` passes criteria through to the agent prompt.
 
 **Evals:** `fixtures/reviewing.json` + `reviewing.eval.ts` — score recall (missed errors) and precision (false positives) against known-error fixtures.
 
-**Working state:** Orchestrator can proofread or fact-check a draft, iterate to fix issues, and fall back to user approval when the limit is reached.
+**Working state:** Orchestrator can proofread or fact-check a draft, iterate to fix issues, and present the final result for user approval.
 
 ---
 
 ### Phase I: Parallel Execution + Full Pipelines
 
-**Goal:** Enable the Planner to express parallel branches; complete the Plan Confirmation Widget; validate end-to-end pipelines against the single-agent baseline.
+**Goal:** Enable the Planner to express parallel branches and validate end-to-end pipelines against the single-agent baseline.
 
 - Update `Plan.steps[].dependsOn` to support parallel fan-out; execute independent steps concurrently via `Promise.all`.
-- Parallel progress UI in `ChatSidebar`.
-- Step editing and removal in Plan Confirmation Widget.
+- No dedicated parallel progress UI — parallel tool calls appear as sequential ToolItems as they complete, which is sufficient.
 
-**Files modified:** `src/lib/tools/DelegationTools.ts` (parallel step execution via `Promise.all`), `src/lib/store.tsx` (`WorkflowState` parallel branch tracking), `src/components/PlanConfirmationWidget.tsx` (add step edit/remove), `src/components/ChatSidebar.tsx` (parallel progress UI).
+**Files modified:** `src/lib/tools/DelegationTools.ts` (parallel step execution via `Promise.all`), `src/lib/store.tsx` (`WorkflowState` parallel branch tracking).
 
 **Files created:** `src/lib/agents/evals/pipeline.eval.ts`, `src/lib/agents/evals/fixtures/pipeline.json`.
 
-**Tests:** Parallel steps fire concurrently; `WorkflowState` tracks each branch independently; dependent steps wait for their inputs.
+**Tests:** Parallel steps fire concurrently; dependent steps wait for their inputs.
 
 **Evals:** `fixtures/pipeline.json` + `pipeline.eval.ts` — run representative end-to-end tasks through the full Orchestrator loop and compare output quality against the current single-agent baseline using LLM-as-judge.
 
-**Working state:** Full orchestration pipelines with parallel branches, iterative refinement, error recovery, and user-controlled plan editing.
+**Working state:** Full orchestration pipelines with parallel branches and iterative refinement.
 
 ---
 
