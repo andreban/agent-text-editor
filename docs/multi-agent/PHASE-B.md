@@ -1,8 +1,8 @@
-# Phase B: Tool Registry Refactor
+# Phase B: Tool Registry Refactor ✅
 
 ## Goal
 
-Enforce the write access policy in code. All sub-agent creation sites use named registry builders; `delegate_to_skill` returns `ProposedEdit[]` instead of calling `edit`/`write` directly. No user-visible features — purely infrastructure.
+Enforce the write access policy in code. All sub-agent creation sites use named registry builders; skills receive a read-only registry and return their response as a plain string for the Orchestrator to act on. No user-visible features — purely infrastructure.
 
 ---
 
@@ -12,42 +12,33 @@ Phase A delivered:
 
 - `AgentRunnerFactory` + `DefaultAgentRunnerFactory`
 - `DelegationTools.ts` with `invoke_agent` — sub-agents receive `"workspace_readonly"` tool group
-- `delegate_to_skill` in `EditorTools.ts` — currently gives skills a **full read+write** registry (includes `edit`, `write`, `create_document`, `switch_active_document`)
+- `delegate_to_skill` in `EditorTools.ts` — gave skills a **full read+write** registry (includes `edit`, `write`, `create_document`, `switch_active_document`)
 
-The problem: skills can call `edit`/`write` directly, bypassing the Orchestrator's approval workflow context, and concurrent sub-agents could race on document state. Phase B fixes this structurally.
+The problem: skills could call `edit`/`write` directly, bypassing the Orchestrator's approval workflow, and concurrent sub-agents could race on document state. Phase B fixes this structurally.
 
 ---
 
-## What changes
+## What changed
 
-### 1. `src/lib/tools/EditorTools.ts` — add `registerReadonlyEditorTools`
+### 1. `src/lib/tools/EditorTools.ts` — `registerReadonlyEditorTools`
 
-`registerEditorTools` registers all tools including `edit`, `write`, `request_switch_to_editor`. There is no read-only variant yet. Add one, following the same pattern as `registerReadonlyWorkspaceTools` in `WorkspaceTools.ts`:
-
-```ts
-export function registerReadonlyEditorTools(
-  registry: ToolRegistry,
-  tools: EditorTools,
-): void;
-```
+Added `registerReadonlyEditorTools`, following the same pattern as `registerReadonlyWorkspaceTools`. `registerEditorTools` now calls it internally to eliminate duplication.
 
 Registers only: `read`, `read_selection`, `search`, `get_metadata`, `get_current_mode`. Does **not** register `edit`, `write`, or `request_switch_to_editor`.
 
 ---
 
-### 2. `src/lib/tools/registries.ts` (new file)
+### 2. `src/lib/tools/WorkspaceTools.ts` — deduplication
 
-Export the `ProposedEdit` interface, two named registry builder functions, and nothing else:
+`registerWorkspaceTools` now calls `registerReadonlyWorkspaceTools` first, then adds the four write tools (`create_document`, `rename_document`, `delete_document`, `switch_active_document`). The read-only registrations are no longer duplicated between the two functions.
+
+---
+
+### 3. `src/lib/tools/registries.ts` (new file)
+
+Exports two named registry builder functions:
 
 ```ts
-// Apache-2.0 license header required (all source files in this project carry it)
-
-export interface ProposedEdit {
-  originalText: string;
-  replacementText: string;
-  reason?: string;
-}
-
 export function buildReadonlyRegistry(
   editorTools: EditorTools,
   workspaceTools: WorkspaceTools,
@@ -59,100 +50,76 @@ export function buildReadWriteRegistry(
 ): ToolRegistry;
 ```
 
-**`buildReadonlyRegistry`** calls `registerReadonlyEditorTools` (new, see above) and `registerReadonlyWorkspaceTools`. Read-only tool names: `read`, `read_selection`, `search`, `get_metadata`, `get_current_mode`, `get_active_doc_info`, `list_workspace_docs`, `read_workspace_doc`, `query_workspace_doc`, `query_workspace`.
+**`buildReadonlyRegistry`** — calls `registerReadonlyEditorTools` and `registerReadonlyWorkspaceTools`. Read-only tool names: `read`, `read_selection`, `search`, `get_metadata`, `get_current_mode`, `get_active_doc_info`, `list_workspace_docs`, `read_workspace_doc`, `query_workspace_doc`, `query_workspace`.
 
-**`buildReadWriteRegistry`** calls `registerEditorTools` (all tools including `edit`, `write`, `request_switch_to_editor`) and `registerWorkspaceTools` (all tools including `create_document`, `rename_document`, `delete_document`, `switch_active_document`).
-
-Note on `switch_active_document`: it mutates editor state (changes active doc, calls `setEditorValueFn`) without user approval. It belongs in the write registry despite not going through `applyWorkspaceAction`.
+**`buildReadWriteRegistry`** — calls `registerEditorTools` and `registerWorkspaceTools`. Adds `edit`, `write`, `request_switch_to_editor`, `create_document`, `rename_document`, `delete_document`, `switch_active_document`.
 
 ---
 
-### 3. `src/lib/tools/EditorTools.ts` — update `createDelegateToSkillHandler`
+### 4. `src/lib/tools/EditorTools.ts` — `createDelegateToSkillHandler`
 
-- Replace the inline `childRegistry` construction (currently calls `registerEditorTools` giving skills full write access) with `buildReadonlyRegistry(editorTools, workspaceTools)`. The `workspaceTools` parameter becomes non-nullable (drop the `= null` default).
-- Inject the output format instruction into `agentConfig.instructions`. Currently the code sets `instructions: skill.instructions`; change it to:
+- Replaced the inline `childRegistry` construction with `buildReadonlyRegistry(editorTools, workspaceTools)`. The `workspaceTools` parameter is now non-nullable.
+- Skills receive `skill.instructions` unchanged — no output format is injected.
+- The handler returns `event.output` directly as a plain string.
 
-  ```ts
-  const outputFormat =
-    "\n\nOUTPUT FORMAT: Respond only with a JSON array of ProposedEdit objects:\n" +
-    '[{ "originalText": "...", "replacementText": "...", "reason": "..." }]\n' +
-    "If no changes are needed, return an empty array: []";
-
-  const agentConfig: AgentConfig = {
-    name: skill.name,
-    instructions: skill.instructions + outputFormat,
-    tools: [...readonlyToolNames],
-  };
-  ```
-
-- The handler parses the skill's `done` event output as `ProposedEdit[]` and returns it as a JSON string. On parse failure, return an error string (e.g. `"Error: skill returned non-JSON response: ..."`).
-
-- `ProposedEdit` is imported from `./registries` (not redeclared here).
+The Orchestrator receives the skill's response as a string and decides what to do: apply edits via `edit()`, present a summary, ask follow-up questions, etc. Keeping the output flexible lets skills return whatever is natural — a proofreader lists corrections, a summarizer returns prose, a skill author returns a definition — without forcing a rigid contract on all of them.
 
 ---
 
-### 4. `src/lib/tools/DelegationTools.ts`
+### 5. `src/lib/tools/DelegationTools.ts`
 
-**`buildRegistryForGroups`** is replaced by a call to `buildReadonlyRegistry`. The `"workspace_readonly"` string group remains supported for the `invoke_agent` API, but internally it now always routes through `buildReadonlyRegistry`.
-
-`workspaceTools` is non-nullable here too — `registerDelegationTools` is always called with a real `WorkspaceTools` instance (see App.tsx). Drop the `| null` from its signature. Since `_editorTools` is currently unused (prefixed with `_`), pass it through to `buildReadonlyRegistry` so editor read tools are also available to `invoke_agent` sub-agents when needed in future phases. For now, only include them if an `"editor_readonly"` group is requested — keep the current behaviour for the existing test suite.
-
----
-
-### 5. `src/App.tsx` — wire `buildReadWriteRegistry` and update `delegate_to_skill` description
-
-Two changes in the `useMemo` that builds the runner (around line 390–428):
-
-1. **Replace inline registry construction** with `buildReadWriteRegistry`:
-
-   ```ts
-   // Before:
-   const registry = new ToolRegistry();
-   registerEditorTools(registry, editorTools);
-   registerWorkspaceTools(registry, workspaceTools);
-
-   // After:
-   const registry = buildReadWriteRegistry(editorTools, workspaceTools);
-   ```
-
-   `workspaceTools` is always a `WorkspaceTools` instance at this call site (constructed unconditionally in its own `useMemo`). `addAllBuiltInAITools`, `registerDelegationTools`, and the `delegate_to_skill` registration are appended to this registry after construction, unchanged.
-
-2. **Update `delegate_to_skill` tool description** — currently says "The skill runs with its own instructions and can read and edit the document." Change to: "The skill runs with read-only access and returns a JSON array of ProposedEdit objects for the Orchestrator to apply."
+Replaced `buildRegistryForGroups` with a direct call to `buildReadonlyRegistry` when `"workspace_readonly"` is requested; falls back to an empty `ToolRegistry` when no groups are given. `workspaceTools` and `editorTools` parameters are now non-nullable.
 
 ---
 
 ### 6. `src/lib/agents/orchestrator.ts`
 
-Extend `BASE_INSTRUCTIONS` to describe how `delegate_to_skill` results should be applied:
+Updated `BASE_INSTRUCTIONS` to describe the flexible contract:
 
-```
-delegate_to_skill returns a JSON array of ProposedEdit objects. Apply each edit via your own edit() call so the user sees and approves each change.
-```
+> `delegate_to_skill` returns the skill's response as a string — interpret it and decide what to do: apply edits via `edit()`, present a summary, ask follow-up questions, etc.
+
+---
+
+### 7. `src/App.tsx`
+
+- Replaced inline `new ToolRegistry()` + `registerEditorTools` + `registerWorkspaceTools` with `buildReadWriteRegistry(editorTools, workspaceTools)`.
+- Updated `delegate_to_skill` tool description to say the skill runs with read-only access and returns its response as a string.
+
+---
+
+### 8. `src/lib/skills.ts` — default skill instructions
+
+Default skill instructions updated to be natural — no output format constraints. Skills describe their findings; the Orchestrator decides how to act on them:
+
+- **Proofreader** — lists errors and the exact correction needed.
+- **Summarizer** — returns a prose summary; no edits.
+- **Markdown Formatter** — lists formatting issues and the exact fix needed.
+- **Create Skill** — returns a complete skill definition as its response.
 
 ---
 
 ## Files modified
 
-| File                               | Change                                                                                                                                                                                              |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/lib/tools/EditorTools.ts`     | Add `registerReadonlyEditorTools`; update `createDelegateToSkillHandler` to use `buildReadonlyRegistry`, inject output format into `agentConfig.instructions`, parse `ProposedEdit[]` from response |
-| `src/lib/tools/DelegationTools.ts` | Replace `buildRegistryForGroups` body with `buildReadonlyRegistry` call                                                                                                                             |
-| `src/lib/agents/orchestrator.ts`   | Extend `BASE_INSTRUCTIONS` with `delegate_to_skill` result-application instruction                                                                                                                  |
-| `src/App.tsx`                      | Replace inline registry build with `buildReadWriteRegistry`; update `delegate_to_skill` tool description                                                                                            |
+| File | Change |
+| --- | --- |
+| `src/lib/tools/EditorTools.ts` | Add `registerReadonlyEditorTools`; update `createDelegateToSkillHandler` to use `buildReadonlyRegistry` and return raw string output |
+| `src/lib/tools/WorkspaceTools.ts` | `registerWorkspaceTools` calls `registerReadonlyWorkspaceTools` to eliminate duplication |
+| `src/lib/tools/DelegationTools.ts` | Replace `buildRegistryForGroups` with `buildReadonlyRegistry`; non-nullable params |
+| `src/lib/agents/orchestrator.ts` | Update `BASE_INSTRUCTIONS` for flexible skill response handling |
+| `src/App.tsx` | Replace inline registry build with `buildReadWriteRegistry`; update `delegate_to_skill` description |
+| `src/lib/skills.ts` | Update default skill instructions to be natural, no output format constraints |
 
 ## Files created
 
-| File                          | Purpose                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------- |
-| `src/lib/tools/registries.ts` | Exports `ProposedEdit`, `buildReadonlyRegistry`, `buildReadWriteRegistry` |
+| File | Purpose |
+| --- | --- |
+| `src/lib/tools/registries.ts` | Exports `buildReadonlyRegistry`, `buildReadWriteRegistry` |
 
 ---
 
 ## Tests
 
-All tests live in `src/lib/tools/registries.test.ts` (new) and updates to `src/lib/tools/EditorTools.test.ts`.
-
-### `registries.test.ts`
+### `registries.test.ts` (new)
 
 ```
 buildReadonlyRegistry
@@ -172,42 +139,22 @@ buildReadWriteRegistry
 ```
 createDelegateToSkillHandler (Phase B)
   ✓ gives skill a read-only registry (no edit, no write tool registered)
-  ✓ wraps skill instructions with ProposedEdit JSON output format requirement
-  ✓ returns JSON-serialised ProposedEdit[] parsed from skill's final response
-  ✓ returns empty array when skill returns []
-  ✓ returns error string when skill final response is not valid JSON
+  ✓ gives skill read-only workspace tools (no create_document, switch_active_document)
+  ✓ calls runBuilder with skill instructions and returns raw output
 ```
 
 ### `DelegationTools.test.ts` additions
 
 ```
 invoke_agent (Phase B)
-  ✓ existing tests still pass unchanged
   ✓ workspace_readonly group yields only read workspace tools (no create_document etc.)
 ```
 
 ---
 
-## Step-by-step implementation order
-
-1. Add `registerReadonlyEditorTools` to `src/lib/tools/EditorTools.ts`.
-2. Create `src/lib/tools/registries.ts` — export `ProposedEdit`, `buildReadonlyRegistry`, `buildReadWriteRegistry`.
-3. Write `src/lib/tools/registries.test.ts` — run tests, confirm they pass.
-4. Update `createDelegateToSkillHandler` in `EditorTools.ts` — use `buildReadonlyRegistry`, inject output format into `agentConfig.instructions`, parse `ProposedEdit[]` from response, import `ProposedEdit` from `./registries`.
-5. Update `EditorTools.test.ts` with Phase B cases — run tests.
-6. Update `DelegationTools.ts` — replace `buildRegistryForGroups` body with `buildReadonlyRegistry` call.
-7. Update `DelegationTools.test.ts` — add workspace write-tool exclusion assertion.
-8. Update `orchestrator.ts` — extend `BASE_INSTRUCTIONS`.
-9. Update `App.tsx` — replace inline `new ToolRegistry()` + `registerEditorTools` + `registerWorkspaceTools` with `buildReadWriteRegistry`; update `delegate_to_skill` description.
-10. Run `npm run lint && npm run format && npm run test` — all green.
-
----
-
 ## Working state
 
-After Phase B:
-
 - Skills are structurally read-only. No code path can give a skill `edit` or `write`.
-- `delegate_to_skill` returns `ProposedEdit[]`; the Orchestrator applies each via `edit()`, preserving the approval workflow.
+- `delegate_to_skill` returns the skill's raw string response. The Orchestrator interprets it and acts accordingly.
 - `invoke_agent` sub-agents remain read-only via `buildReadonlyRegistry`.
-- The Orchestrator remains the sole writer, making Phase G's parallel fan-out safe by construction.
+- The Orchestrator is the sole writer, making Phase G's parallel fan-out safe by construction.

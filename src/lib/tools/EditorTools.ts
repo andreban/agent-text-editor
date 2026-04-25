@@ -11,7 +11,8 @@ import {
 import { Suggestion } from "../store";
 import type { AgentRunnerFactory } from "../agents/factory";
 import { loadSkills } from "../skills";
-import { WorkspaceTools, registerWorkspaceTools } from "./WorkspaceTools";
+import { WorkspaceTools } from "./WorkspaceTools";
+import { buildReadonlyRegistry } from "./registries";
 import { v4 as uuidv4 } from "uuid";
 
 export class EditorTools {
@@ -329,7 +330,7 @@ type RunnerLike = {
 export function createDelegateToSkillHandler(
   factory: AgentRunnerFactory,
   editorTools: EditorTools,
-  workspaceTools: WorkspaceTools | null = null,
+  workspaceTools: WorkspaceTools,
   runnerFactory: (registry: ToolRegistry, model?: string) => RunnerLike = (
     registry,
     model,
@@ -346,27 +347,14 @@ export function createDelegateToSkillHandler(
       return `Error: skill "${skillName}" not found. Available skills: ${names || "none"}`;
     }
 
-    const childRegistry = new ToolRegistry();
-    registerEditorTools(childRegistry, editorTools);
-    if (workspaceTools) {
-      registerWorkspaceTools(childRegistry, workspaceTools);
-    }
+    const childRegistry = buildReadonlyRegistry(editorTools, workspaceTools);
+    const readonlyToolNames = childRegistry.definitions().map((d) => d.name);
 
     const childRunner = runnerFactory(childRegistry, skill.model);
     const agentConfig: AgentConfig = {
       name: skill.name,
       instructions: skill.instructions,
-      tools: [
-        "read",
-        "read_selection",
-        "search",
-        "get_metadata",
-        "edit",
-        "write",
-        ...(workspaceTools
-          ? ["create_document", "list_workspace_docs", "switch_active_document"]
-          : []),
-      ],
+      tools: readonlyToolNames,
     };
     for await (const event of childRunner
       .runBuilder(agentConfig)

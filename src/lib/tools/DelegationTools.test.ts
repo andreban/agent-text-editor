@@ -6,6 +6,8 @@ import { registerDelegationTools } from "./DelegationTools";
 import { ToolRegistry } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../agents/factory";
 import type { AgentEvent } from "@mast-ai/core";
+import { EditorTools } from "./EditorTools";
+import { WorkspaceTools } from "./WorkspaceTools";
 
 function makeMockStream(
   output: string,
@@ -38,6 +40,25 @@ async function callTool(
   return tool.call(args, context);
 }
 
+function makeTools(factory: AgentRunnerFactory) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockEditor: any = {
+    getValue: vi.fn().mockReturnValue(""),
+    setValue: vi.fn(),
+    getModel: vi.fn().mockReturnValue(null),
+    getSelection: vi.fn().mockReturnValue(null),
+  };
+  const editorTools = new EditorTools({ current: mockEditor }, vi.fn(), {
+    current: false,
+  });
+  const workspaceTools = new WorkspaceTools(
+    { current: [] },
+    { current: null },
+    factory,
+  );
+  return { editorTools, workspaceTools };
+}
+
 describe("registerDelegationTools / invoke_agent", () => {
   let mockRunStream: ReturnType<typeof vi.fn>;
 
@@ -47,8 +68,9 @@ describe("registerDelegationTools / invoke_agent", () => {
 
   it("calls factory.create with the provided systemPrompt", async () => {
     const { factory, mockCreate } = makeFactory(mockRunStream);
+    const { editorTools, workspaceTools } = makeTools(factory);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, null as never, null);
+    registerDelegationTools(registry, factory, editorTools, workspaceTools);
 
     await callTool(registry, "invoke_agent", {
       systemPrompt: "Be brief.",
@@ -64,7 +86,8 @@ describe("registerDelegationTools / invoke_agent", () => {
     mockRunStream.mockReturnValue(makeMockStream("Great summary."));
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, null as never, null);
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
 
     const raw = await callTool(registry, "invoke_agent", {
       systemPrompt: "Help.",
@@ -82,7 +105,8 @@ describe("registerDelegationTools / invoke_agent", () => {
     );
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, null as never, null);
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
 
     const onEvent = vi.fn();
     await callTool(
@@ -105,7 +129,8 @@ describe("registerDelegationTools / invoke_agent", () => {
   it("uses empty tools list when no tool groups are requested", async () => {
     const { factory, mockRunBuilder } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, null as never, null);
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
 
     await callTool(registry, "invoke_agent", {
       systemPrompt: "s",
@@ -120,10 +145,32 @@ describe("registerDelegationTools / invoke_agent", () => {
   it("invoke_agent tool is registered on the registry", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, null as never, null);
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
 
     const tool = registry.get("invoke_agent");
     expect(tool).toBeDefined();
     expect(tool?.definition().name).toBe("invoke_agent");
+  });
+
+  it("workspace_readonly group yields only read workspace tools (no create_document etc.)", async () => {
+    const { factory, mockRunBuilder } = makeFactory(mockRunStream);
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    const registry = new ToolRegistry();
+    registerDelegationTools(registry, factory, et, wt);
+
+    await callTool(registry, "invoke_agent", {
+      systemPrompt: "s",
+      task: "t",
+      tools: ["workspace_readonly"],
+    });
+
+    const [agentConfig] = mockRunBuilder.mock.calls[0];
+    expect(agentConfig.tools).toContain("list_workspace_docs");
+    expect(agentConfig.tools).toContain("read_workspace_doc");
+    expect(agentConfig.tools).not.toContain("create_document");
+    expect(agentConfig.tools).not.toContain("rename_document");
+    expect(agentConfig.tools).not.toContain("delete_document");
+    expect(agentConfig.tools).not.toContain("switch_active_document");
   });
 });

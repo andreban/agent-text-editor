@@ -218,69 +218,7 @@ export function registerWorkspaceTools(
   registry: ToolRegistry,
   tools: WorkspaceTools,
 ): void {
-  registry.register({
-    definition: () => ({
-      name: "get_active_doc_info",
-      description:
-        "Returns the id and title of the document currently open in the editor. Use this when the user references 'this document', 'the current document', or a document by name without specifying an id.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.get_active_doc_info(),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "list_workspace_docs",
-      description:
-        "Lists all documents in the current workspace. Returns an array of { id, title } objects. Use this to discover what documents exist before reading or querying them.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.list_workspace_docs(),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "read_workspace_doc",
-      description:
-        "Reads the full content of a specific document in the workspace. Returns { title, content } or { error } if not found.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description:
-              "The document ID to read. Use list_workspace_docs first to get IDs.",
-          },
-        },
-        required: ["id"],
-      },
-    }),
-    call: async (args: { id: string }) => tools.read_workspace_doc(args),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "query_workspace_doc",
-      description:
-        "Asks a question about a specific document in the workspace using a sub-agent. Returns { summary } with a concise answer. Prefer this over read_workspace_doc when you need a targeted answer rather than raw content.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description: "The document ID to query.",
-          },
-          query: {
-            type: "string",
-            description: "The question or query about the document.",
-          },
-        },
-        required: ["id", "query"],
-      },
-    }),
-    call: async (args: { id: string; query: string }) =>
-      tools.query_workspace_doc(args),
-  });
+  registerReadonlyWorkspaceTools(registry, tools);
 
   registry.register({
     definition: () => ({
@@ -367,26 +305,6 @@ export function registerWorkspaceTools(
       },
     }),
     call: async (args: { id: string }) => tools.switch_active_document(args),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "query_workspace",
-      description:
-        "Asks a question that spans all documents in the workspace. Queries each document individually then synthesizes the results. Returns { answer }.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description:
-              "The question to answer across all workspace documents.",
-          },
-        },
-        required: ["query"],
-      },
-    }),
-    call: async (args: { query: string }) => tools.query_workspace(args),
   });
 }
 

@@ -26,22 +26,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  AgentRunner,
-  ToolRegistry,
-  AgentConfig,
-  Conversation,
-} from "@mast-ai/core";
+import { AgentRunner, AgentConfig, Conversation } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
 import {
   EditorTools,
-  registerEditorTools,
   createDelegateToSkillHandler,
 } from "@/lib/tools/EditorTools";
-import {
-  WorkspaceTools,
-  registerWorkspaceTools,
-} from "@/lib/tools/WorkspaceTools";
+import { WorkspaceTools } from "@/lib/tools/WorkspaceTools";
+import { buildReadWriteRegistry } from "@/lib/tools/registries";
 import { registerDelegationTools } from "@/lib/tools/DelegationTools";
 import {
   DefaultAgentRunnerFactory,
@@ -404,17 +396,14 @@ function App() {
     const adapter = new GoogleGenAIAdapter(apiKey, modelName, (usage) => {
       setTotalTokens((prev) => prev + (usage.totalTokenCount || 0));
     });
-    const registry = new ToolRegistry();
-
-    registerEditorTools(registry, editorTools);
-    registerWorkspaceTools(registry, workspaceTools);
+    const registry = buildReadWriteRegistry(editorTools, workspaceTools);
     addAllBuiltInAITools(registry).catch(() => {});
 
     registry.register({
       definition: () => ({
         name: "delegate_to_skill",
         description:
-          "Delegates a task to a named skill (sub-agent). The skill runs with its own instructions and can read and edit the document. Returns the skill's final response.",
+          "Delegates a task to a named skill (sub-agent). The skill runs with read-only access and returns its response as a string. Interpret the response and act on it accordingly.",
         parameters: {
           type: "object",
           properties: {

@@ -408,6 +408,8 @@ describe("EditorTools", () => {
       })();
     }
 
+    let mockWorkspaceTools: WorkspaceTools;
+
     beforeEach(() => {
       localStorage.clear();
       editorToolsInstance = new EditorTools(
@@ -420,13 +422,18 @@ describe("EditorTools", () => {
       mockFactory = {
         create: vi.fn().mockReturnValue({ runBuilder: mockRunBuilder }),
       };
+      mockWorkspaceTools = new WorkspaceTools(
+        { current: [] },
+        { current: null },
+        mockFactory,
+      );
     });
 
     function makeHandler(factory = mockFactory) {
       return createDelegateToSkillHandler(
         factory,
         editorToolsInstance,
-        null,
+        mockWorkspaceTools,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         () => ({ runBuilder: mockRunBuilder }) as any,
       );
@@ -452,7 +459,7 @@ describe("EditorTools", () => {
       expect(result).toContain("none");
     });
 
-    it("calls runBuilder with skill instructions and returns done output", async () => {
+    it("calls runBuilder with skill instructions and returns raw output", async () => {
       mockRunStream.mockReturnValue(makeMockStream("Proofreading complete."));
       saveSkills([
         {
@@ -512,27 +519,24 @@ describe("EditorTools", () => {
       );
     });
 
-    it("includes workspace tools in child agent when workspaceTools is provided", async () => {
+    it("gives skill read-only workspace tools (no create_document, switch_active_document)", async () => {
       saveSkills([
-        { id: "1", name: "Create Skill", description: "d", instructions: "i" },
+        {
+          id: "1",
+          name: "Research Skill",
+          description: "d",
+          instructions: "i",
+        },
       ]);
-      const mockWorkspaceTools = new WorkspaceTools(
-        { current: [] },
-        { current: null },
-        mockFactory,
+      await makeHandler()(
+        { skillName: "Research Skill", task: "check docs" },
+        {},
       );
-      const handler = createDelegateToSkillHandler(
-        mockFactory,
-        editorToolsInstance,
-        mockWorkspaceTools,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        () => ({ runBuilder: mockRunBuilder }) as any,
-      );
-      await handler({ skillName: "Create Skill", task: "create a skill" }, {});
       const [agentConfig] = mockRunBuilder.mock.calls[0];
-      expect(agentConfig.tools).toContain("create_document");
       expect(agentConfig.tools).toContain("list_workspace_docs");
-      expect(agentConfig.tools).toContain("switch_active_document");
+      expect(agentConfig.tools).toContain("read_workspace_doc");
+      expect(agentConfig.tools).not.toContain("create_document");
+      expect(agentConfig.tools).not.toContain("switch_active_document");
     });
 
     it("passes model to runnerFactory when skill specifies a model", async () => {
@@ -551,7 +555,7 @@ describe("EditorTools", () => {
       const handler = createDelegateToSkillHandler(
         mockFactory,
         editorToolsInstance,
-        null,
+        mockWorkspaceTools,
         customRunnerFactory,
       );
       await handler({ skillName: "Proofreader", task: "t" }, {});
@@ -560,6 +564,17 @@ describe("EditorTools", () => {
         "gemini-2.5-pro",
       );
     });
+
+    it("gives skill a read-only registry (no edit, no write tool registered)", async () => {
+      saveSkills([
+        { id: "1", name: "Proofreader", description: "d", instructions: "i" },
+      ]);
+      await makeHandler()({ skillName: "Proofreader", task: "t" }, {});
+      const [agentConfig] = mockRunBuilder.mock.calls[0];
+      expect(agentConfig.tools).not.toContain("edit");
+      expect(agentConfig.tools).not.toContain("write");
+    });
+
   });
 
   describe("write", () => {

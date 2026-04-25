@@ -5,31 +5,14 @@ import { AgentConfig, ToolContext, ToolRegistry } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../agents/factory";
 import { createGenericAgent } from "../agents/generic";
 import { EditorTools } from "./EditorTools";
-import {
-  WorkspaceTools,
-  registerReadonlyWorkspaceTools,
-} from "./WorkspaceTools";
-
-function buildRegistryForGroups(
-  groups: string[],
-  workspaceTools: WorkspaceTools | null,
-): ToolRegistry {
-  const registry = new ToolRegistry();
-
-  for (const group of groups) {
-    if (group === "workspace_readonly" && workspaceTools) {
-      registerReadonlyWorkspaceTools(registry, workspaceTools);
-    }
-  }
-
-  return registry;
-}
+import { WorkspaceTools } from "./WorkspaceTools";
+import { buildReadonlyRegistry } from "./registries";
 
 export function registerDelegationTools(
   registry: ToolRegistry,
   factory: AgentRunnerFactory,
-  _editorTools: EditorTools,
-  workspaceTools: WorkspaceTools | null,
+  editorTools: EditorTools,
+  workspaceTools: WorkspaceTools,
 ): void {
   registry.register({
     definition: () => ({
@@ -61,10 +44,10 @@ export function registerDelegationTools(
       args: { systemPrompt: string; task: string; tools?: string[] },
       context: ToolContext,
     ) => {
-      const resolvedRegistry = buildRegistryForGroups(
-        args.tools ?? [],
-        workspaceTools,
-      );
+      const groups = args.tools ?? [];
+      const resolvedRegistry = groups.includes("workspace_readonly")
+        ? buildReadonlyRegistry(editorTools, workspaceTools)
+        : new ToolRegistry();
 
       const runner = createGenericAgent(
         factory,

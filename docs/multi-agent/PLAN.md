@@ -149,19 +149,9 @@ Without this boundary, two concurrently running sub-agents could both read the s
 
 By making all sub-agents read-only, parallel fan-out (Phase F) is safe by construction — no locking or sequencing is required.
 
-### Skills return proposed changes, not direct edits
+### Skills return responses, not direct edits
 
-`delegate_to_skill` follows the same rule. Skills receive a read-only registry and return a structured list of proposed edits rather than calling `edit`/`write` directly:
-
-```ts
-interface ProposedEdit {
-  originalText: string;
-  replacementText: string;
-  reason?: string;
-}
-```
-
-The Orchestrator receives this list as the `delegate_to_skill` tool result and applies each change via `edit()`, triggering the normal user-approval workflow. This keeps approval at the Orchestrator level, where it has full conversational context and the user knows who is making changes.
+`delegate_to_skill` follows the same rule. Skills receive a read-only registry and return their response as a plain string. The Orchestrator interprets the response and decides what to do — apply edits via `edit()`, present a summary, ask follow-up questions, etc. This keeps write operations and approval at the Orchestrator level, where it has full conversational context.
 
 ---
 
@@ -568,22 +558,26 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase B: Tool Registry Refactor
+### Phase B: Tool Registry Refactor ✅
 
-**Goal:** Enforce the write access policy in code. All sub-agent creation sites use named registry builders; `delegate_to_skill` returns `ProposedEdit[]` instead of calling `edit`/`write` directly. No user-visible features — purely infrastructure.
+**Goal:** Enforce the write access policy in code. All sub-agent creation sites use named registry builders; skills receive a read-only registry and return their response as a plain string for the Orchestrator to act on. No user-visible features — purely infrastructure.
 
-- Create `src/lib/tools/registries.ts` exporting `buildReadonlyRegistry(editorTools, workspaceTools)` and `buildReadWriteRegistry(editorTools, workspaceTools)`.
-- Refactor `delegate_to_skill` in `EditorTools.ts` to give skills a read-only registry and return `ProposedEdit[]` instead of calling `edit`/`write` directly.
-- Update orchestrator system prompt to instruct the Orchestrator to apply the `ProposedEdit[]` list returned by `delegate_to_skill` via its own `edit()` calls.
-- Update `invoke_agent` group resolution in `DelegationTools.ts` to use `buildReadonlyRegistry()`.
+**Completed:**
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/tools/EditorTools.ts`, `src/lib/agents/orchestrator.ts`.
+- Created `src/lib/tools/registries.ts` exporting `buildReadonlyRegistry(editorTools, workspaceTools)` and `buildReadWriteRegistry(editorTools, workspaceTools)`.
+- Added `registerReadonlyEditorTools` to `EditorTools.ts`; `registerWorkspaceTools` now calls `registerReadonlyWorkspaceTools` internally to eliminate duplication.
+- Refactored `delegate_to_skill` in `EditorTools.ts` to give skills a read-only registry and return the skill's raw string response. The Orchestrator interprets the response and decides what to do — apply edits via `edit()`, present a summary, etc.
+- Updated `invoke_agent` group resolution in `DelegationTools.ts` to use `buildReadonlyRegistry()`. `workspaceTools` parameter made non-nullable.
+- Updated orchestrator system prompt to instruct the Orchestrator to interpret the skill's string response and act accordingly.
+- Default skill instructions updated to be natural — no output format constraints, skills describe their findings and the Orchestrator acts on them.
+
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/tools/EditorTools.ts`, `src/lib/tools/WorkspaceTools.ts`, `src/lib/agents/orchestrator.ts`, `src/App.tsx`, `src/lib/skills.ts`.
 
 **Files created:** `src/lib/tools/registries.ts`.
 
-**Tests:** `buildReadonlyRegistry` excludes write tools; `buildReadWriteRegistry` includes them; `delegate_to_skill` returns `ProposedEdit[]` not a resolved edit; existing `invoke_agent` tests still pass.
+**Tests:** `buildReadonlyRegistry` excludes write tools; `buildReadWriteRegistry` includes them; `delegate_to_skill` returns the skill's raw response string; existing `invoke_agent` tests still pass; `workspace_readonly` group excludes write tools.
 
-**Working state:** Write access policy enforced in code. Skills and generic sub-agents are structurally read-only. Orchestrator is the sole writer.
+**Working state:** Write access policy enforced in code. Skills and generic sub-agents are structurally read-only. Orchestrator is the sole writer and decides how to interpret and apply skill responses.
 
 ---
 

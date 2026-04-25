@@ -52,12 +52,13 @@ describe("skills storage", () => {
     expect(result).toEqual(custom);
   });
 
-  it("Create Skill is included in DEFAULT_SKILLS and uses only standard editor tools", () => {
+  it("Create Skill is included in DEFAULT_SKILLS and does not reference write tools", () => {
     const createSkill = DEFAULT_SKILLS.find((s) => s.id === CREATE_SKILL_ID);
     expect(createSkill).toBeDefined();
     expect(createSkill!.name).toBe("Create Skill");
-    expect(createSkill!.instructions).toContain("write");
-    expect(createSkill!.instructions).not.toContain("create_skill");
+    expect(createSkill!.instructions).not.toContain("create_document");
+    expect(createSkill!.instructions).not.toContain("switch_active_document");
+    expect(createSkill!.instructions).not.toContain("write(");
   });
 
   it("model field is optional and preserved when set", () => {

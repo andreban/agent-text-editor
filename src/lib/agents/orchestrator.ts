@@ -11,7 +11,8 @@ const BASE_INSTRUCTIONS =
   "When an edit or write is submitted, execution pauses until the user accepts or rejects it; " +
   "you will receive their decision (and any feedback) as the tool result. " +
   "You can delegate any ad-hoc research or generation task to a generic sub-agent using the invoke_agent tool. " +
-  'Workspace tools are available to list, read, query, create, rename, and delete documents in the workspace. Use invoke_agent with tools=["workspace_readonly"] to let a sub-agent query workspace documents.';
+  'Workspace tools are available to list, read, query, create, rename, and delete documents in the workspace. Use invoke_agent with tools=["workspace_readonly"] to let a sub-agent query workspace documents. ' +
+  "delegate_to_skill returns the skill's response as a string — interpret it and decide what to do: apply edits via edit(), present a summary, ask follow-up questions, etc.";
 
 export function buildOrchestratorPrompt(skills: Skill[]): string {
   let prompt = BASE_INSTRUCTIONS;

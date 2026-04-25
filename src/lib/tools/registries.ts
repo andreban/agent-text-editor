@@ -13,12 +13,6 @@ import {
   registerReadonlyWorkspaceTools,
 } from "./WorkspaceTools";
 
-export interface ProposedEdit {
-  originalText: string;
-  replacementText: string;
-  reason?: string;
-}
-
 export function buildReadonlyRegistry(
   editorTools: EditorTools,
   workspaceTools: WorkspaceTools,
