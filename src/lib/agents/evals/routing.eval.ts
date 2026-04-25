@@ -58,6 +58,23 @@ describe.skipIf(!apiKey)("orchestrator routing", () => {
 
     registry.register({
       definition: () => ({
+        name: "invoke_writer",
+        description:
+          "Generates draft text for a single targeted section. Do NOT use for full-document rewrites — use invoke_planner instead.",
+        parameters: {
+          type: "object",
+          properties: { instruction: { type: "string" } },
+          required: ["instruction"],
+        },
+      }),
+      call: async () => {
+        calledTools.push("invoke_writer");
+        return '{"draft":""}';
+      },
+    });
+
+    registry.register({
+      definition: () => ({
         name: "invoke_agent",
         description: "Delegates an ad-hoc task to a generic sub-agent.",
         parameters: {

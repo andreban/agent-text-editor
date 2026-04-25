@@ -8,3 +8,4 @@ export { createGenericAgent } from "./generic";
 export type { Plan, PlanStep } from "./planner";
 export { createPlannerAgent, PLANNER_SYSTEM_PROMPT } from "./planner";
 export type { ResearchResult, ResearchSource } from "./researcher";
+export { createWriterAgent, WRITER_SYSTEM_PROMPT } from "./writer";

@@ -623,7 +623,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase F: Research Agent
+### Phase F: Research Agent ✅
 
 **Goal:** Upgrade the existing workspace query pipeline to return structured, attributable `ResearchResult`.
 

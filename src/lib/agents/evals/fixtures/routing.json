@@ -37,7 +37,7 @@
   {
     "prompt": "Edit this paragraph to be more concise",
     "expectedTool": "none",
-    "rationale": "A direct single-step edit that does not require planning or research."
+    "rationale": "A direct single-step edit on one paragraph — no planning needed."
   },
   {
     "prompt": "Fix the typos in the selection",
@@ -47,6 +47,21 @@
   {
     "prompt": "Make this paragraph shorter",
     "expectedTool": "none",
-    "rationale": "A direct in-place edit on the visible editor text requiring no delegation or research."
+    "rationale": "A direct in-place edit on one paragraph requiring no delegation or research."
+  },
+  {
+    "prompt": "Make the text in this document more concise",
+    "expectedTool": "invoke_planner",
+    "rationale": "Document-wide editing affects multiple sections and must be broken into per-section steps via the Planner."
+  },
+  {
+    "prompt": "Improve the flow and readability of the whole essay",
+    "expectedTool": "invoke_planner",
+    "rationale": "Editing across the entire document requires a plan to proceed section by section."
+  },
+  {
+    "prompt": "Rewrite this document in a more formal tone",
+    "expectedTool": "invoke_planner",
+    "rationale": "A full-document rewrite touches every section and should be decomposed into a plan."
   }
 ]
