@@ -583,26 +583,61 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ### Phase C: Planner Agent
 
-**Goal:** Orchestrator can decompose a task into a structured plan and present it to the user before acting.
+**Goal:** Implement the LLM agent that decomposes a task into a structured `Plan` and wire it as an invokable tool. No UI gate yet — `invoke_planner` returns the plan as a string and the Orchestrator proceeds immediately.
 
-- Implement `src/lib/agents/planner.ts` + `invoke_planner` tool in `DelegationTools.ts`.
-- Plan Confirmation Widget in `ChatSidebar` (confirm/cancel only — no step editing yet).
-- `WorkflowState` drives the widget's step list.
-- Add `vitest.evals.config.ts` and `npm run evals` script.
+- Implement `src/lib/agents/planner.ts`: system prompt, no tool access, structured `Plan` output.
+- Register `invoke_planner` in `DelegationTools.ts`: runs the planner agent and returns the `Plan` as a JSON string.
+- Extend `WorkflowState.steps` to add `label: string` (needed by the confirmation widget in the next phase).
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/store.tsx`, `src/components/ChatSidebar.tsx`, `src/App.tsx`, `package.json`.
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/store.tsx` (add `label` to `WorkflowState.steps`).
 
-**Files created:** `src/lib/agents/planner.ts`, `src/components/PlanConfirmationWidget.tsx`, `vitest.evals.config.ts`, `src/lib/agents/evals/planning.eval.ts`, `src/lib/agents/evals/fixtures/planning.json`.
+**Files created:** `src/lib/agents/planner.ts`.
 
-**Tests:** Planner factory sets correct system prompt and no tools; `invoke_planner` returns a valid `Plan`; `WorkflowState` updates on confirm/cancel.
+**Tests:** Planner factory sets correct system prompt and no tools; `invoke_planner` returns a valid `Plan` JSON string.
 
-**Evals:** `src/lib/agents/evals/planning.eval.ts` + `fixtures/planning.json` — score plan quality with LLM-as-judge.
-
-**Working state:** User can say "plan a rewrite of section 2", see a structured plan, and confirm before the Orchestrator acts.
+**Working state:** Orchestrator can call `invoke_planner` and receive a structured plan. Execution continues without pausing for user approval.
 
 ---
 
-### Phase D: Research Agent
+### Phase D: Plan Confirmation
+
+**Goal:** Gate plan execution behind explicit user approval. `invoke_planner` pauses after producing a plan, populates `WorkflowState`, and waits for the user to confirm or cancel — the same pattern as `pendingTabSwitchRequest`.
+
+- Add `pendingPlanConfirmation: PlanConfirmationRequest | null` + setter to `EditorUIState` in `store.tsx`. `PlanConfirmationRequest` carries the plan and a `resolve(accepted: boolean)` callback.
+- Update `invoke_planner` in `DelegationTools.ts` to: set `WorkflowState` with the plan steps, call the confirmation callback, and await the user's decision before returning.
+- Pass the `setPendingPlanConfirmation` callback from `App.tsx` into `registerDelegationTools`.
+- `PlanConfirmationWidget` reads `pendingPlanConfirmation` from `useEditorUI()` and renders the step list with confirm/cancel buttons.
+- `ChatSidebar` renders the widget inline when a plan is pending.
+
+**Files modified:** `src/lib/store.tsx` (add `PlanConfirmationRequest` + `pendingPlanConfirmation` to `EditorUIState`), `src/lib/tools/DelegationTools.ts` (add confirmation await to `invoke_planner`), `src/App.tsx` (pass `setPendingPlanConfirmation` into `registerDelegationTools`), `src/components/ChatSidebar.tsx` (render `PlanConfirmationWidget` when pending).
+
+**Files created:** `src/components/PlanConfirmationWidget.tsx`.
+
+**Tests:** `invoke_planner` resolves when confirmation callback is called with `true`; rejects/skips when called with `false`; `pendingPlanConfirmation` is cleared after resolution.
+
+**Working state:** User sees a step-by-step plan and must confirm before the Orchestrator acts on it.
+
+---
+
+### Phase E: Eval Infrastructure
+
+**Goal:** Add the two-tier eval harness and the first eval suite (planning quality). All subsequent phases drop their eval files straight into this structure.
+
+- Add `vitest.evals.config.ts` and `npm run evals` script to `package.json`.
+- Implement the shared `judge(text, rubric, criteria)` helper in `src/lib/agents/evals/judge.ts`.
+- Write the first eval: `planning.eval.ts` + `fixtures/planning.json` — score plan quality with LLM-as-judge.
+
+**Files modified:** `package.json`.
+
+**Files created:** `vitest.evals.config.ts`, `src/lib/agents/evals/judge.ts`, `src/lib/agents/evals/planning.eval.ts`, `src/lib/agents/evals/fixtures/planning.json`.
+
+**Evals:** `src/lib/agents/evals/planning.eval.ts` + `fixtures/planning.json` — score plan quality with LLM-as-judge; target ≥ 4 average on 1–5 rubric.
+
+**Working state:** `npm run evals` runs the planning eval suite against the live API. All future phases add eval files without touching infrastructure.
+
+---
+
+### Phase F: Research Agent
 
 **Goal:** Upgrade the existing workspace query pipeline to return structured, attributable `ResearchResult`.
 
@@ -610,7 +645,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 - Update per-doc summaries to include source excerpt field.
 - Research Agent block in chat (collapsible, source list inside).
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/tools/WorkspaceTools.ts` (extract query logic for reuse), `src/components/ChatItem.tsx`, `src/App.tsx`.
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/tools/WorkspaceTools.ts` (extract query logic for reuse), `src/components/ChatItem.tsx`, `src/components/ChatSidebar.tsx` (detect `invoke_researcher` calls → create attributed researcher block).
 
 **Files created:** `src/lib/agents/researcher.ts`, `src/lib/agents/evals/routing.eval.ts`, `src/lib/agents/evals/fixtures/routing.json`.
 
@@ -622,7 +657,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase E: Writer Agent
+### Phase G: Writer Agent
 
 **Goal:** Separate content generation from content application.
 
@@ -630,19 +665,19 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 - Orchestrator receives draft text and applies it via `edit()` / `write()` through the normal approval workflow.
 - Writer Agent block in chat, streaming.
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/components/ChatItem.tsx`.
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/components/ChatItem.tsx`, `src/components/ChatSidebar.tsx` (detect `invoke_writer` calls → create attributed writer block).
 
-**Files created:** `src/lib/agents/writer.ts`, `src/lib/agents/evals/judge.ts`, `src/lib/agents/evals/writing.eval.ts`, `src/lib/agents/evals/fixtures/writing.json`.
+**Files created:** `src/lib/agents/writer.ts`, `src/lib/agents/evals/writing.eval.ts`, `src/lib/agents/evals/fixtures/writing.json`.
 
 **Tests:** Writer factory has no tools; `invoke_writer` returns raw text; Orchestrator correctly passes research context through to the prompt.
 
-**Evals:** `fixtures/writing.json` + `writing.eval.ts` + `src/lib/agents/evals/judge.ts` LLM-as-judge helper — score draft on relevance, coherence, and style match.
+**Evals:** `fixtures/writing.json` + `writing.eval.ts` — score draft on relevance, coherence, and style match using the `judge` helper from Phase D.
 
 **Working state:** Orchestrator can delegate drafting to a specialist and apply the result through the approval workflow.
 
 ---
 
-### Phase F: Review Agent + Iterative Refinement
+### Phase H: Review Agent + Iterative Refinement
 
 **Goal:** Structured feedback loop before content is applied; Writer → Reviewer cycles with hard iteration cap and error recovery.
 
@@ -652,7 +687,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 - Map existing user-defined Skills onto `criteria` so they act as reviewer configurations.
 - Review Agent block in chat with expandable issue list.
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/store.tsx` (iteration counter in `WorkflowState`), `src/components/ChatItem.tsx`, `src/App.tsx` (Orchestrator system prompt additions).
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/store.tsx` (iteration counter in `WorkflowState`/`EditorUIState`), `src/components/ChatItem.tsx`, `src/components/ChatSidebar.tsx` (detect `invoke_reviewer` calls → create attributed review block), `src/lib/agents/orchestrator.ts` (add Orchestrator guidance for Writer → Reviewer loop and iteration cap).
 
 **Files created:** `src/lib/agents/reviewer.ts`, `src/lib/agents/evals/reviewing.eval.ts`, `src/lib/agents/evals/fixtures/reviewing.json`.
 
@@ -664,7 +699,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase G: Parallel Execution + Full Pipelines
+### Phase I: Parallel Execution + Full Pipelines
 
 **Goal:** Enable the Planner to express parallel branches; complete the Plan Confirmation Widget; validate end-to-end pipelines against the single-agent baseline.
 
