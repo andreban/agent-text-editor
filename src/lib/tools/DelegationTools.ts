@@ -9,6 +9,7 @@ import {
   Plan,
   PLANNER_SYSTEM_PROMPT,
 } from "../agents/planner";
+import type { PlanConfirmationRequest } from "../store";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
 import { buildReadonlyRegistry } from "./registries";
@@ -18,6 +19,7 @@ export function registerDelegationTools(
   factory: AgentRunnerFactory,
   editorTools: EditorTools,
   workspaceTools: WorkspaceTools,
+  setPendingPlanConfirmation: (req: PlanConfirmationRequest | null) => void,
 ): void {
   registry.register({
     definition: () => ({
@@ -126,6 +128,15 @@ export function registerDelegationTools(
             throw new Error(
               "invoke_planner: plan is missing required fields (goal, steps)",
             );
+          }
+
+          const accepted = await new Promise<boolean>((resolve) => {
+            setPendingPlanConfirmation({ plan, resolve });
+          });
+          setPendingPlanConfirmation(null);
+
+          if (!accepted) {
+            throw new Error("Plan rejected by user.");
           }
           return JSON.stringify(plan);
         }

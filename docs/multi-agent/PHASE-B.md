@@ -100,19 +100,19 @@ Default skill instructions updated to be natural — no output format constraint
 
 ## Files modified
 
-| File | Change |
-| --- | --- |
-| `src/lib/tools/EditorTools.ts` | Add `registerReadonlyEditorTools`; update `createDelegateToSkillHandler` to use `buildReadonlyRegistry` and return raw string output |
-| `src/lib/tools/WorkspaceTools.ts` | `registerWorkspaceTools` calls `registerReadonlyWorkspaceTools` to eliminate duplication |
-| `src/lib/tools/DelegationTools.ts` | Replace `buildRegistryForGroups` with `buildReadonlyRegistry`; non-nullable params |
-| `src/lib/agents/orchestrator.ts` | Update `BASE_INSTRUCTIONS` for flexible skill response handling |
-| `src/App.tsx` | Replace inline registry build with `buildReadWriteRegistry`; update `delegate_to_skill` description |
-| `src/lib/skills.ts` | Update default skill instructions to be natural, no output format constraints |
+| File                               | Change                                                                                                                               |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/lib/tools/EditorTools.ts`     | Add `registerReadonlyEditorTools`; update `createDelegateToSkillHandler` to use `buildReadonlyRegistry` and return raw string output |
+| `src/lib/tools/WorkspaceTools.ts`  | `registerWorkspaceTools` calls `registerReadonlyWorkspaceTools` to eliminate duplication                                             |
+| `src/lib/tools/DelegationTools.ts` | Replace `buildRegistryForGroups` with `buildReadonlyRegistry`; non-nullable params                                                   |
+| `src/lib/agents/orchestrator.ts`   | Update `BASE_INSTRUCTIONS` for flexible skill response handling                                                                      |
+| `src/App.tsx`                      | Replace inline registry build with `buildReadWriteRegistry`; update `delegate_to_skill` description                                  |
+| `src/lib/skills.ts`                | Update default skill instructions to be natural, no output format constraints                                                        |
 
 ## Files created
 
-| File | Purpose |
-| --- | --- |
+| File                          | Purpose                                                   |
+| ----------------------------- | --------------------------------------------------------- |
 | `src/lib/tools/registries.ts` | Exports `buildReadonlyRegistry`, `buildReadWriteRegistry` |
 
 ---
