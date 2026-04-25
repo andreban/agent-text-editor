@@ -174,3 +174,87 @@ describe("registerDelegationTools / invoke_agent", () => {
     expect(agentConfig.tools).not.toContain("switch_active_document");
   });
 });
+
+describe("registerDelegationTools / invoke_planner", () => {
+  it("invoke_planner tool is registered on the registry", () => {
+    const mockRunStream = vi.fn();
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
+
+    const tool = registry.get("invoke_planner");
+    expect(tool).toBeDefined();
+    expect(tool?.definition().name).toBe("invoke_planner");
+  });
+
+  const validPlan = {
+    goal: "Write a blog post",
+    steps: [{ id: "step_1", instruction: "Research the topic", dependsOn: [] }],
+  };
+
+  it("returns a JSON string that parses to a Plan with goal and steps", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream(JSON.stringify(validPlan)));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
+
+    const raw = await callTool(registry, "invoke_planner", {
+      task: "Write a blog post about AI",
+    });
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.goal).toBe("Write a blog post");
+    expect(Array.isArray(parsed.steps)).toBe(true);
+    expect(parsed.steps).toHaveLength(1);
+  });
+
+  it("appends context to the task prompt when context is provided", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream(JSON.stringify(validPlan)));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
+
+    await callTool(registry, "invoke_planner", {
+      task: "Write a blog post",
+      context: "Style: formal",
+    });
+
+    expect(mockRunStream).toHaveBeenCalledWith(
+      "Write a blog post\n\nStyle: formal",
+    );
+  });
+
+  it("throws when agent output is not valid JSON", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream("not json at all"));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
+
+    await expect(
+      callTool(registry, "invoke_planner", { task: "t" }),
+    ).rejects.toThrow("invalid JSON");
+  });
+
+  it("throws when parsed JSON is missing required Plan fields", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream(JSON.stringify({ steps: [] })));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt);
+
+    await expect(
+      callTool(registry, "invoke_planner", { task: "t" }),
+    ).rejects.toThrow("missing required fields");
+  });
+});
