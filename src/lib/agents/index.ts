@@ -7,3 +7,4 @@ export { buildOrchestratorPrompt } from "./orchestrator";
 export { createGenericAgent } from "./generic";
 export type { Plan, PlanStep } from "./planner";
 export { createPlannerAgent, PLANNER_SYSTEM_PROMPT } from "./planner";
+export type { ResearchResult, ResearchSource } from "./researcher";

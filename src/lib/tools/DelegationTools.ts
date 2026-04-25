@@ -9,6 +9,7 @@ import {
   Plan,
   PLANNER_SYSTEM_PROMPT,
 } from "../agents/planner";
+import { runResearch } from "../agents/researcher";
 import type { PlanConfirmationRequest } from "../store";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
@@ -145,6 +146,35 @@ export function registerDelegationTools(
       throw new Error(
         "invoke_planner: planner agent ended without a done event",
       );
+    },
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "invoke_researcher",
+      description:
+        "Queries workspace documents and synthesizes a structured answer. Returns JSON: { summary, sources: [{ id, title, excerpt }] }. Use this when the task requires finding information across workspace documents before writing or reviewing.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The question or information need to research.",
+          },
+          docIds: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Optional list of document IDs to restrict the search to. If omitted, all workspace documents are queried.",
+          },
+        },
+        required: ["query"],
+      },
+    }),
+    call: async (args: { query: string; docIds?: string[] }) => {
+      const docs = workspaceTools.docsRef.current;
+      const result = await runResearch(args.query, docs, factory, args.docIds);
+      return JSON.stringify(result);
     },
   });
 }

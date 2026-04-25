@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { WorkspaceDocument } from "../workspace";
 import type { WorkspaceActionRequest } from "../store";
 import type { AgentRunnerFactory } from "../agents/factory";
+import { DOC_QUERIER_SYSTEM_PROMPT, runResearch } from "../agents/researcher";
 
 export type CreateDocumentFn = (title: string) => string;
 export type RenameDocumentFn = (id: string, title: string) => void;
@@ -33,7 +34,7 @@ export interface EditorLike {
 
 export class WorkspaceTools {
   constructor(
-    private docsRef: DocsRef,
+    public readonly docsRef: DocsRef,
     private activeDocRef: ActiveDocRef,
     private factory: AgentRunnerFactory,
     private createDocumentFn: CreateDocumentFn = () => "",
@@ -84,14 +85,25 @@ export class WorkspaceTools {
 
     const agent: AgentConfig = {
       name: "DocQuerier",
-      instructions:
-        "You are a helpful assistant. Answer the user's question based solely on the provided document. Reply with a concise summary or direct answer.",
+      instructions: DOC_QUERIER_SYSTEM_PROMPT,
       tools: [],
     };
     const runner = this.factory.create({ systemPrompt: agent.instructions });
-    const input = `Document title: ${doc.title}\n\nDocument content:\n${doc.content}\n\nQuestion: ${query}`;
+    const input = `Document title: ${doc.title}\n\nDocument content:\n${doc.content}\n\nQuery: ${query}`;
     const result = await runner.run(agent, input);
-    return JSON.stringify({ summary: result.output });
+    let parsed: { summary: string; excerpt: string };
+    try {
+      parsed = JSON.parse(result.output) as {
+        summary: string;
+        excerpt: string;
+      };
+    } catch {
+      parsed = { summary: result.output, excerpt: "" };
+    }
+    return JSON.stringify({
+      summary: parsed.summary,
+      excerpt: parsed.excerpt ?? "",
+    });
   }
 
   create_document({
@@ -190,27 +202,8 @@ export class WorkspaceTools {
   }
 
   async query_workspace({ query }: { query: string }): Promise<string> {
-    const docs = this.docsRef.current;
-    const summaries: string[] = [];
-
-    for (const doc of docs) {
-      const raw = await this.query_workspace_doc({ id: doc.id, query });
-      const parsed: { summary?: string; error?: string } = JSON.parse(raw);
-      if (parsed.summary) {
-        summaries.push(`Document "${doc.title}": ${parsed.summary}`);
-      }
-    }
-
-    const agent: AgentConfig = {
-      name: "WorkspaceSynthesizer",
-      instructions:
-        "You are a helpful assistant. Synthesize the provided per-document summaries to give a comprehensive answer to the user's question.",
-      tools: [],
-    };
-    const runner = this.factory.create({ systemPrompt: agent.instructions });
-    const input = `Summaries from workspace documents:\n\n${summaries.join("\n\n")}\n\nQuestion: ${query}`;
-    const result = await runner.run(agent, input);
-    return JSON.stringify({ answer: result.output });
+    const result = await runResearch(query, this.docsRef.current, this.factory);
+    return JSON.stringify(result);
   }
 }
 
@@ -352,7 +345,7 @@ export function registerReadonlyWorkspaceTools(
     definition: () => ({
       name: "query_workspace_doc",
       description:
-        "Asks a question about a specific document using a sub-agent. Returns { summary }.",
+        "Asks a question about a specific document using a sub-agent. Returns { summary, excerpt } where excerpt is the most relevant verbatim passage.",
       parameters: {
         type: "object",
         properties: {
@@ -373,7 +366,7 @@ export function registerReadonlyWorkspaceTools(
     definition: () => ({
       name: "query_workspace",
       description:
-        "Asks a question spanning all workspace documents and synthesizes the results. Returns { answer }.",
+        "Asks a question spanning all workspace documents and synthesizes the results. Returns { summary, sources: [{ id, title, excerpt }] }.",
       parameters: {
         type: "object",
         properties: {

@@ -46,7 +46,12 @@ describe.skipIf(!apiKey)("planning quality", () => {
     expect(typeof plan.goal).toBe("string");
     expect(Array.isArray(plan.steps)).toBe(true);
 
-    const score = await judge(output, fixture.rubric, PLANNING_CRITERIA, adapter);
+    const score = await judge(
+      output,
+      fixture.rubric,
+      PLANNING_CRITERIA,
+      adapter,
+    );
     scores.push(score);
     expect(score).toBeGreaterThanOrEqual(3);
   });

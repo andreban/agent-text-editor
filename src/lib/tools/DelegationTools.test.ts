@@ -338,3 +338,155 @@ describe("registerDelegationTools / invoke_planner", () => {
     expect(rejectConfirm).toHaveBeenCalledWith(null);
   });
 });
+
+describe("registerDelegationTools / invoke_researcher", () => {
+  const docs = [
+    { id: "doc1", title: "Doc One", content: "Alpha content", updatedAt: 1 },
+    { id: "doc2", title: "Doc Two", content: "Beta content", updatedAt: 2 },
+  ];
+
+  function makeResearchTools(factory: AgentRunnerFactory, docsOverride = docs) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mockEditor: any = {
+      getValue: vi.fn().mockReturnValue(""),
+      setValue: vi.fn(),
+      getModel: vi.fn().mockReturnValue(null),
+      getSelection: vi.fn().mockReturnValue(null),
+    };
+    const editorTools = new EditorTools({ current: mockEditor }, vi.fn(), {
+      current: false,
+    });
+    const workspaceTools = new WorkspaceTools(
+      { current: docsOverride },
+      { current: null },
+      factory,
+    );
+    return { editorTools, workspaceTools };
+  }
+
+  it("invoke_researcher tool is registered on the registry", () => {
+    const mockRunStream = vi.fn();
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
+
+    const tool = registry.get("invoke_researcher");
+    expect(tool).toBeDefined();
+    expect(tool?.definition().name).toBe("invoke_researcher");
+  });
+
+  it("returns ResearchResult with summary string and sources array for two docs", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        makeMockStream(
+          '{"summary":"Alpha summary.","excerpt":"alpha passage"}',
+        ),
+      )
+      .mockReturnValueOnce(
+        makeMockStream('{"summary":"Beta summary.","excerpt":"beta passage"}'),
+      )
+      .mockReturnValueOnce(makeMockStream('{"summary":"Combined answer."}'));
+
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
+
+    const raw = await callTool(registry, "invoke_researcher", {
+      query: "What do the docs say?",
+    });
+    const result = JSON.parse(raw as string);
+
+    expect(typeof result.summary).toBe("string");
+    expect(result.summary).toBe("Combined answer.");
+    expect(Array.isArray(result.sources)).toBe(true);
+    expect(result.sources).toHaveLength(2);
+  });
+
+  it("each source has id, title, and excerpt fields", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        makeMockStream(
+          '{"summary":"Alpha summary.","excerpt":"alpha excerpt"}',
+        ),
+      )
+      .mockReturnValueOnce(
+        makeMockStream('{"summary":"Beta summary.","excerpt":"beta excerpt"}'),
+      )
+      .mockReturnValueOnce(makeMockStream('{"summary":"Combined."}'));
+
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
+
+    const raw = await callTool(registry, "invoke_researcher", { query: "q" });
+    const result = JSON.parse(raw as string);
+
+    for (const source of result.sources) {
+      expect(typeof source.id).toBe("string");
+      expect(typeof source.title).toBe("string");
+      expect(typeof source.excerpt).toBe("string");
+    }
+    expect(result.sources[0]).toMatchObject({
+      id: "doc1",
+      title: "Doc One",
+      excerpt: "alpha excerpt",
+    });
+    expect(result.sources[1]).toMatchObject({
+      id: "doc2",
+      title: "Doc Two",
+      excerpt: "beta excerpt",
+    });
+  });
+
+  it("filters to only docIds when provided", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        makeMockStream('{"summary":"Doc Two only.","excerpt":"beta"}'),
+      )
+      .mockReturnValueOnce(makeMockStream('{"summary":"Only doc two."}'));
+
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
+
+    const raw = await callTool(registry, "invoke_researcher", {
+      query: "q",
+      docIds: ["doc2"],
+    });
+    const result = JSON.parse(raw as string);
+
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0].id).toBe("doc2");
+    // Only 2 runStream calls: doc2 querier + synthesizer (doc1 was filtered out)
+    expect(mockRunStream).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns empty sources and no-content summary when no docs have relevant content", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValueOnce(
+        makeMockStream('{"summary":"No relevant content.","excerpt":""}'),
+      )
+      .mockReturnValueOnce(
+        makeMockStream('{"summary":"No relevant content.","excerpt":""}'),
+      );
+
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
+
+    const raw = await callTool(registry, "invoke_researcher", { query: "q" });
+    const result = JSON.parse(raw as string);
+
+    expect(result.sources).toHaveLength(0);
+    expect(result.summary).toContain("No relevant content");
+  });
+});
