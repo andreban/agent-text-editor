@@ -70,7 +70,13 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory, mockCreate } = makeFactory(mockRunStream);
     const { editorTools, workspaceTools } = makeTools(factory);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, editorTools, workspaceTools);
+    registerDelegationTools(
+      registry,
+      factory,
+      editorTools,
+      workspaceTools,
+      vi.fn(),
+    );
 
     await callTool(registry, "invoke_agent", {
       systemPrompt: "Be brief.",
@@ -87,7 +93,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     const raw = await callTool(registry, "invoke_agent", {
       systemPrompt: "Help.",
@@ -106,7 +112,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     const onEvent = vi.fn();
     await callTool(
@@ -130,7 +136,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory, mockRunBuilder } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     await callTool(registry, "invoke_agent", {
       systemPrompt: "s",
@@ -146,7 +152,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     const tool = registry.get("invoke_agent");
     expect(tool).toBeDefined();
@@ -157,7 +163,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory, mockRunBuilder } = makeFactory(mockRunStream);
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     await callTool(registry, "invoke_agent", {
       systemPrompt: "s",
@@ -176,12 +182,20 @@ describe("registerDelegationTools / invoke_agent", () => {
 });
 
 describe("registerDelegationTools / invoke_planner", () => {
+  let autoConfirm: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    autoConfirm = vi.fn().mockImplementation((req) => {
+      if (req) req.resolve(true);
+    });
+  });
+
   it("invoke_planner tool is registered on the registry", () => {
     const mockRunStream = vi.fn();
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     const tool = registry.get("invoke_planner");
     expect(tool).toBeDefined();
@@ -200,7 +214,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, autoConfirm);
 
     const raw = await callTool(registry, "invoke_planner", {
       task: "Write a blog post about AI",
@@ -218,7 +232,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, autoConfirm);
 
     await callTool(registry, "invoke_planner", {
       task: "Write a blog post",
@@ -237,7 +251,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     await expect(
       callTool(registry, "invoke_planner", { task: "t" }),
@@ -251,10 +265,76 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt);
+    registerDelegationTools(registry, factory, et, wt, vi.fn());
 
     await expect(
       callTool(registry, "invoke_planner", { task: "t" }),
     ).rejects.toThrow("missing required fields");
+  });
+
+  it("calls setPendingPlanConfirmation with the plan before awaiting", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream(JSON.stringify(validPlan)));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt, autoConfirm);
+
+    await callTool(registry, "invoke_planner", { task: "Write a blog post" });
+
+    expect(autoConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ plan: validPlan }),
+    );
+  });
+
+  it("clears pendingPlanConfirmation with null after resolution", async () => {
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream(JSON.stringify(validPlan)));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt, autoConfirm);
+
+    await callTool(registry, "invoke_planner", { task: "t" });
+
+    expect(autoConfirm).toHaveBeenCalledWith(null);
+  });
+
+  it("throws 'Plan rejected by user.' when confirmation resolves with false", async () => {
+    const rejectConfirm = vi.fn().mockImplementation((req) => {
+      if (req) req.resolve(false);
+    });
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream(JSON.stringify(validPlan)));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt, rejectConfirm);
+
+    await expect(
+      callTool(registry, "invoke_planner", { task: "t" }),
+    ).rejects.toThrow("Plan rejected by user.");
+  });
+
+  it("clears pendingPlanConfirmation with null even when rejected", async () => {
+    const rejectConfirm = vi.fn().mockImplementation((req) => {
+      if (req) req.resolve(false);
+    });
+    const mockRunStream = vi
+      .fn()
+      .mockReturnValue(makeMockStream(JSON.stringify(validPlan)));
+    const { factory } = makeFactory(mockRunStream);
+    const registry = new ToolRegistry();
+    const { editorTools: et, workspaceTools: wt } = makeTools(factory);
+    registerDelegationTools(registry, factory, et, wt, rejectConfirm);
+
+    await expect(
+      callTool(registry, "invoke_planner", { task: "t" }),
+    ).rejects.toThrow();
+
+    expect(rejectConfirm).toHaveBeenCalledWith(null);
   });
 });

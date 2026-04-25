@@ -574,7 +574,6 @@ describe("EditorTools", () => {
       expect(agentConfig.tools).not.toContain("edit");
       expect(agentConfig.tools).not.toContain("write");
     });
-
   });
 
   describe("write", () => {

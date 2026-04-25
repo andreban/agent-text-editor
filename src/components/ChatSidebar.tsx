@@ -13,6 +13,7 @@ import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
 import { ChatItem, ChildItem, StreamItem } from "./ChatItem";
+import { PlanConfirmationWidget } from "./PlanConfirmationWidget";
 import {
   DocRef,
   Segment,
@@ -551,6 +552,8 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
           </div>
         )}
       </div>
+
+      <PlanConfirmationWidget />
 
       <div className="p-4 border-t bg-background/50 backdrop-blur-sm flex items-end gap-2">
         <div className="relative flex-1">

@@ -287,6 +287,7 @@ function App() {
     setPendingTabSwitchRequest,
     pendingWorkspaceAction,
     setPendingWorkspaceAction,
+    setPendingPlanConfirmation,
   } = useEditorUI();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
@@ -423,10 +424,24 @@ function App() {
       call: createDelegateToSkillHandler(factory, editorTools, workspaceTools),
     });
 
-    registerDelegationTools(registry, factory, editorTools, workspaceTools);
+    registerDelegationTools(
+      registry,
+      factory,
+      editorTools,
+      workspaceTools,
+      setPendingPlanConfirmation,
+    );
 
     return new AgentRunner(adapter, registry);
-  }, [apiKey, factory, modelName, setTotalTokens, editorTools, workspaceTools]);
+  }, [
+    apiKey,
+    factory,
+    modelName,
+    setTotalTokens,
+    editorTools,
+    workspaceTools,
+    setPendingPlanConfirmation,
+  ]);
 
   const conversation = useMemo(() => {
     if (!runner) return null;
