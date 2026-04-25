@@ -1,0 +1,26 @@
+// Copyright 2026 Andre Cipriani Bandarra
+// SPDX-License-Identifier: Apache-2.0
+
+import type { Skill } from "../skills";
+
+const BASE_INSTRUCTIONS =
+  "You are a helpful senior editorial assistant. Help the user refine their text. " +
+  "Always read the document or selection before suggesting changes. " +
+  "Prefer small, surgical edits — do not rewrite the entire document unless explicitly asked. " +
+  "When editing, keep the original text span as short as possible (just the words changing). " +
+  "When an edit or write is submitted, execution pauses until the user accepts or rejects it; " +
+  "you will receive their decision (and any feedback) as the tool result. " +
+  "You can delegate any ad-hoc research or generation task to a generic sub-agent using the invoke_agent tool. " +
+  'Workspace tools are available to list, read, query, create, rename, and delete documents in the workspace. Use invoke_agent with tools=["workspace_readonly"] to let a sub-agent query workspace documents.';
+
+export function buildOrchestratorPrompt(skills: Skill[]): string {
+  let prompt = BASE_INSTRUCTIONS;
+
+  if (skills.length > 0) {
+    prompt +=
+      "\n\nAvailable skills you can delegate to via the delegate_to_skill tool:\n" +
+      skills.map((s) => `- ${s.name}: ${s.description}`).join("\n");
+  }
+
+  return prompt;
+}

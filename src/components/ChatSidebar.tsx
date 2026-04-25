@@ -120,7 +120,8 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
   const selectDoc = (doc: DocRef) => {
     if (segments.some((s) => s.doc.id === doc.id)) return;
     const atIdx = trailingInput.lastIndexOf("@");
-    const textBefore = atIdx >= 0 ? trailingInput.slice(0, atIdx) : trailingInput;
+    const textBefore =
+      atIdx >= 0 ? trailingInput.slice(0, atIdx) : trailingInput;
     setSegments((prev) => [...prev, { text: textBefore, doc }]);
     setTrailingInput("");
     setMentionQuery(null);
@@ -217,7 +218,10 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
     let toolId: string | null = null;
 
     // Tracks the active skill item and its pending child tool ID.
-    const activeSkillRef = { id: null as string | null, toolId: null as string | null };
+    const activeSkillRef = {
+      id: null as string | null,
+      toolId: null as string | null,
+    };
 
     const ensureAssistant = (): string => {
       if (assistantId) return assistantId;
@@ -231,38 +235,57 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
       return id;
     };
 
-    const onToolEvent = (_toolName: string, event: import("@mast-ai/core").AgentEvent) => {
+    const onToolEvent = (
+      _toolName: string,
+      event: import("@mast-ai/core").AgentEvent,
+    ) => {
       const skillId = activeSkillRef.id;
       if (!skillId) return;
 
       if (event.type === "thinking" || event.type === "text_delta") {
-        const kind = event.type === "thinking" ? "thought" as const : "text" as const;
+        const kind =
+          event.type === "thinking" ? ("thought" as const) : ("text" as const);
         const delta = event.delta;
         setItems((prev) =>
           prev.map((it) => {
-            if (it.kind !== "skill" || it.id !== skillId) return it;
+            if (
+              (it.kind !== "skill" && it.kind !== "agent") ||
+              it.id !== skillId
+            )
+              return it;
             const last = it.childItems[it.childItems.length - 1];
             if (last && last.kind === kind) {
               return {
                 ...it,
                 childItems: it.childItems.map((c, i) =>
-                  i === it.childItems.length - 1 ? { ...c, text: (c as { text: string }).text + delta } : c,
+                  i === it.childItems.length - 1
+                    ? { ...c, text: (c as { text: string }).text + delta }
+                    : c,
                 ),
               };
             }
             return {
               ...it,
-              childItems: [...it.childItems, { kind, id: `child-${crypto.randomUUID()}`, text: delta }],
+              childItems: [
+                ...it.childItems,
+                { kind, id: `child-${crypto.randomUUID()}`, text: delta },
+              ],
             };
           }),
         );
       } else if (event.type === "tool_call_started") {
         const tid = `child-tool-${crypto.randomUUID()}`;
         activeSkillRef.toolId = tid;
-        const childTool: ChildItem = { kind: "tool", id: tid, name: event.name, pending: true, params: event.args };
+        const childTool: ChildItem = {
+          kind: "tool",
+          id: tid,
+          name: event.name,
+          pending: true,
+          params: event.args,
+        };
         setItems((prev) =>
           prev.map((it) =>
-            it.kind === "skill" && it.id === skillId
+            (it.kind === "skill" || it.kind === "agent") && it.id === skillId
               ? { ...it, childItems: [...it.childItems, childTool] }
               : it,
           ),
@@ -273,11 +296,17 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
           const toolResult = event.result;
           setItems((prev) =>
             prev.map((it) => {
-              if (it.kind !== "skill" || it.id !== skillId) return it;
+              if (
+                (it.kind !== "skill" && it.kind !== "agent") ||
+                it.id !== skillId
+              )
+                return it;
               return {
                 ...it,
                 childItems: it.childItems.map((c) =>
-                  c.kind === "tool" && c.id === tid ? { ...c, pending: false, result: toolResult } : c,
+                  c.kind === "tool" && c.id === tid
+                    ? { ...c, pending: false, result: toolResult }
+                    : c,
                 ),
               };
             }),
@@ -289,7 +318,11 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
 
     try {
       onBeforeSend?.();
-      for await (const event of conversation.runStream(prompt, abortController.signal, onToolEvent)) {
+      for await (const event of conversation.runStream(
+        prompt,
+        abortController.signal,
+        onToolEvent,
+      )) {
         if (event.type === "thinking") {
           const id = ensureAssistant();
           const delta = event.delta;
@@ -325,13 +358,35 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
           }
           const tid = `tool-${crypto.randomUUID()}`;
           toolId = tid;
-          if (event.name === "delegate_to_skill") {
+          if (event.name === "invoke_agent") {
+            const args = event.args as { systemPrompt?: string; task?: string };
+            activeSkillRef.id = tid;
+            activeSkillRef.toolId = null;
+            setItems((prev) => [
+              ...prev,
+              {
+                kind: "agent",
+                id: tid,
+                agentRole: "Agent",
+                task: args.task ?? "",
+                pending: true,
+                childItems: [],
+              },
+            ]);
+          } else if (event.name === "delegate_to_skill") {
             const args = event.args as { skillName?: string; task?: string };
             activeSkillRef.id = tid;
             activeSkillRef.toolId = null;
             setItems((prev) => [
               ...prev,
-              { kind: "skill", id: tid, name: args.skillName ?? "skill", task: args.task ?? "", pending: true, childItems: [] },
+              {
+                kind: "skill",
+                id: tid,
+                name: args.skillName ?? "skill",
+                task: args.task ?? "",
+                pending: true,
+                childItems: [],
+              },
             ]);
           } else {
             const name = event.name;
@@ -348,7 +403,8 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
             if (activeSkillRef.id === closeToolId) {
               setItems((prev) =>
                 prev.map((it) =>
-                  it.kind === "skill" && it.id === closeToolId
+                  (it.kind === "skill" || it.kind === "agent") &&
+                  it.id === closeToolId
                     ? { ...it, pending: false }
                     : it,
                 ),
@@ -530,9 +586,7 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
           <div className="flex flex-wrap items-start gap-1 border rounded-md bg-background px-3 py-2 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0">
             {segments.map((seg) => (
               <Fragment key={seg.doc.id}>
-                {seg.text && (
-                  <span className="text-sm">{seg.text}</span>
-                )}
+                {seg.text && <span className="text-sm">{seg.text}</span>}
                 <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-medium rounded px-2 py-0.5">
                   @{seg.doc.title}
                   <button

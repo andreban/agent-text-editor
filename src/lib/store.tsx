@@ -25,6 +25,15 @@ export interface WorkspaceActionRequest {
   resolve: (message: string) => void;
 }
 
+export interface WorkflowState {
+  planId: string;
+  steps: Array<{
+    id: string;
+    status: "pending" | "running" | "done" | "failed" | "skipped";
+    result?: unknown;
+  }>;
+}
+
 interface AppState {
   apiKey: string | null;
   setApiKey: (key: string | null) => void;
@@ -52,6 +61,8 @@ interface AppState {
   setApproveAll: (approve: boolean) => void;
   skills: Skill[];
   setSkills: (skills: Skill[]) => void;
+  workflowState: WorkflowState | null;
+  setWorkflowState: (state: WorkflowState | null) => void;
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -79,6 +90,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     useState<WorkspaceActionRequest | null>(null);
   const [approveAll, setApproveAll] = useState(false);
   const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());
+  const [workflowState, setWorkflowState] = useState<WorkflowState | null>(
+    null,
+  );
 
   const setSkills = (updated: Skill[]) => {
     saveSkills(updated);
@@ -122,6 +136,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
         setApproveAll,
         skills,
         setSkills,
+        workflowState,
+        setWorkflowState,
       }}
     >
       {children}

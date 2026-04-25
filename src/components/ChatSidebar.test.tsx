@@ -85,10 +85,7 @@ describe("ChatSidebar", () => {
   it("renders user message after send", async () => {
     const user = userEvent.setup();
     renderSidebar(makeConversation([{ type: "done" }]));
-    await user.type(
-      getInput(),
-      "Hello AI",
-    );
+    await user.type(getInput(), "Hello AI");
     await user.click(screen.getByRole("button", { name: "Send" }));
     await waitFor(() => {
       expect(screen.getByText("Hello AI")).toBeInTheDocument();

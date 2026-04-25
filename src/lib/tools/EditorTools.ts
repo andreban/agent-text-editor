@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as monaco from "monaco-editor";
-import { AgentConfig, AgentEvent, AgentRunner, LlmAdapter, ToolContext, ToolRegistry } from "@mast-ai/core";
-import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import { Suggestion } from "./store";
-import { loadSkills } from "./skills";
+import {
+  AgentConfig,
+  AgentEvent,
+  ToolContext,
+  ToolRegistry,
+} from "@mast-ai/core";
+import { Suggestion } from "../store";
+import type { AgentRunnerFactory } from "../agents/factory";
+import { loadSkills } from "../skills";
 import { WorkspaceTools, registerWorkspaceTools } from "./WorkspaceTools";
 import { v4 as uuidv4 } from "uuid";
 
@@ -299,7 +304,7 @@ export function registerEditorTools(
 
 /**
  * Creates the delegate_to_skill tool call handler.
- * Extracted for testability; the adapterFactory parameter can be overridden in tests.
+ * Extracted for testability; the factory parameter can be overridden in tests.
  */
 type RunnerLike = {
   runBuilder: (agent: AgentConfig) => {
@@ -308,17 +313,17 @@ type RunnerLike = {
 };
 
 export function createDelegateToSkillHandler(
-  apiKey: string,
-  parentAdapter: LlmAdapter,
+  factory: AgentRunnerFactory,
   editorTools: EditorTools,
   workspaceTools: WorkspaceTools | null = null,
-  adapterFactory: (key: string, model: string) => LlmAdapter = (key, model) =>
-    new GoogleGenAIAdapter(key, model),
-  runnerFactory: (adapter: LlmAdapter, registry: ToolRegistry) => RunnerLike = (
-    adapter,
+  runnerFactory: (registry: ToolRegistry, model?: string) => RunnerLike = (
     registry,
-  ) => new AgentRunner(adapter, registry),
-): (args: { skillName: string; task: string }, context: ToolContext) => Promise<string> {
+    model,
+  ) => factory.create({ tools: registry, model }),
+): (
+  args: { skillName: string; task: string },
+  context: ToolContext,
+) => Promise<string> {
   return async ({ skillName, task }, context) => {
     const skills = loadSkills();
     const skill = skills.find((s) => s.name === skillName);
@@ -327,17 +332,13 @@ export function createDelegateToSkillHandler(
       return `Error: skill "${skillName}" not found. Available skills: ${names || "none"}`;
     }
 
-    const childAdapter = skill.model
-      ? adapterFactory(apiKey, skill.model)
-      : parentAdapter;
-
     const childRegistry = new ToolRegistry();
     registerEditorTools(childRegistry, editorTools);
     if (workspaceTools) {
       registerWorkspaceTools(childRegistry, workspaceTools);
     }
 
-    const childRunner = runnerFactory(childAdapter, childRegistry);
+    const childRunner = runnerFactory(childRegistry, skill.model);
     const agentConfig: AgentConfig = {
       name: skill.name,
       instructions: skill.instructions,
@@ -349,15 +350,13 @@ export function createDelegateToSkillHandler(
         "edit",
         "write",
         ...(workspaceTools
-          ? [
-              "create_document",
-              "list_workspace_docs",
-              "switch_active_document",
-            ]
+          ? ["create_document", "list_workspace_docs", "switch_active_document"]
           : []),
       ],
     };
-    for await (const event of childRunner.runBuilder(agentConfig).runStream(task)) {
+    for await (const event of childRunner
+      .runBuilder(agentConfig)
+      .runStream(task)) {
       if (event.type === "done") {
         return event.output;
       }

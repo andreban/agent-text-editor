@@ -294,7 +294,7 @@ The primary agent should be configured with a system prompt that explains its ro
 
 Agent tools execute as async JavaScript outside React's event loop. When a tool calls a React state setter (e.g., `setActiveDocumentId`), React schedules a re-render — it does **not** update state synchronously. The tool's Promise can resolve before React has committed the new state to the DOM.
 
-For document-switching operations this creates a concrete bug: `switch_active_document` calls `setActiveDocumentId(id)` and returns. The agent immediately calls `read()` or `edit()`. But `EditorPanel` drives Monaco via two chained `useEffect` hooks (the first fires when `activeDocument` changes and calls `setLocalContent`; the second propagates `localContent` to the store as `editorContent`). Both effects are deferred until after the browser paints. Monaco therefore still holds the *previous* document's content when the agent reads or edits it.
+For document-switching operations this creates a concrete bug: `switch_active_document` calls `setActiveDocumentId(id)` and returns. The agent immediately calls `read()` or `edit()`. But `EditorPanel` drives Monaco via two chained `useEffect` hooks (the first fires when `activeDocument` changes and calls `setLocalContent`; the second propagates `localContent` to the store as `editorContent`). Both effects are deferred until after the browser paints. Monaco therefore still holds the _previous_ document's content when the agent reads or edits it.
 
 The same race applies to `create_document`: the newly created document is switched in by the workspace context, but Monaco doesn't reflect it until the effects run.
 

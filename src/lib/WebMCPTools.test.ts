@@ -3,8 +3,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { registerWebMCPTools } from "./WebMCPTools";
-import { EditorTools } from "./EditorTools";
-import { WorkspaceTools } from "./WorkspaceTools";
+import { EditorTools } from "./tools/EditorTools";
+import { WorkspaceTools } from "./tools/WorkspaceTools";
 
 function makeEditorTools(): EditorTools {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,7 +27,11 @@ function makeEditorTools(): EditorTools {
 }
 
 function makeWorkspaceTools(): WorkspaceTools {
-  return new WorkspaceTools({ current: [] }, { current: null }, vi.fn());
+  return new WorkspaceTools(
+    { current: [] },
+    { current: null },
+    { create: vi.fn() },
+  );
 }
 
 describe("registerWebMCPTools", () => {

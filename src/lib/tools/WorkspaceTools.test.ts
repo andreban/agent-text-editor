@@ -4,8 +4,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { WorkspaceTools } from "./WorkspaceTools";
 import type {
-  AdapterFactory,
-  SubAgentFactory,
   CreateDocumentFn,
   RenameDocumentFn,
   DeleteDocumentFn,
@@ -15,8 +13,8 @@ import type {
   SetEditorValueFn,
   SetPendingWorkspaceActionFn,
 } from "./WorkspaceTools";
-import type { WorkspaceDocument } from "./workspace";
-import type { LlmAdapter } from "@mast-ai/core";
+import type { WorkspaceDocument } from "../workspace";
+import type { AgentRunnerFactory } from "../agents/factory";
 
 function makeDoc(
   overrides: Partial<WorkspaceDocument> = {},
@@ -44,33 +42,25 @@ const noActiveDoc = makeActiveDocRef(null);
 
 describe("WorkspaceTools", () => {
   let mockRun: ReturnType<typeof vi.fn>;
-  let adapterFactory: AdapterFactory;
-  let runnerFactory: SubAgentFactory;
+  let mockFactory: AgentRunnerFactory;
 
   beforeEach(() => {
     mockRun = vi.fn().mockResolvedValue({ output: "mock answer" });
-    adapterFactory = vi
-      .fn()
-      .mockReturnValue({} as LlmAdapter) as AdapterFactory;
-    runnerFactory = vi
-      .fn()
-      .mockReturnValue({ run: mockRun }) as SubAgentFactory;
+    mockFactory = {
+      create: vi.fn().mockReturnValue({ run: mockRun }),
+    };
   });
 
   describe("get_active_doc_info", () => {
     it("returns id and title of the active document", () => {
       const activeRef = makeActiveDocRef({ id: "x", title: "My Essay" });
-      const tools = new WorkspaceTools(makeRef([]), activeRef, adapterFactory);
+      const tools = new WorkspaceTools(makeRef([]), activeRef, mockFactory);
       const result = JSON.parse(tools.get_active_doc_info());
       expect(result).toEqual({ id: "x", title: "My Essay" });
     });
 
     it("returns error when no document is active", () => {
-      const tools = new WorkspaceTools(
-        makeRef([]),
-        noActiveDoc,
-        adapterFactory,
-      );
+      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, mockFactory);
       const result = JSON.parse(tools.get_active_doc_info());
       expect(result).toEqual({ error: "No active document" });
     });
@@ -82,11 +72,7 @@ describe("WorkspaceTools", () => {
         makeDoc({ id: "a", title: "Alpha", content: "secret" }),
         makeDoc({ id: "b", title: "Beta", content: "also secret" }),
       ];
-      const tools = new WorkspaceTools(
-        makeRef(docs),
-        noActiveDoc,
-        adapterFactory,
-      );
+      const tools = new WorkspaceTools(makeRef(docs), noActiveDoc, mockFactory);
       const result = JSON.parse(tools.list_workspace_docs());
       expect(result).toEqual([
         { id: "a", title: "Alpha" },
@@ -95,11 +81,7 @@ describe("WorkspaceTools", () => {
     });
 
     it("returns empty array when workspace has no documents", () => {
-      const tools = new WorkspaceTools(
-        makeRef([]),
-        noActiveDoc,
-        adapterFactory,
-      );
+      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, mockFactory);
       expect(JSON.parse(tools.list_workspace_docs())).toEqual([]);
     });
   });
@@ -114,7 +96,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([doc]),
         noActiveDoc,
-        adapterFactory,
+        mockFactory,
       );
       const result = JSON.parse(tools.read_workspace_doc({ id: "x" }));
       expect(result).toEqual({ title: "My Doc", content: "content here" });
@@ -124,7 +106,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([makeDoc()]),
         noActiveDoc,
-        adapterFactory,
+        mockFactory,
       );
       const result = JSON.parse(tools.read_workspace_doc({ id: "unknown" }));
       expect(result).toEqual({ error: "Document not found" });
@@ -133,17 +115,12 @@ describe("WorkspaceTools", () => {
 
   describe("query_workspace_doc", () => {
     it("returns error for unknown doc id", async () => {
-      const tools = new WorkspaceTools(
-        makeRef([]),
-        noActiveDoc,
-        adapterFactory,
-        runnerFactory,
-      );
+      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, mockFactory);
       const result = JSON.parse(
         await tools.query_workspace_doc({ id: "nope", query: "anything" }),
       );
       expect(result).toEqual({ error: "Document not found" });
-      expect(runnerFactory).not.toHaveBeenCalled();
+      expect(mockFactory.create).not.toHaveBeenCalled();
     });
 
     it("creates a sub-agent runner with doc content and query, returns summary", async () => {
@@ -156,8 +133,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([doc]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
       );
 
       const result = JSON.parse(
@@ -168,7 +144,7 @@ describe("WorkspaceTools", () => {
       );
 
       expect(result).toEqual({ summary: "A concise summary." });
-      expect(runnerFactory).toHaveBeenCalledOnce();
+      expect(mockFactory.create).toHaveBeenCalledOnce();
 
       const [agentConfig, input] = mockRun.mock.calls[0];
       expect(agentConfig.name).toBe("DocQuerier");
@@ -177,16 +153,15 @@ describe("WorkspaceTools", () => {
       expect(input).toContain("What color is the sky?");
     });
 
-    it("calls adapterFactory to create the sub-agent adapter", async () => {
+    it("calls factory.create to create the sub-agent runner", async () => {
       const doc = makeDoc();
       const tools = new WorkspaceTools(
         makeRef([doc]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
       );
       await tools.query_workspace_doc({ id: "doc-1", query: "q" });
-      expect(adapterFactory).toHaveBeenCalledOnce();
+      expect(mockFactory.create).toHaveBeenCalledOnce();
     });
   });
 
@@ -209,8 +184,7 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
@@ -270,8 +244,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
@@ -295,8 +268,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
@@ -320,8 +292,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
@@ -360,8 +331,7 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef(docs),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         vi.fn(),
         renameDocumentFn,
         vi.fn(),
@@ -435,8 +405,7 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef(docs),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         vi.fn(),
         vi.fn(),
         deleteDocumentFn,
@@ -509,8 +478,7 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef(docs),
         makeActiveDocRef(activeDoc),
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         vi.fn(),
         vi.fn(),
         vi.fn(),
@@ -578,12 +546,7 @@ describe("WorkspaceTools", () => {
         .mockResolvedValueOnce({ output: "Summary of doc 2." })
         .mockResolvedValueOnce({ output: "Final synthesized answer." });
 
-      const tools = new WorkspaceTools(
-        makeRef(docs),
-        noActiveDoc,
-        adapterFactory,
-        runnerFactory,
-      );
+      const tools = new WorkspaceTools(makeRef(docs), noActiveDoc, mockFactory);
       const result = JSON.parse(
         await tools.query_workspace({ query: "What do the docs say?" }),
       );
@@ -606,8 +569,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([makeDoc()]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
       );
       const result = JSON.parse(await tools.query_workspace({ query: "q" }));
       expect(result).toEqual({ answer: "Final answer." });
@@ -627,12 +589,7 @@ describe("WorkspaceTools", () => {
 
       mockRun.mockResolvedValueOnce({ output: "Only good doc answer." });
 
-      const tools = new WorkspaceTools(
-        makeRef(docs),
-        noActiveDoc,
-        adapterFactory,
-        runnerFactory,
-      );
+      const tools = new WorkspaceTools(makeRef(docs), noActiveDoc, mockFactory);
       const result = JSON.parse(await tools.query_workspace({ query: "q" }));
 
       const [, synthInput] = mockRun.mock.calls[0];

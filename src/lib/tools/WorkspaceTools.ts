@@ -1,18 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AgentRunner, LlmAdapter, ToolRegistry } from "@mast-ai/core";
-import type { AgentConfig } from "@mast-ai/core";
+import { AgentConfig, ToolRegistry } from "@mast-ai/core";
 import { v4 as uuidv4 } from "uuid";
-import { WorkspaceDocument } from "./workspace";
-import type { WorkspaceActionRequest } from "./store";
+import { WorkspaceDocument } from "../workspace";
+import type { WorkspaceActionRequest } from "../store";
+import type { AgentRunnerFactory } from "../agents/factory";
 
-type RunnerLike = {
-  run: (agent: AgentConfig, input: string) => Promise<{ output: string }>;
-};
-
-export type AdapterFactory = () => LlmAdapter;
-export type SubAgentFactory = (adapter: LlmAdapter) => RunnerLike;
 export type CreateDocumentFn = (title: string) => string;
 export type RenameDocumentFn = (id: string, title: string) => void;
 export type DeleteDocumentFn = (id: string) => void;
@@ -33,15 +27,11 @@ export interface ActiveDocRef {
   current: { id: string; title: string } | null;
 }
 
-const defaultRunnerFactory: SubAgentFactory = (adapter) =>
-  new AgentRunner(adapter);
-
 export class WorkspaceTools {
   constructor(
     private docsRef: DocsRef,
     private activeDocRef: ActiveDocRef,
-    private adapterFactory: AdapterFactory,
-    private runnerFactory: SubAgentFactory = defaultRunnerFactory,
+    private factory: AgentRunnerFactory,
     private createDocumentFn: CreateDocumentFn = () => "",
     private renameDocumentFn: RenameDocumentFn = () => {},
     private deleteDocumentFn: DeleteDocumentFn = () => {},
@@ -80,14 +70,13 @@ export class WorkspaceTools {
     const doc = this.docsRef.current.find((d) => d.id === id);
     if (!doc) return JSON.stringify({ error: "Document not found" });
 
-    const adapter = this.adapterFactory();
-    const runner = this.runnerFactory(adapter);
     const agent: AgentConfig = {
       name: "DocQuerier",
       instructions:
         "You are a helpful assistant. Answer the user's question based solely on the provided document. Reply with a concise summary or direct answer.",
       tools: [],
     };
+    const runner = this.factory.create({ systemPrompt: agent.instructions });
     const input = `Document title: ${doc.title}\n\nDocument content:\n${doc.content}\n\nQuestion: ${query}`;
     const result = await runner.run(agent, input);
     return JSON.stringify({ summary: result.output });
@@ -200,14 +189,13 @@ export class WorkspaceTools {
       }
     }
 
-    const adapter = this.adapterFactory();
-    const runner = this.runnerFactory(adapter);
     const agent: AgentConfig = {
       name: "WorkspaceSynthesizer",
       instructions:
         "You are a helpful assistant. Synthesize the provided per-document summaries to give a comprehensive answer to the user's question.",
       tools: [],
     };
+    const runner = this.factory.create({ systemPrompt: agent.instructions });
     const input = `Summaries from workspace documents:\n\n${summaries.join("\n\n")}\n\nQuestion: ${query}`;
     const result = await runner.run(agent, input);
     return JSON.stringify({ answer: result.output });
@@ -381,6 +369,87 @@ export function registerWorkspaceTools(
             type: "string",
             description:
               "The question to answer across all workspace documents.",
+          },
+        },
+        required: ["query"],
+      },
+    }),
+    call: async (args: { query: string }) => tools.query_workspace(args),
+  });
+}
+
+export function registerReadonlyWorkspaceTools(
+  registry: ToolRegistry,
+  tools: WorkspaceTools,
+): void {
+  registry.register({
+    definition: () => ({
+      name: "get_active_doc_info",
+      description:
+        "Returns the id and title of the document currently open in the editor.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.get_active_doc_info(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "list_workspace_docs",
+      description:
+        "Lists all documents in the workspace. Returns an array of { id, title } objects.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.list_workspace_docs(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "read_workspace_doc",
+      description:
+        "Reads the full content of a specific document. Returns { title, content } or { error }.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "The document ID to read." },
+        },
+        required: ["id"],
+      },
+    }),
+    call: async (args: { id: string }) => tools.read_workspace_doc(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "query_workspace_doc",
+      description:
+        "Asks a question about a specific document using a sub-agent. Returns { summary }.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "The document ID to query." },
+          query: {
+            type: "string",
+            description: "The question about the document.",
+          },
+        },
+        required: ["id", "query"],
+      },
+    }),
+    call: async (args: { id: string; query: string }) =>
+      tools.query_workspace_doc(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "query_workspace",
+      description:
+        "Asks a question spanning all workspace documents and synthesizes the results. Returns { answer }.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The question to answer across all documents.",
           },
         },
         required: ["query"],

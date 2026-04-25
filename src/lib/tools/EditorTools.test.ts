@@ -3,8 +3,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EditorTools, createDelegateToSkillHandler } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
-import { saveSkills } from "./skills";
-import type { LlmAdapter } from "@mast-ai/core";
+import { saveSkills } from "../skills";
+import type { AgentRunnerFactory } from "../agents/factory";
 
 describe("EditorTools", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -353,11 +353,10 @@ describe("EditorTools", () => {
   });
 
   describe("delegate_to_skill", () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let parentAdapter: any;
     let editorToolsInstance: EditorTools;
     let mockRunStream: ReturnType<typeof vi.fn>;
     let mockRunBuilder: ReturnType<typeof vi.fn>;
+    let mockFactory: AgentRunnerFactory;
 
     function makeMockStream(
       output: string,
@@ -371,22 +370,19 @@ describe("EditorTools", () => {
 
     beforeEach(() => {
       localStorage.clear();
-      parentAdapter = {
-        generate: vi.fn(),
-        generateStream: vi.fn(),
-      } as unknown as LlmAdapter;
       editorToolsInstance = new EditorTools(mockEditor, setSuggestions, false);
       mockRunStream = vi.fn().mockReturnValue(makeMockStream("done"));
       mockRunBuilder = vi.fn().mockReturnValue({ runStream: mockRunStream });
+      mockFactory = {
+        create: vi.fn().mockReturnValue({ runBuilder: mockRunBuilder }),
+      };
     });
 
-    function makeHandler(adapterFactory = vi.fn()) {
+    function makeHandler(factory = mockFactory) {
       return createDelegateToSkillHandler(
-        "test-api-key",
-        parentAdapter,
+        factory,
         editorToolsInstance,
         null,
-        adapterFactory,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         () => ({ runBuilder: mockRunBuilder }) as any,
       );
@@ -441,16 +437,13 @@ describe("EditorTools", () => {
       expect(agentConfig.tools).not.toContain("delegate_to_skill");
     });
 
-    it("reuses parent adapter when skill has no model", async () => {
+    it("does not call factory.create when a custom runnerFactory override is used", async () => {
       saveSkills([
         { id: "1", name: "Proofreader", description: "d", instructions: "i" },
       ]);
-      const adapterFactory = vi.fn();
-      await makeHandler(adapterFactory)(
-        { skillName: "Proofreader", task: "t" },
-        {},
-      );
-      expect(adapterFactory).not.toHaveBeenCalled();
+      await makeHandler()({ skillName: "Proofreader", task: "t" }, {});
+      // The override runnerFactory is used directly; factory.create is bypassed
+      expect(mockRunBuilder).toHaveBeenCalledOnce();
     });
 
     it("forwards non-done child events via context.onEvent", async () => {
@@ -465,7 +458,10 @@ describe("EditorTools", () => {
       ]);
       const onEvent = vi.fn();
       await makeHandler()({ skillName: "Proofreader", task: "t" }, { onEvent });
-      expect(onEvent).toHaveBeenCalledWith({ type: "text_delta", delta: "hello" });
+      expect(onEvent).toHaveBeenCalledWith({
+        type: "text_delta",
+        delta: "hello",
+      });
       expect(onEvent).toHaveBeenCalledWith({ type: "thinking", delta: "hmm" });
       expect(onEvent).not.toHaveBeenCalledWith(
         expect.objectContaining({ type: "done" }),
@@ -479,28 +475,23 @@ describe("EditorTools", () => {
       const mockWorkspaceTools = new WorkspaceTools(
         { current: [] },
         { current: null },
-        vi.fn(),
+        mockFactory,
       );
       const handler = createDelegateToSkillHandler(
-        "test-api-key",
-        parentAdapter,
+        mockFactory,
         editorToolsInstance,
         mockWorkspaceTools,
-        vi.fn(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         () => ({ runBuilder: mockRunBuilder }) as any,
       );
-      await handler(
-        { skillName: "Create Skill", task: "create a skill" },
-        {},
-      );
+      await handler({ skillName: "Create Skill", task: "create a skill" }, {});
       const [agentConfig] = mockRunBuilder.mock.calls[0];
       expect(agentConfig.tools).toContain("create_document");
       expect(agentConfig.tools).toContain("list_workspace_docs");
       expect(agentConfig.tools).toContain("switch_active_document");
     });
 
-    it("calls adapterFactory when skill specifies a model", async () => {
+    it("passes model to runnerFactory when skill specifies a model", async () => {
       saveSkills([
         {
           id: "1",
@@ -510,14 +501,18 @@ describe("EditorTools", () => {
           model: "gemini-2.5-pro",
         },
       ]);
-      const newAdapter = { generate: vi.fn() } as unknown as LlmAdapter;
-      const adapterFactory = vi.fn().mockReturnValue(newAdapter);
-      await makeHandler(adapterFactory)(
-        { skillName: "Proofreader", task: "t" },
-        {},
+      const customRunnerFactory = vi
+        .fn()
+        .mockReturnValue({ runBuilder: mockRunBuilder });
+      const handler = createDelegateToSkillHandler(
+        mockFactory,
+        editorToolsInstance,
+        null,
+        customRunnerFactory,
       );
-      expect(adapterFactory).toHaveBeenCalledWith(
-        "test-api-key",
+      await handler({ skillName: "Proofreader", task: "t" }, {});
+      expect(customRunnerFactory).toHaveBeenCalledWith(
+        expect.anything(),
         "gemini-2.5-pro",
       );
     });

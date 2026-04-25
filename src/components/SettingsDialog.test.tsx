@@ -36,6 +36,8 @@ function mockStore(apiKey: string | null, modelName: string) {
     setApproveAll: vi.fn(),
     skills: [],
     setSkills: vi.fn(),
+    workflowState: null,
+    setWorkflowState: vi.fn(),
   });
 }
 

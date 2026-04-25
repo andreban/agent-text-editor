@@ -1,8 +1,8 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { EditorTools } from "./EditorTools";
-import { WorkspaceTools } from "./WorkspaceTools";
+import { EditorTools } from "./tools/EditorTools";
+import { WorkspaceTools } from "./tools/WorkspaceTools";
 
 interface WebMCPTool {
   name: string;
