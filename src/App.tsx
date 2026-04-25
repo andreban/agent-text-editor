@@ -37,8 +37,16 @@ import {
   EditorTools,
   registerEditorTools,
   createDelegateToSkillHandler,
-} from "@/lib/EditorTools";
-import { WorkspaceTools, registerWorkspaceTools } from "@/lib/WorkspaceTools";
+} from "@/lib/tools/EditorTools";
+import {
+  WorkspaceTools,
+  registerWorkspaceTools,
+} from "@/lib/tools/WorkspaceTools";
+import { registerDelegationTools } from "@/lib/tools/DelegationTools";
+import {
+  DefaultAgentRunnerFactory,
+  buildOrchestratorPrompt,
+} from "@/lib/agents";
 import { registerWebMCPTools } from "@/lib/WebMCPTools";
 import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
 
@@ -149,7 +157,10 @@ function DesktopLayout({ conversation, onBeforeSend }: LayoutProps) {
         </div>
         {chatOpen && (
           <div className="flex-1 min-h-0 overflow-hidden">
-            <ChatSidebar conversation={conversation} onBeforeSend={onBeforeSend} />
+            <ChatSidebar
+              conversation={conversation}
+              onBeforeSend={onBeforeSend}
+            />
           </div>
         )}
       </aside>
@@ -250,7 +261,10 @@ function MobileLayout({ conversation, onBeforeSend }: LayoutProps) {
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           {sheetMode === "chat" ? (
-            <ChatSidebar conversation={conversation} onBeforeSend={onBeforeSend} />
+            <ChatSidebar
+              conversation={conversation}
+              onBeforeSend={onBeforeSend}
+            />
           ) : (
             <WorkspacePanel />
           )}
@@ -259,14 +273,6 @@ function MobileLayout({ conversation, onBeforeSend }: LayoutProps) {
     </div>
   );
 }
-
-const BASE_INSTRUCTIONS =
-  "You are a helpful senior editorial assistant. Help the user refine their text. " +
-  "Always read the document or selection before suggesting changes. " +
-  "Prefer small, surgical edits — do not rewrite the entire document unless explicitly asked. " +
-  "When editing, keep the original text span as short as possible (just the words changing). " +
-  "When an edit or write is submitted, execution pauses until the user accepts or rejects it; " +
-  "you will receive their decision (and any feedback) as the tool result.";
 
 function App() {
   const {
@@ -335,13 +341,22 @@ function App() {
     ],
   );
 
+  const factory = useMemo(
+    () =>
+      apiKey
+        ? new DefaultAgentRunnerFactory(apiKey, modelName, (usage) =>
+            setTotalTokens((prev) => prev + (usage.totalTokenCount || 0)),
+          )
+        : null,
+    [apiKey, modelName, setTotalTokens],
+  );
+
   const workspaceTools = useMemo(
     () =>
       new WorkspaceTools(
         docsRef,
         activeDocRef,
-        () => new GoogleGenAIAdapter(apiKey ?? "", modelName),
-        undefined,
+        factory ?? new DefaultAgentRunnerFactory("", ""),
         (title) => createDocumentWithTitle(title),
         (id, title) => updateDocument(id, { title }),
         (id) => deleteDocument(id),
@@ -355,8 +370,7 @@ function App() {
     [
       docsRef,
       activeDocRef,
-      apiKey,
-      modelName,
+      factory,
       createDocumentWithTitle,
       updateDocument,
       deleteDocument,
@@ -374,7 +388,7 @@ function App() {
   );
 
   const runner = useMemo(() => {
-    if (!apiKey) return null;
+    if (!apiKey || !factory) return null;
     const adapter = new GoogleGenAIAdapter(apiKey, modelName, (usage) => {
       setTotalTokens((prev) => prev + (usage.totalTokenCount || 0));
     });
@@ -405,30 +419,22 @@ function App() {
           required: ["skillName", "task"],
         },
       }),
-      call: createDelegateToSkillHandler(
-        apiKey!,
-        adapter,
-        editorTools,
-        workspaceTools,
-      ),
+      call: createDelegateToSkillHandler(factory, editorTools, workspaceTools),
     });
 
+    registerDelegationTools(registry, factory, editorTools, workspaceTools);
+
     return new AgentRunner(adapter, registry);
-  }, [apiKey, modelName, setTotalTokens, editorTools, workspaceTools]);
+  }, [apiKey, factory, modelName, setTotalTokens, editorTools, workspaceTools]);
 
   const conversation = useMemo(() => {
     if (!runner) return null;
-    const skillsSection =
-      skills.length > 0
-        ? "\n\nAvailable skills you can delegate to via the delegate_to_skill tool:\n" +
-          skills.map((s) => `- ${s.name}: ${s.description}`).join("\n")
-        : "";
     const agent: AgentConfig = {
       name: "EditorAssistant",
-      instructions: BASE_INSTRUCTIONS + skillsSection,
+      instructions: buildOrchestratorPrompt(skills),
     };
     return runner.conversation(agent);
-  }, [runner, skills]);
+  }, [runner, skills, activeWorkspaceId]);
 
   const isMobile = useIsMobile();
 
@@ -453,9 +459,15 @@ function App() {
   return (
     <>
       {isMobile ? (
-        <MobileLayout conversation={conversation} onBeforeSend={flushEditorContent} />
+        <MobileLayout
+          conversation={conversation}
+          onBeforeSend={flushEditorContent}
+        />
       ) : (
-        <DesktopLayout conversation={conversation} onBeforeSend={flushEditorContent} />
+        <DesktopLayout
+          conversation={conversation}
+          onBeforeSend={flushEditorContent}
+        />
       )}
 
       <Dialog

@@ -44,6 +44,8 @@ function mockStore(skills: Skill[]) {
     setApproveAll: vi.fn(),
     skills,
     setSkills: mockSetSkills,
+    workflowState: null,
+    setWorkflowState: vi.fn(),
   });
 }
 
