@@ -20,16 +20,25 @@ export async function judge(
     `5 – Fully meets all criteria with no issues.\n\n` +
     `Task-specific rubric:\n${rubric}\n\n` +
     `Output to evaluate:\n${text}\n\n` +
-    `Respond with ONLY a single integer: 1, 2, 3, 4, or 5. No explanation.`;
+    `Respond with a JSON object with a "rationale" string (one sentence) and a "score" integer.`;
 
   const response = await adapter.generate({
     messages: [{ role: "user", content: { type: "text", text: prompt } }],
     tools: [],
+    outputSchema: {
+      type: "object",
+      properties: {
+        rationale: { type: "string" },
+        score: { type: "integer", minimum: 1, maximum: 5 },
+      },
+      required: ["rationale", "score"],
+    },
   });
 
   const raw = response.text?.trim() ?? "";
-  const score = parseInt(raw, 10);
-  if (isNaN(score) || score < 1 || score > 5) {
+  const parsed = JSON.parse(raw) as { rationale: string; score: number };
+  const score = parsed.score;
+  if (!Number.isInteger(score) || score < 1 || score > 5) {
     throw new Error(`judge: unexpected response: ${raw}`);
   }
   return score;
