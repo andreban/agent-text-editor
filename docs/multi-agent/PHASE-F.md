@@ -65,8 +65,10 @@ Produce ONLY valid JSON: { "summary": "..." }
 **Factory functions** (same pattern as `createPlannerAgent`):
 
 ```ts
-export function createDocQuerierAgent(factory: AgentRunnerFactory): AgentRunner
-export function createSynthesizerAgent(factory: AgentRunnerFactory): AgentRunner
+export function createDocQuerierAgent(factory: AgentRunnerFactory): AgentRunner;
+export function createSynthesizerAgent(
+  factory: AgentRunnerFactory,
+): AgentRunner;
 ```
 
 **Core research logic:**
@@ -77,7 +79,7 @@ export async function runResearch(
   docs: WorkspaceDocument[],
   factory: AgentRunnerFactory,
   docIds?: string[],
-): Promise<ResearchResult>
+): Promise<ResearchResult>;
 ```
 
 - Filters `docs` to only those in `docIds` if provided; otherwise uses all docs.
@@ -155,18 +157,18 @@ Ten routing fixtures. Each entry has:
 
 Coverage (5 researcher, 3 planner, 2 none/direct):
 
-| # | Prompt type | Expected tool |
-|---|-------------|--------------|
-| 1 | "Find all mentions of the deadline in my notes" | `invoke_researcher` |
-| 2 | "Summarise the key points from my research documents" | `invoke_researcher` |
-| 3 | "What does the style guide say about headings?" | `invoke_researcher` |
-| 4 | "Look up the background section in my outline" | `invoke_researcher` |
-| 5 | "What do my docs say about the target audience?" | `invoke_researcher` |
-| 6 | "Write a blog post about async collaboration" | `invoke_planner` |
-| 7 | "Research my notes and draft a conclusion" | `invoke_planner` |
-| 8 | "Edit this paragraph to be more concise" | `none` |
-| 9 | "Fix the typos in the selection" | `none` |
-| 10 | "Write a one-line summary of the active document" | `none` |
+| #   | Prompt type                                           | Expected tool       |
+| --- | ----------------------------------------------------- | ------------------- |
+| 1   | "Find all mentions of the deadline in my notes"       | `invoke_researcher` |
+| 2   | "Summarise the key points from my research documents" | `invoke_researcher` |
+| 3   | "What does the style guide say about headings?"       | `invoke_researcher` |
+| 4   | "Look up the background section in my outline"        | `invoke_researcher` |
+| 5   | "What do my docs say about the target audience?"      | `invoke_researcher` |
+| 6   | "Write a blog post about async collaboration"         | `invoke_planner`    |
+| 7   | "Research my notes and draft a conclusion"            | `invoke_planner`    |
+| 8   | "Edit this paragraph to be more concise"              | `none`              |
+| 9   | "Fix the typos in the selection"                      | `none`              |
+| 10  | "Write a one-line summary of the active document"     | `none`              |
 
 ---
 
@@ -199,20 +201,20 @@ One final `it("routing accuracy ≥ 80%")` counts passing fixtures and asserts t
 
 ## Files modified
 
-| File | Change |
-|------|--------|
-| `src/lib/tools/WorkspaceTools.ts` | Update `query_workspace_doc` to return `{ summary, excerpt }`. Refactor `query_workspace` to delegate to `runResearch`. Expose `docsRef` as public. |
-| `src/lib/tools/DelegationTools.ts` | Add `invoke_researcher` tool registration. |
-| `src/lib/agents/index.ts` | Re-export `ResearchResult`, `ResearchSource` from `researcher.ts`. |
-| `src/lib/agents/orchestrator.ts` | Add guidance for `invoke_researcher` vs `query_workspace_doc`. |
+| File                               | Change                                                                                                                                              |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/tools/WorkspaceTools.ts`  | Update `query_workspace_doc` to return `{ summary, excerpt }`. Refactor `query_workspace` to delegate to `runResearch`. Expose `docsRef` as public. |
+| `src/lib/tools/DelegationTools.ts` | Add `invoke_researcher` tool registration.                                                                                                          |
+| `src/lib/agents/index.ts`          | Re-export `ResearchResult`, `ResearchSource` from `researcher.ts`.                                                                                  |
+| `src/lib/agents/orchestrator.ts`   | Add guidance for `invoke_researcher` vs `query_workspace_doc`.                                                                                      |
 
 ## Files created
 
-| File | Purpose |
-|------|---------|
-| `src/lib/agents/researcher.ts` | `ResearchResult` types, agent factory functions, `runResearch` helper. |
-| `src/lib/agents/evals/routing.eval.ts` | Routing accuracy eval suite. |
-| `src/lib/agents/evals/fixtures/routing.json` | Ten routing fixtures. |
+| File                                         | Purpose                                                                |
+| -------------------------------------------- | ---------------------------------------------------------------------- |
+| `src/lib/agents/researcher.ts`               | `ResearchResult` types, agent factory functions, `runResearch` helper. |
+| `src/lib/agents/evals/routing.eval.ts`       | Routing accuracy eval suite.                                           |
+| `src/lib/agents/evals/fixtures/routing.json` | Ten routing fixtures.                                                  |
 
 ---
 

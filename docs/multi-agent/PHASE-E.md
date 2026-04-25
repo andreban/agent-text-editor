@@ -70,7 +70,7 @@ export async function judge(
   rubric: string,
   criteria: string,
   adapter: LlmAdapter,
-): Promise<number>
+): Promise<number>;
 ```
 
 **Implementation notes:**
@@ -119,13 +119,13 @@ dependsOn: []. Redundant or empty steps are absent.
 
 Fixture coverage:
 
-| # | Task type | Expected shape |
-|---|-----------|---------------|
-| 1 | Simple single-outcome task | 1–2 steps, no dependencies |
-| 2 | Compound multi-phase task (research → draft → polish) | 3+ sequential steps |
-| 3 | Task with parallel opportunities | Multiple steps with `dependsOn: []` |
-| 4 | Revision task (editing existing text) | Steps scoped to diff, not full rewrite |
-| 5 | Research-then-write task | Research step(s) before drafting step(s) |
+| #   | Task type                                             | Expected shape                           |
+| --- | ----------------------------------------------------- | ---------------------------------------- |
+| 1   | Simple single-outcome task                            | 1–2 steps, no dependencies               |
+| 2   | Compound multi-phase task (research → draft → polish) | 3+ sequential steps                      |
+| 3   | Task with parallel opportunities                      | Multiple steps with `dependsOn: []`      |
+| 4   | Revision task (editing existing text)                 | Steps scoped to diff, not full rewrite   |
+| 5   | Research-then-write task                              | Research step(s) before drafting step(s) |
 
 Example fixture shape:
 
@@ -169,7 +169,9 @@ Scores are accumulated in a `beforeAll`-initialised shared array. Each fixture t
 **Running the planner** uses the same streaming pattern as `DelegationTools.ts`:
 
 ```ts
-for await (const event of runner.runBuilder(agentConfig).runStream(fixture.task)) {
+for await (const event of runner
+  .runBuilder(agentConfig)
+  .runStream(fixture.task)) {
   if (event.type === "done") {
     output = event.output;
     break;
@@ -181,18 +183,18 @@ for await (const event of runner.runBuilder(agentConfig).runStream(fixture.task)
 
 ## Files modified
 
-| File | Change |
-|------|--------|
+| File           | Change               |
+| -------------- | -------------------- |
 | `package.json` | Add `"evals"` script |
 
 ## Files created
 
-| File | Purpose |
-|------|---------|
-| `vitest.evals.config.ts` | Separate Vitest config for the eval tier |
-| `src/lib/agents/evals/judge.ts` | Shared LLM-as-judge scoring helper |
-| `src/lib/agents/evals/planning.eval.ts` | Planning quality eval suite |
-| `src/lib/agents/evals/fixtures/planning.json` | Five planning task fixtures |
+| File                                          | Purpose                                  |
+| --------------------------------------------- | ---------------------------------------- |
+| `vitest.evals.config.ts`                      | Separate Vitest config for the eval tier |
+| `src/lib/agents/evals/judge.ts`               | Shared LLM-as-judge scoring helper       |
+| `src/lib/agents/evals/planning.eval.ts`       | Planning quality eval suite              |
+| `src/lib/agents/evals/fixtures/planning.json` | Five planning task fixtures              |
 
 ---
 

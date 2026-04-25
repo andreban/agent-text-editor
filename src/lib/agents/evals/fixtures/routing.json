@@ -1,0 +1,52 @@
+[
+  {
+    "prompt": "Find all mentions of the deadline in my notes",
+    "expectedTool": "invoke_researcher",
+    "rationale": "Looking up information across workspace documents requires the researcher."
+  },
+  {
+    "prompt": "Summarise the key points from my research documents",
+    "expectedTool": "invoke_researcher",
+    "rationale": "Synthesizing content from multiple documents is the researcher's job."
+  },
+  {
+    "prompt": "What does the style guide say about headings?",
+    "expectedTool": "invoke_researcher",
+    "rationale": "Querying a specific document for information requires the researcher."
+  },
+  {
+    "prompt": "Look up the background section in my outline",
+    "expectedTool": "invoke_researcher",
+    "rationale": "Finding information in a workspace document requires the researcher."
+  },
+  {
+    "prompt": "What do my docs say about the target audience?",
+    "expectedTool": "invoke_researcher",
+    "rationale": "Querying workspace documents for information requires the researcher."
+  },
+  {
+    "prompt": "Plan and write a multi-section blog post about async collaboration",
+    "expectedTool": "invoke_planner",
+    "rationale": "Explicitly multi-step: needs an outline then per-section drafting, so a plan is required."
+  },
+  {
+    "prompt": "Research my notes and draft a conclusion section",
+    "expectedTool": "invoke_planner",
+    "rationale": "This requires both research and writing — a multi-step plan is needed."
+  },
+  {
+    "prompt": "Edit this paragraph to be more concise",
+    "expectedTool": "none",
+    "rationale": "A direct single-step edit that does not require planning or research."
+  },
+  {
+    "prompt": "Fix the typos in the selection",
+    "expectedTool": "none",
+    "rationale": "A straightforward edit requiring no delegation."
+  },
+  {
+    "prompt": "Make this paragraph shorter",
+    "expectedTool": "none",
+    "rationale": "A direct in-place edit on the visible editor text requiring no delegation or research."
+  }
+]
