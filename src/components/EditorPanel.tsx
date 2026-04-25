@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { MarkdownContent } from "./MarkdownContent";
-import { useApp } from "@/lib/store";
+import { useEditorUI } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { computeDiffDecorations } from "@/lib/diffDecorations";
@@ -33,7 +33,7 @@ export function EditorPanel() {
     setEditorContent,
     pendingTabSwitchRequest,
     setPendingTabSwitchRequest,
-  } = useApp();
+  } = useEditorUI();
   const { activeDocument, updateDocument } = useWorkspaces();
 
   const { theme } = useTheme();

@@ -1,0 +1,22 @@
+[
+  {
+    "task": "Fix the typo in the second paragraph of the product announcement email.",
+    "rubric": "5 – Single focused step targeting only the typo fix; no extra steps. 3 – Step addresses the fix but includes unnecessary surrounding work. 1 – Multiple vague steps or a full-document rewrite step."
+  },
+  {
+    "task": "Write a blog post introducing our new async collaboration feature.",
+    "rubric": "5 – Distinct research, drafting, and polish steps; each self-contained and sequentially ordered. 3 – Steps present but vague or a phase is missing. 1 – Single monolithic step or no logical ordering."
+  },
+  {
+    "task": "Summarize the three provided research papers and compare their methodologies.",
+    "rubric": "5 – Separate parallel summary steps for each paper (dependsOn: []) followed by a comparison step that depends on all three. 3 – Summaries present but not marked independent, or comparison missing. 1 – Single step or incorrect dependency declarations."
+  },
+  {
+    "task": "Revise the conclusion section to strengthen the call-to-action without changing the rest of the document.",
+    "rubric": "5 – Steps scoped to the conclusion only; no steps touch other sections. 3 – Steps mention revision but include broad document-wide actions. 1 – Steps call for a full rewrite or ignore the scope constraint."
+  },
+  {
+    "task": "Research best practices for onboarding remote employees and then write a guide based on your findings.",
+    "rubric": "5 – Research step(s) come before drafting step(s); drafting step explicitly depends on research. 3 – Both phases present but order or dependencies are unclear. 1 – Research and writing merged into one step or ordering reversed."
+  }
+]

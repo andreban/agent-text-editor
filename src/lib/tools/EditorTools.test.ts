@@ -3,8 +3,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EditorTools, createDelegateToSkillHandler } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
-import { saveSkills } from "./skills";
-import type { LlmAdapter } from "@mast-ai/core";
+import { saveSkills } from "../skills";
+import type { AgentRunnerFactory } from "../agents/factory";
 
 describe("EditorTools", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -38,21 +38,25 @@ describe("EditorTools", () => {
 
   describe("read", () => {
     it("should return the editor content", () => {
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.read()).toBe("Initial content");
     });
 
     it("should return empty string if editor is not initialized and no fallback", () => {
-      const tools = new EditorTools(null, setSuggestions, false);
+      const tools = new EditorTools({ current: null }, setSuggestions, {
+        current: false,
+      });
       expect(tools.read()).toBe("");
     });
 
     it("should fall back to getEditorContent when editor is not initialized", () => {
       const tools = new EditorTools(
-        null,
+        { current: null },
         setSuggestions,
-        false,
-        () => "fallback content",
+        { current: false },
+        { current: "fallback content" },
       );
       expect(tools.read()).toBe("fallback content");
     });
@@ -60,20 +64,20 @@ describe("EditorTools", () => {
     it("should fall back to getEditorContent when editor returns empty string", () => {
       mockEditor.getValue.mockReturnValue("");
       const tools = new EditorTools(
-        mockEditor,
+        { current: mockEditor },
         setSuggestions,
-        false,
-        () => "fallback content",
+        { current: false },
+        { current: "fallback content" },
       );
       expect(tools.read()).toBe("fallback content");
     });
 
     it("should prefer editor content over fallback when editor has content", () => {
       const tools = new EditorTools(
-        mockEditor,
+        { current: mockEditor },
         setSuggestions,
-        false,
-        () => "fallback content",
+        { current: false },
+        { current: "fallback content" },
       );
       expect(tools.read()).toBe("Initial content");
     });
@@ -81,17 +85,19 @@ describe("EditorTools", () => {
 
   describe("get_current_mode", () => {
     it("should return editor mode by default", () => {
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.get_current_mode()).toBe("editor");
     });
 
     it("should return the mode from getActiveTab", () => {
       const tools = new EditorTools(
-        mockEditor,
+        { current: mockEditor },
         setSuggestions,
-        false,
-        () => "",
-        () => "preview",
+        { current: false },
+        { current: "" },
+        { current: "preview" },
       );
       expect(tools.get_current_mode()).toBe("preview");
     });
@@ -100,11 +106,11 @@ describe("EditorTools", () => {
   describe("request_switch_to_editor", () => {
     it("should return already-in-editor message when already in editor mode", async () => {
       const tools = new EditorTools(
-        mockEditor,
+        { current: mockEditor },
         setSuggestions,
-        false,
-        () => "",
-        () => "editor",
+        { current: false },
+        { current: "" },
+        { current: "editor" },
       );
       expect(await tools.request_switch_to_editor()).toBe(
         "Already in editor mode.",
@@ -114,11 +120,11 @@ describe("EditorTools", () => {
     it("should return success message when user accepts the switch", async () => {
       const requestTabSwitch = vi.fn().mockResolvedValue(true);
       const tools = new EditorTools(
-        mockEditor,
+        { current: mockEditor },
         setSuggestions,
-        false,
-        () => "",
-        () => "preview",
+        { current: false },
+        { current: "" },
+        { current: "preview" },
         requestTabSwitch,
       );
       expect(await tools.request_switch_to_editor()).toBe(
@@ -130,11 +136,11 @@ describe("EditorTools", () => {
     it("should return declined message when user rejects the switch", async () => {
       const requestTabSwitch = vi.fn().mockResolvedValue(false);
       const tools = new EditorTools(
-        mockEditor,
+        { current: mockEditor },
         setSuggestions,
-        false,
-        () => "",
-        () => "preview",
+        { current: false },
+        { current: "" },
+        { current: "preview" },
         requestTabSwitch,
       );
       expect(await tools.request_switch_to_editor()).toBe(
@@ -145,14 +151,18 @@ describe("EditorTools", () => {
 
   describe("search", () => {
     it("should return error if editor is not initialized", () => {
-      const tools = new EditorTools(null, setSuggestions, false);
+      const tools = new EditorTools({ current: null }, setSuggestions, {
+        current: false,
+      });
       expect(tools.search({ query: "hello" })).toBe(
         "Error: Editor not initialized.",
       );
     });
 
     it("should return error for empty query", () => {
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.search({ query: "" })).toBe(
         "Error: query parameter is required.",
       );
@@ -160,7 +170,9 @@ describe("EditorTools", () => {
 
     it("should return not-found message when there are no matches", () => {
       mockModel.findMatches.mockReturnValue([]);
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.search({ query: "xyz" })).toBe(
         'No occurrences of "xyz" found.',
       );
@@ -177,7 +189,9 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.search({ query: "foo" })).toBe(
         'Found 1 occurrence(s) of "foo": line 3, col 5.',
       );
@@ -202,7 +216,9 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.search({ query: "foo" })).toBe(
         'Found 2 occurrence(s) of "foo": line 1, col 1; line 5, col 10.',
       );
@@ -211,12 +227,16 @@ describe("EditorTools", () => {
 
   describe("read_selection", () => {
     it("should return empty string if editor is not initialized", () => {
-      const tools = new EditorTools(null, setSuggestions, false);
+      const tools = new EditorTools({ current: null }, setSuggestions, {
+        current: false,
+      });
       expect(tools.read_selection()).toBe("");
     });
 
     it("should return empty string when selection is null", () => {
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.read_selection()).toBe("");
     });
 
@@ -229,7 +249,9 @@ describe("EditorTools", () => {
       };
       mockEditor.getSelection.mockReturnValue(selection);
       mockModel.getValueInRange = vi.fn().mockReturnValue("hello");
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.read_selection()).toBe("hello");
       expect(mockModel.getValueInRange).toHaveBeenCalledWith(selection);
     });
@@ -242,38 +264,50 @@ describe("EditorTools", () => {
         endLineNumber: 1,
         endColumn: 6,
       });
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.read_selection()).toBe("");
     });
   });
 
   describe("get_metadata", () => {
     it("should return error if editor is not initialized", () => {
-      const tools = new EditorTools(null, setSuggestions, false);
+      const tools = new EditorTools({ current: null }, setSuggestions, {
+        current: false,
+      });
       expect(tools.get_metadata()).toBe("Error: Editor not initialized.");
     });
 
     it("should return zero counts for an empty document", () => {
       mockEditor.getValue.mockReturnValue("");
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.get_metadata()).toBe("Characters: 0, Words: 0, Lines: 0.");
     });
 
     it("should return correct counts for a single-line document", () => {
       mockEditor.getValue.mockReturnValue("hello world");
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.get_metadata()).toBe("Characters: 11, Words: 2, Lines: 1.");
     });
 
     it("should return correct line count for a multi-line document", () => {
       mockEditor.getValue.mockReturnValue("line one\nline two\nline three");
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.get_metadata()).toBe("Characters: 28, Words: 6, Lines: 3.");
     });
 
     it("should not count leading/trailing whitespace as words", () => {
       mockEditor.getValue.mockReturnValue("  hello world  ");
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
       expect(tools.get_metadata()).toBe("Characters: 15, Words: 2, Lines: 1.");
     });
   });
@@ -281,7 +315,9 @@ describe("EditorTools", () => {
   describe("edit", () => {
     it("should return an error if text is not found", async () => {
       mockModel.findMatches.mockReturnValue([]);
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
 
       const result = await tools.edit({
         originalText: "missing",
@@ -303,7 +339,9 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
 
       const promise = tools.edit({
         originalText: "old",
@@ -339,7 +377,9 @@ describe("EditorTools", () => {
           },
         },
       ]);
-      const tools = new EditorTools(mockEditor, setSuggestions, true);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: true,
+      });
 
       const result = await tools.edit({
         originalText: "old",
@@ -353,11 +393,10 @@ describe("EditorTools", () => {
   });
 
   describe("delegate_to_skill", () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let parentAdapter: any;
     let editorToolsInstance: EditorTools;
     let mockRunStream: ReturnType<typeof vi.fn>;
     let mockRunBuilder: ReturnType<typeof vi.fn>;
+    let mockFactory: AgentRunnerFactory;
 
     function makeMockStream(
       output: string,
@@ -369,24 +408,32 @@ describe("EditorTools", () => {
       })();
     }
 
+    let mockWorkspaceTools: WorkspaceTools;
+
     beforeEach(() => {
       localStorage.clear();
-      parentAdapter = {
-        generate: vi.fn(),
-        generateStream: vi.fn(),
-      } as unknown as LlmAdapter;
-      editorToolsInstance = new EditorTools(mockEditor, setSuggestions, false);
+      editorToolsInstance = new EditorTools(
+        { current: mockEditor },
+        setSuggestions,
+        { current: false },
+      );
       mockRunStream = vi.fn().mockReturnValue(makeMockStream("done"));
       mockRunBuilder = vi.fn().mockReturnValue({ runStream: mockRunStream });
+      mockFactory = {
+        create: vi.fn().mockReturnValue({ runBuilder: mockRunBuilder }),
+      };
+      mockWorkspaceTools = new WorkspaceTools(
+        { current: [] },
+        { current: null },
+        mockFactory,
+      );
     });
 
-    function makeHandler(adapterFactory = vi.fn()) {
+    function makeHandler(factory = mockFactory) {
       return createDelegateToSkillHandler(
-        "test-api-key",
-        parentAdapter,
+        factory,
         editorToolsInstance,
-        null,
-        adapterFactory,
+        mockWorkspaceTools,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         () => ({ runBuilder: mockRunBuilder }) as any,
       );
@@ -412,7 +459,7 @@ describe("EditorTools", () => {
       expect(result).toContain("none");
     });
 
-    it("calls runBuilder with skill instructions and returns done output", async () => {
+    it("calls runBuilder with skill instructions and returns raw output", async () => {
       mockRunStream.mockReturnValue(makeMockStream("Proofreading complete."));
       saveSkills([
         {
@@ -441,16 +488,13 @@ describe("EditorTools", () => {
       expect(agentConfig.tools).not.toContain("delegate_to_skill");
     });
 
-    it("reuses parent adapter when skill has no model", async () => {
+    it("does not call factory.create when a custom runnerFactory override is used", async () => {
       saveSkills([
         { id: "1", name: "Proofreader", description: "d", instructions: "i" },
       ]);
-      const adapterFactory = vi.fn();
-      await makeHandler(adapterFactory)(
-        { skillName: "Proofreader", task: "t" },
-        {},
-      );
-      expect(adapterFactory).not.toHaveBeenCalled();
+      await makeHandler()({ skillName: "Proofreader", task: "t" }, {});
+      // The override runnerFactory is used directly; factory.create is bypassed
+      expect(mockRunBuilder).toHaveBeenCalledOnce();
     });
 
     it("forwards non-done child events via context.onEvent", async () => {
@@ -465,42 +509,37 @@ describe("EditorTools", () => {
       ]);
       const onEvent = vi.fn();
       await makeHandler()({ skillName: "Proofreader", task: "t" }, { onEvent });
-      expect(onEvent).toHaveBeenCalledWith({ type: "text_delta", delta: "hello" });
+      expect(onEvent).toHaveBeenCalledWith({
+        type: "text_delta",
+        delta: "hello",
+      });
       expect(onEvent).toHaveBeenCalledWith({ type: "thinking", delta: "hmm" });
       expect(onEvent).not.toHaveBeenCalledWith(
         expect.objectContaining({ type: "done" }),
       );
     });
 
-    it("includes workspace tools in child agent when workspaceTools is provided", async () => {
+    it("gives skill read-only workspace tools (no create_document, switch_active_document)", async () => {
       saveSkills([
-        { id: "1", name: "Create Skill", description: "d", instructions: "i" },
+        {
+          id: "1",
+          name: "Research Skill",
+          description: "d",
+          instructions: "i",
+        },
       ]);
-      const mockWorkspaceTools = new WorkspaceTools(
-        { current: [] },
-        { current: null },
-        vi.fn(),
-      );
-      const handler = createDelegateToSkillHandler(
-        "test-api-key",
-        parentAdapter,
-        editorToolsInstance,
-        mockWorkspaceTools,
-        vi.fn(),
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        () => ({ runBuilder: mockRunBuilder }) as any,
-      );
-      await handler(
-        { skillName: "Create Skill", task: "create a skill" },
+      await makeHandler()(
+        { skillName: "Research Skill", task: "check docs" },
         {},
       );
       const [agentConfig] = mockRunBuilder.mock.calls[0];
-      expect(agentConfig.tools).toContain("create_document");
       expect(agentConfig.tools).toContain("list_workspace_docs");
-      expect(agentConfig.tools).toContain("switch_active_document");
+      expect(agentConfig.tools).toContain("read_workspace_doc");
+      expect(agentConfig.tools).not.toContain("create_document");
+      expect(agentConfig.tools).not.toContain("switch_active_document");
     });
 
-    it("calls adapterFactory when skill specifies a model", async () => {
+    it("passes model to runnerFactory when skill specifies a model", async () => {
       saveSkills([
         {
           id: "1",
@@ -510,22 +549,38 @@ describe("EditorTools", () => {
           model: "gemini-2.5-pro",
         },
       ]);
-      const newAdapter = { generate: vi.fn() } as unknown as LlmAdapter;
-      const adapterFactory = vi.fn().mockReturnValue(newAdapter);
-      await makeHandler(adapterFactory)(
-        { skillName: "Proofreader", task: "t" },
-        {},
+      const customRunnerFactory = vi
+        .fn()
+        .mockReturnValue({ runBuilder: mockRunBuilder });
+      const handler = createDelegateToSkillHandler(
+        mockFactory,
+        editorToolsInstance,
+        mockWorkspaceTools,
+        customRunnerFactory,
       );
-      expect(adapterFactory).toHaveBeenCalledWith(
-        "test-api-key",
+      await handler({ skillName: "Proofreader", task: "t" }, {});
+      expect(customRunnerFactory).toHaveBeenCalledWith(
+        expect.anything(),
         "gemini-2.5-pro",
       );
+    });
+
+    it("gives skill a read-only registry (no edit, no write tool registered)", async () => {
+      saveSkills([
+        { id: "1", name: "Proofreader", description: "d", instructions: "i" },
+      ]);
+      await makeHandler()({ skillName: "Proofreader", task: "t" }, {});
+      const [agentConfig] = mockRunBuilder.mock.calls[0];
+      expect(agentConfig.tools).not.toContain("edit");
+      expect(agentConfig.tools).not.toContain("write");
     });
   });
 
   describe("write", () => {
     it("should create a suggestion for the full document if not approveAll", async () => {
-      const tools = new EditorTools(mockEditor, setSuggestions, false);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: false,
+      });
 
       const promise = tools.write({ content: "New document content" });
 
@@ -545,7 +600,9 @@ describe("EditorTools", () => {
     });
 
     it("should apply full replacement immediately if approveAll is true", async () => {
-      const tools = new EditorTools(mockEditor, setSuggestions, true);
+      const tools = new EditorTools({ current: mockEditor }, setSuggestions, {
+        current: true,
+      });
 
       const result = await tools.write({ content: "New document content" });
 

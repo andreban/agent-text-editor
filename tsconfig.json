@@ -19,5 +19,6 @@
     }
   },
   "include": ["src"],
+  "exclude": ["src/lib/agents/evals"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

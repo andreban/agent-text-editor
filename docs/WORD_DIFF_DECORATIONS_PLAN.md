@@ -59,6 +59,7 @@ Monaco mock has `IContentWidget` and `ContentWidgetPositionPreference` (used by 
 ### `src/components/EditorPanel.test.tsx`
 
 Has three `describe` blocks:
+
 1. `"EditorPanel"` — basic editor/preview tab tests. These stay.
 2. `"SuggestionWidget"` — direct component tests for the Accept/Reject widget. These will be **replaced** with toolbar tests on `EditorPanel`.
 3. `"EditorPanel tab switch dialog"` — unchanged.
@@ -96,10 +97,10 @@ INSERT segments have no position in the original document — they are rendered 
 
 ### Decoration rules
 
-| Diff op | Rendering |
-|---|---|
-| `EQUAL` | No decoration by default. If the *next* op is `INSERT`, add an `after` showing the inserted text in green (`suggestion-insert`). |
-| `DELETE` | `inlineClassName: "suggestion-delete"` (red strikethrough). If the *next* op is `INSERT`, also add `after` with inserted text in green. |
+| Diff op  | Rendering                                                                                                                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EQUAL`  | No decoration by default. If the _next_ op is `INSERT`, add an `after` showing the inserted text in green (`suggestion-insert`).                                                                                               |
+| `DELETE` | `inlineClassName: "suggestion-delete"` (red strikethrough). If the _next_ op is `INSERT`, also add `after` with inserted text in green.                                                                                        |
 | `INSERT` | Never creates its own decoration — always absorbed as `after` content on the preceding segment's decoration. An INSERT at position 0 (no preceding segment) is attached at the start of the range via a zero-width decoration. |
 
 This means at most one `after` decoration per diff segment, with the inserted text shown immediately after the deleted (or equal) text that precedes it in the original.
@@ -126,7 +127,12 @@ Create `src/lib/diffDecorations.ts`:
 ```ts
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import { diff_match_patch, DIFF_EQUAL, DIFF_DELETE, DIFF_INSERT } from "diff-match-patch";
+import {
+  diff_match_patch,
+  DIFF_EQUAL,
+  DIFF_DELETE,
+  DIFF_INSERT,
+} from "diff-match-patch";
 import type * as monaco from "monaco-editor";
 import type { Suggestion } from "./store";
 
@@ -169,7 +175,10 @@ export function computeDiffDecorations(
   suggestion: Suggestion,
 ): monaco.editor.IModelDeltaDecoration[] {
   const dmp = new diff_match_patch();
-  const diffs = dmp.diff_main(suggestion.originalText, suggestion.replacementText);
+  const diffs = dmp.diff_main(
+    suggestion.originalText,
+    suggestion.replacementText,
+  );
   dmp.diff_cleanupSemantic(diffs);
 
   const posMap = buildPositionMap(
@@ -186,8 +195,7 @@ export function computeDiffDecorations(
 
     // Collect any INSERT immediately following this op (absorbed as `after` content)
     const nextOp = diffs[i + 1];
-    const insertAfter =
-      nextOp && nextOp[0] === DIFF_INSERT ? nextOp[1] : null;
+    const insertAfter = nextOp && nextOp[0] === DIFF_INSERT ? nextOp[1] : null;
     if (insertAfter !== null) {
       i++; // consume the INSERT
     }
@@ -299,13 +307,15 @@ import { Check, X } from "lucide-react";
 ```
 
 **State/refs** — remove:
+
 - `suggestionNodes` state
 - `contentWidgetsRef`
 
 Change `decorationsRef`:
 
 ```ts
-const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
+const decorationsRef =
+  useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
 ```
 
 **Decoration effect** — replace the old `deltaDecorations` + content widget management block:
@@ -314,7 +324,8 @@ const decorationsRef = useRef<monaco.editor.IEditorDecorationsCollection | null>
 useEffect(() => {
   if (!editorInstance) return;
 
-  const pendingSuggestion = suggestions.find((s) => s.status === "pending") ?? null;
+  const pendingSuggestion =
+    suggestions.find((s) => s.status === "pending") ?? null;
 
   if (!pendingSuggestion) {
     decorationsRef.current?.clear();
@@ -324,7 +335,8 @@ useEffect(() => {
   const decorations = computeDiffDecorations(pendingSuggestion);
 
   if (!decorationsRef.current) {
-    decorationsRef.current = editorInstance.createDecorationsCollection(decorations);
+    decorationsRef.current =
+      editorInstance.createDecorationsCollection(decorations);
   } else {
     decorationsRef.current.set(decorations);
   }
@@ -342,7 +354,8 @@ useEffect(() => {
 **Derive `pendingSuggestion`** in render (needed for toolbar conditional):
 
 ```ts
-const pendingSuggestion = suggestions.find((s) => s.status === "pending") ?? null;
+const pendingSuggestion =
+  suggestions.find((s) => s.status === "pending") ?? null;
 ```
 
 **JSX** — replace the content widget portal block with a toolbar overlay, and adjust editor `padding`:
@@ -368,7 +381,9 @@ const pendingSuggestion = suggestions.find((s) => s.status === "pending") ?? nul
   {pendingSuggestion && (
     <div className="absolute top-2 left-0 right-0 z-10 flex justify-center pointer-events-none">
       <div className="flex items-center gap-2 pointer-events-auto bg-background border rounded-lg px-3 py-1.5 shadow-md text-sm">
-        <span className="text-muted-foreground text-xs mr-1">Proposed edit</span>
+        <span className="text-muted-foreground text-xs mr-1">
+          Proposed edit
+        </span>
         <button
           onClick={() => handleAccept(pendingSuggestion.id)}
           className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium"
@@ -493,6 +508,7 @@ Note: `handleAccept` calls `pushEditOperations` via `editorInstance`, which is n
 #### `src/test/setup.ts`
 
 Update the `monaco-editor` mock:
+
 - Remove `IContentWidget` and `ContentWidgetPositionPreference` (no longer used).
 - Add `createDecorationsCollection` to the editor mock used by `EditorPanel` tests (the collection returned should have `.clear()` and `.set()` stubs).
 
@@ -502,16 +518,16 @@ The `@monaco-editor/react` mock needs no changes — `Editor` stays as the texta
 
 ## Files Changed
 
-| File | Change |
-|---|---|
-| `package.json` | Add `diff-match-patch` + `@types/diff-match-patch` |
-| `src/lib/diffDecorations.ts` | New file — `computeDiffDecorations` helper |
-| `src/components/EditorPanel.tsx` | Remove content widgets + portals; restore `createDecorationsCollection` effect with `computeDiffDecorations`; add toolbar overlay |
-| `src/components/SuggestionWidget.tsx` | Deleted |
-| `src/index.css` | Replace `.suggestion-original`/`.suggestion-new` with `.suggestion-delete`/`.suggestion-insert` |
-| `src/lib/diffDecorations.test.ts` | New file — unit tests for `computeDiffDecorations` |
-| `src/components/EditorPanel.test.tsx` | Remove `SuggestionWidget` describe block; add toolbar tests |
-| `src/test/setup.ts` | Remove content widget mock entries; update monaco mock |
+| File                                  | Change                                                                                                                            |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `package.json`                        | Add `diff-match-patch` + `@types/diff-match-patch`                                                                                |
+| `src/lib/diffDecorations.ts`          | New file — `computeDiffDecorations` helper                                                                                        |
+| `src/components/EditorPanel.tsx`      | Remove content widgets + portals; restore `createDecorationsCollection` effect with `computeDiffDecorations`; add toolbar overlay |
+| `src/components/SuggestionWidget.tsx` | Deleted                                                                                                                           |
+| `src/index.css`                       | Replace `.suggestion-original`/`.suggestion-new` with `.suggestion-delete`/`.suggestion-insert`                                   |
+| `src/lib/diffDecorations.test.ts`     | New file — unit tests for `computeDiffDecorations`                                                                                |
+| `src/components/EditorPanel.test.tsx` | Remove `SuggestionWidget` describe block; add toolbar tests                                                                       |
+| `src/test/setup.ts`                   | Remove content widget mock entries; update monaco mock                                                                            |
 
 ---
 

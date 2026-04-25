@@ -1,0 +1,86 @@
+[
+  {
+    "text": "The team have completed the project on time. They was very dedicated and worked hard every day. The results is impressive.",
+    "criteria": ["grammatical correctness", "subject-verb agreement"],
+    "knownErrors": [
+      {
+        "description": "subject-verb agreement error: 'team have' should be 'team has'",
+        "severity": "error"
+      },
+      {
+        "description": "subject-verb agreement error: 'They was' should be 'They were'",
+        "severity": "error"
+      }
+    ],
+    "rubric": "The review identifies both subject-verb agreement errors with their exact locations, assigns 'error' severity, and suggests correct forms. It does not flag correct sentences."
+  },
+  {
+    "text": "Yesterday, the engineer opens the dashboard and reviews the metrics. She then submitted a report and closed the ticket.",
+    "criteria": ["consistent verb tense throughout the passage"],
+    "knownErrors": [
+      {
+        "description": "inconsistent verb tense: 'opens' and 'reviews' are present tense while the rest of the passage uses past tense",
+        "severity": "error"
+      }
+    ],
+    "rubric": "The review identifies the tense inconsistency in 'opens' and 'reviews', notes the surrounding past-tense context, and suggests changing to 'opened' and 'reviewed'."
+  },
+  {
+    "text": "Water boils at 90°C at sea level. This makes it ideal for sterilising surgical instruments in hospital settings.",
+    "criteria": ["factual correctness"],
+    "knownErrors": [
+      {
+        "description": "factual error: water boils at 100°C at sea level, not 90°C",
+        "severity": "error"
+      }
+    ],
+    "rubric": "The review flags the incorrect boiling point of water, quotes the erroneous figure, and provides the correct value (100°C)."
+  },
+  {
+    "text": "The new policy reduces costs significantly. Employees are very happy. Therefore, the sky is blue.",
+    "criteria": ["logical flow and coherence between sentences"],
+    "knownErrors": [
+      {
+        "description": "logical non-sequitur: 'Therefore, the sky is blue' does not follow from the preceding sentences",
+        "severity": "warning"
+      }
+    ],
+    "rubric": "The review identifies the non-sequitur conclusion, quotes it, and notes it does not follow logically from the cost and happiness claims."
+  },
+  {
+    "text": "Our product is fast and reliable.",
+    "criteria": [
+      "must include a section describing the target audience",
+      "must include at least one concrete performance metric"
+    ],
+    "knownErrors": [
+      {
+        "description": "missing required section: no description of the target audience",
+        "severity": "error"
+      },
+      {
+        "description": "missing required content: no concrete performance metric provided",
+        "severity": "error"
+      }
+    ],
+    "rubric": "The review identifies both missing sections, explains what is required by the criteria, and suggests what content should be added."
+  },
+  {
+    "text": "The conference attracted over five hundred attendees from more than thirty countries. Speakers covered topics ranging from machine learning to climate policy. Organisers described it as the most successful edition yet.",
+    "criteria": ["grammatical correctness", "clear and natural prose"],
+    "knownErrors": null,
+    "rubric": "The review should return passed: true with no error-severity issues. The text is grammatically correct and reads naturally."
+  },
+  {
+    "text": "The Pacific Ocean is the largest and deepest ocean on Earth. It covers more than 165 million square kilometres and contains more than half of the world's oceanic water. Its average depth is approximately 4,000 metres.",
+    "criteria": ["factual correctness", "grammatical correctness"],
+    "knownErrors": null,
+    "rubric": "The review should return passed: true. All stated facts are correct and the text is grammatically sound."
+  },
+  {
+    "text": "Consider breaking this paragraph into two for improved readability. Also, using active voice here would make the sentence more direct.",
+    "criteria": ["grammatical correctness", "factual accuracy"],
+    "knownErrors": null,
+    "rubric": "The review should return passed: true since there are no errors. It may note suggestions but must not report any error-severity issues for this grammatically correct text."
+  }
+]

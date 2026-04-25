@@ -1,13 +1,28 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import { useState } from "react";
-import { Brain, Check, ChevronDown, ChevronUp, Sparkles, Wrench } from "lucide-react";
+import {
+  Bot,
+  Brain,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  Wrench,
+} from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
 
 export type ChildItem =
   | { kind: "thought"; id: string; text: string }
   | { kind: "text"; id: string; text: string }
-  | { kind: "tool"; id: string; name: string; pending: boolean; params?: unknown; result?: unknown };
+  | {
+      kind: "tool";
+      id: string;
+      name: string;
+      pending: boolean;
+      params?: unknown;
+      result?: unknown;
+    };
 
 export type StreamItem =
   | { kind: "user"; id: string; text: string }
@@ -17,6 +32,8 @@ export type StreamItem =
       text: string;
       thought: string;
       isStreaming: boolean;
+      agentRole?: string;
+      parentMessageId?: string;
     }
   | {
       kind: "tool";
@@ -33,6 +50,15 @@ export type StreamItem =
       task: string;
       pending: boolean;
       childItems: ChildItem[];
+    }
+  | {
+      kind: "agent";
+      id: string;
+      agentRole: string;
+      task: string;
+      pending: boolean;
+      childItems: ChildItem[];
+      parentMessageId?: string;
     };
 
 function formatValue(value: unknown): string {
@@ -120,9 +146,15 @@ function SkillItem({ item }: { item: SkillItemType }) {
           <Check className="w-3 h-3 text-green-500 shrink-0" />
         )}
         <span className="font-semibold">{item.name}</span>
-        <span className="truncate text-muted-foreground/70 ml-1">{item.task}</span>
+        <span className="truncate text-muted-foreground/70 ml-1">
+          {item.task}
+        </span>
         <span className="ml-auto">
-          {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          {open ? (
+            <ChevronUp className="w-3 h-3" />
+          ) : (
+            <ChevronDown className="w-3 h-3" />
+          )}
         </span>
       </button>
       {open && item.childItems.length > 0 && (
@@ -130,19 +162,93 @@ function SkillItem({ item }: { item: SkillItemType }) {
           {item.childItems.map((child) => {
             if (child.kind === "thought") {
               return (
-                <div key={child.id} className="italic text-muted-foreground/70 whitespace-pre-wrap leading-relaxed">
+                <div
+                  key={child.id}
+                  className="italic text-muted-foreground/70 whitespace-pre-wrap leading-relaxed"
+                >
                   {child.text}
                 </div>
               );
             }
             if (child.kind === "text") {
               return (
-                <div key={child.id} className="whitespace-pre-wrap leading-relaxed">
+                <div
+                  key={child.id}
+                  className="whitespace-pre-wrap leading-relaxed"
+                >
                   {child.text}
                 </div>
               );
             }
             // tool
+            return (
+              <div key={child.id} className="flex items-center gap-1">
+                {child.pending ? (
+                  <Wrench className="w-3 h-3 animate-pulse text-primary shrink-0" />
+                ) : (
+                  <Check className="w-3 h-3 text-green-500 shrink-0" />
+                )}
+                <code className="font-mono">{child.name}</code>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type AgentItemType = Extract<StreamItem, { kind: "agent" }>;
+
+function AgentItem({ item }: { item: AgentItemType }) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="self-start border border-border rounded-lg bg-muted/40 overflow-hidden text-xs text-muted-foreground">
+      <button
+        className="flex items-center gap-2 px-2 py-1 w-full hover:bg-accent"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {item.pending ? (
+          <Bot className="w-3 h-3 animate-pulse text-primary shrink-0" />
+        ) : (
+          <Check className="w-3 h-3 text-green-500 shrink-0" />
+        )}
+        <span className="font-semibold">{item.agentRole}</span>
+        <span className="truncate text-muted-foreground/70 ml-1">
+          {item.task}
+        </span>
+        <span className="ml-auto">
+          {open ? (
+            <ChevronUp className="w-3 h-3" />
+          ) : (
+            <ChevronDown className="w-3 h-3" />
+          )}
+        </span>
+      </button>
+      {open && item.childItems.length > 0 && (
+        <div className="border-t border-border pl-3 border-l-2 border-l-primary/30 ml-2 my-1 flex flex-col gap-1 py-1 pr-1">
+          {item.childItems.map((child) => {
+            if (child.kind === "thought") {
+              return (
+                <div
+                  key={child.id}
+                  className="italic text-muted-foreground/70 whitespace-pre-wrap leading-relaxed"
+                >
+                  {child.text}
+                </div>
+              );
+            }
+            if (child.kind === "text") {
+              return (
+                <div
+                  key={child.id}
+                  className="whitespace-pre-wrap leading-relaxed"
+                >
+                  {child.text}
+                </div>
+              );
+            }
             return (
               <div key={child.id} className="flex items-center gap-1">
                 {child.pending ? (
@@ -183,6 +289,10 @@ export function ChatItem({ item, isExpanded, onToggle }: ChatItemProps) {
 
   if (item.kind === "skill") {
     return <SkillItem item={item} />;
+  }
+
+  if (item.kind === "agent") {
+    return <AgentItem item={item} />;
   }
 
   // assistant

@@ -2,36 +2,45 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as monaco from "monaco-editor";
-import { AgentConfig, AgentEvent, AgentRunner, LlmAdapter, ToolContext, ToolRegistry } from "@mast-ai/core";
-import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import { Suggestion } from "./store";
-import { loadSkills } from "./skills";
-import { WorkspaceTools, registerWorkspaceTools } from "./WorkspaceTools";
+import {
+  AgentConfig,
+  AgentEvent,
+  ToolContext,
+  ToolRegistry,
+} from "@mast-ai/core";
+import { Suggestion } from "../store";
+import type { AgentRunnerFactory } from "../agents/factory";
+import { loadSkills } from "../skills";
+import { WorkspaceTools } from "./WorkspaceTools";
+import { buildReadonlyRegistry } from "./registries";
 import { v4 as uuidv4 } from "uuid";
 
 export class EditorTools {
   constructor(
-    private editor: monaco.editor.IStandaloneCodeEditor | null,
+    private editorRef: { current: monaco.editor.IStandaloneCodeEditor | null },
     private setSuggestions: (fn: (prev: Suggestion[]) => Suggestion[]) => void,
-    private approveAll: boolean,
-    private getEditorContent: () => string = () => "",
-    private getActiveTab: () => "editor" | "preview" = () => "editor",
+    private approveAllRef: { current: boolean },
+    private editorContentRef: { current: string } = { current: "" },
+    private activeTabRef: { current: "editor" | "preview" } = {
+      current: "editor",
+    },
     private requestTabSwitch: () => Promise<boolean> = () =>
       Promise.resolve(false),
   ) {}
 
   read(): string {
-    if (!this.editor) return this.getEditorContent();
-    const value = this.editor.getValue();
-    return value || this.getEditorContent();
+    const editor = this.editorRef.current;
+    if (!editor) return this.editorContentRef.current;
+    const value = editor.getValue();
+    return value || this.editorContentRef.current;
   }
 
   get_current_mode(): string {
-    return this.getActiveTab();
+    return this.activeTabRef.current;
   }
 
   async request_switch_to_editor(): Promise<string> {
-    if (this.getActiveTab() === "editor") {
+    if (this.activeTabRef.current === "editor") {
       return "Already in editor mode.";
     }
     const accepted = await this.requestTabSwitch();
@@ -42,16 +51,18 @@ export class EditorTools {
   }
 
   read_selection(): string {
-    if (!this.editor) return "";
-    const selection = this.editor.getSelection();
+    const editor = this.editorRef.current;
+    if (!editor) return "";
+    const selection = editor.getSelection();
     if (!selection) return "";
-    return this.editor.getModel()?.getValueInRange(selection) || "";
+    return editor.getModel()?.getValueInRange(selection) || "";
   }
 
   search({ query }: { query: string }): string {
-    if (!this.editor) return "Error: Editor not initialized.";
+    const editor = this.editorRef.current;
+    if (!editor) return "Error: Editor not initialized.";
     if (!query) return "Error: query parameter is required.";
-    const model = this.editor.getModel();
+    const model = editor.getModel();
     if (!model) return "Error: Model not found.";
 
     const matches = model.findMatches(query, true, false, false, null, false);
@@ -64,8 +75,9 @@ export class EditorTools {
   }
 
   get_metadata(): string {
-    if (!this.editor) return "Error: Editor not initialized.";
-    const text = this.editor.getValue();
+    const editor = this.editorRef.current;
+    if (!editor) return "Error: Editor not initialized.";
+    const text = editor.getValue();
     const charCount = text.length;
     const lineCount = text === "" ? 0 : text.split("\n").length;
     const wordCount = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
@@ -79,7 +91,7 @@ export class EditorTools {
     originalText: string;
     replacementText: string;
   }): Promise<string> {
-    const editor = this.editor;
+    const editor = this.editorRef.current;
     if (!editor) return Promise.resolve("Error: Editor not initialized.");
 
     const model = editor.getModel();
@@ -138,7 +150,7 @@ export class EditorTools {
   }
 
   write({ content }: { content: string }): Promise<string> {
-    const editor = this.editor;
+    const editor = this.editorRef.current;
     if (!editor) return Promise.resolve("Error: Editor not initialized.");
 
     const model = editor.getModel();
@@ -167,7 +179,7 @@ export class EditorTools {
     autoApply: () => void,
     autoMessage: string,
   ): Promise<string> {
-    if (this.approveAll) {
+    if (this.approveAllRef.current) {
       autoApply();
       return Promise.resolve(autoMessage);
     }
@@ -185,6 +197,68 @@ export class EditorTools {
 
 /** Registers the standard editor tools on a ToolRegistry. */
 export function registerEditorTools(
+  registry: ToolRegistry,
+  tools: EditorTools,
+): void {
+  registerReadonlyEditorTools(registry, tools);
+
+  registry.register({
+    definition: () => ({
+      name: "edit",
+      description:
+        "Proposes a targeted edit. This tool pauses and waits for user approval. ONLY use this for small, localized changes (e.g., 1-2 sentences). Never pass the entire document.",
+      parameters: {
+        type: "object",
+        properties: {
+          originalText: {
+            type: "string",
+            description:
+              "The exact, minimal string of text to replace. Must be short. Do NOT pass the whole document.",
+          },
+          replacementText: {
+            type: "string",
+            description: "The new text to replace the originalText with.",
+          },
+        },
+        required: ["originalText", "replacementText"],
+      },
+    }),
+    call: async (args: { originalText: string; replacementText: string }) =>
+      tools.edit(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "write",
+      description:
+        "Proposes a complete rewrite. This tool pauses and waits for user approval. ONLY use this when the user explicitly requests a total rewrite of the entire document.",
+      parameters: {
+        type: "object",
+        properties: {
+          content: {
+            type: "string",
+            description: "The full new document content.",
+          },
+        },
+        required: ["content"],
+      },
+    }),
+    call: async (args: { content: string }) => tools.write(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "request_switch_to_editor",
+      description:
+        "Requests the user to switch from Preview mode to Editor mode. This will display a prompt to the user and pause until they accept or decline. Call this before attempting edits when in preview mode.",
+      parameters: { type: "object", properties: {} },
+    }),
+    call: async () => tools.request_switch_to_editor(),
+  });
+}
+
+/** Registers read-only editor tools (no edit, write, or request_switch_to_editor). */
+export function registerReadonlyEditorTools(
   registry: ToolRegistry,
   tools: EditorTools,
 ): void {
@@ -234,50 +308,6 @@ export function registerEditorTools(
 
   registry.register({
     definition: () => ({
-      name: "edit",
-      description:
-        "Proposes a targeted edit. This tool pauses and waits for user approval. ONLY use this for small, localized changes (e.g., 1-2 sentences). Never pass the entire document.",
-      parameters: {
-        type: "object",
-        properties: {
-          originalText: {
-            type: "string",
-            description:
-              "The exact, minimal string of text to replace. Must be short. Do NOT pass the whole document.",
-          },
-          replacementText: {
-            type: "string",
-            description: "The new text to replace the originalText with.",
-          },
-        },
-        required: ["originalText", "replacementText"],
-      },
-    }),
-    call: async (args: { originalText: string; replacementText: string }) =>
-      tools.edit(args),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "write",
-      description:
-        "Proposes a complete rewrite. This tool pauses and waits for user approval. ONLY use this when the user explicitly requests a total rewrite of the entire document.",
-      parameters: {
-        type: "object",
-        properties: {
-          content: {
-            type: "string",
-            description: "The full new document content.",
-          },
-        },
-        required: ["content"],
-      },
-    }),
-    call: async (args: { content: string }) => tools.write(args),
-  });
-
-  registry.register({
-    definition: () => ({
       name: "get_current_mode",
       description:
         "Returns the current UI mode: 'editor' (Monaco editor is visible) or 'preview' (Markdown preview is visible). Check this before making edits to ensure the editor is accessible.",
@@ -285,21 +315,11 @@ export function registerEditorTools(
     }),
     call: async () => tools.get_current_mode(),
   });
-
-  registry.register({
-    definition: () => ({
-      name: "request_switch_to_editor",
-      description:
-        "Requests the user to switch from Preview mode to Editor mode. This will display a prompt to the user and pause until they accept or decline. Call this before attempting edits when in preview mode.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.request_switch_to_editor(),
-  });
 }
 
 /**
  * Creates the delegate_to_skill tool call handler.
- * Extracted for testability; the adapterFactory parameter can be overridden in tests.
+ * Extracted for testability; the factory parameter can be overridden in tests.
  */
 type RunnerLike = {
   runBuilder: (agent: AgentConfig) => {
@@ -308,17 +328,17 @@ type RunnerLike = {
 };
 
 export function createDelegateToSkillHandler(
-  apiKey: string,
-  parentAdapter: LlmAdapter,
+  factory: AgentRunnerFactory,
   editorTools: EditorTools,
-  workspaceTools: WorkspaceTools | null = null,
-  adapterFactory: (key: string, model: string) => LlmAdapter = (key, model) =>
-    new GoogleGenAIAdapter(key, model),
-  runnerFactory: (adapter: LlmAdapter, registry: ToolRegistry) => RunnerLike = (
-    adapter,
+  workspaceTools: WorkspaceTools,
+  runnerFactory: (registry: ToolRegistry, model?: string) => RunnerLike = (
     registry,
-  ) => new AgentRunner(adapter, registry),
-): (args: { skillName: string; task: string }, context: ToolContext) => Promise<string> {
+    model,
+  ) => factory.create({ tools: registry, model }),
+): (
+  args: { skillName: string; task: string },
+  context: ToolContext,
+) => Promise<string> {
   return async ({ skillName, task }, context) => {
     const skills = loadSkills();
     const skill = skills.find((s) => s.name === skillName);
@@ -327,37 +347,18 @@ export function createDelegateToSkillHandler(
       return `Error: skill "${skillName}" not found. Available skills: ${names || "none"}`;
     }
 
-    const childAdapter = skill.model
-      ? adapterFactory(apiKey, skill.model)
-      : parentAdapter;
+    const childRegistry = buildReadonlyRegistry(editorTools, workspaceTools);
+    const readonlyToolNames = childRegistry.definitions().map((d) => d.name);
 
-    const childRegistry = new ToolRegistry();
-    registerEditorTools(childRegistry, editorTools);
-    if (workspaceTools) {
-      registerWorkspaceTools(childRegistry, workspaceTools);
-    }
-
-    const childRunner = runnerFactory(childAdapter, childRegistry);
+    const childRunner = runnerFactory(childRegistry, skill.model);
     const agentConfig: AgentConfig = {
       name: skill.name,
       instructions: skill.instructions,
-      tools: [
-        "read",
-        "read_selection",
-        "search",
-        "get_metadata",
-        "edit",
-        "write",
-        ...(workspaceTools
-          ? [
-              "create_document",
-              "list_workspace_docs",
-              "switch_active_document",
-            ]
-          : []),
-      ],
+      tools: readonlyToolNames,
     };
-    for await (const event of childRunner.runBuilder(agentConfig).runStream(task)) {
+    for await (const event of childRunner
+      .runBuilder(agentConfig)
+      .runStream(task)) {
       if (event.type === "done") {
         return event.output;
       }

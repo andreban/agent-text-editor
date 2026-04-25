@@ -1,22 +1,26 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
+import type { AgentEvent } from "@mast-ai/core";
 import { WorkspaceTools } from "./WorkspaceTools";
 import type {
-  AdapterFactory,
-  SubAgentFactory,
   CreateDocumentFn,
   RenameDocumentFn,
   DeleteDocumentFn,
   SetActiveDocumentIdFn,
   SaveDocContentFn,
-  GetEditorContentFn,
-  SetEditorValueFn,
   SetPendingWorkspaceActionFn,
+  EditorLike,
 } from "./WorkspaceTools";
-import type { WorkspaceDocument } from "./workspace";
-import type { LlmAdapter } from "@mast-ai/core";
+import type { WorkspaceDocument } from "../workspace";
+import type { AgentRunnerFactory } from "../agents/factory";
+
+function makeStream(output: string): AsyncIterable<AgentEvent> {
+  return (async function* () {
+    yield { type: "done" as const, output, history: [] };
+  })();
+}
 
 function makeDoc(
   overrides: Partial<WorkspaceDocument> = {},
@@ -44,33 +48,25 @@ const noActiveDoc = makeActiveDocRef(null);
 
 describe("WorkspaceTools", () => {
   let mockRun: ReturnType<typeof vi.fn>;
-  let adapterFactory: AdapterFactory;
-  let runnerFactory: SubAgentFactory;
+  let mockFactory: AgentRunnerFactory;
 
   beforeEach(() => {
     mockRun = vi.fn().mockResolvedValue({ output: "mock answer" });
-    adapterFactory = vi
-      .fn()
-      .mockReturnValue({} as LlmAdapter) as AdapterFactory;
-    runnerFactory = vi
-      .fn()
-      .mockReturnValue({ run: mockRun }) as SubAgentFactory;
+    mockFactory = {
+      create: vi.fn().mockReturnValue({ run: mockRun }),
+    };
   });
 
   describe("get_active_doc_info", () => {
     it("returns id and title of the active document", () => {
       const activeRef = makeActiveDocRef({ id: "x", title: "My Essay" });
-      const tools = new WorkspaceTools(makeRef([]), activeRef, adapterFactory);
+      const tools = new WorkspaceTools(makeRef([]), activeRef, mockFactory);
       const result = JSON.parse(tools.get_active_doc_info());
       expect(result).toEqual({ id: "x", title: "My Essay" });
     });
 
     it("returns error when no document is active", () => {
-      const tools = new WorkspaceTools(
-        makeRef([]),
-        noActiveDoc,
-        adapterFactory,
-      );
+      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, mockFactory);
       const result = JSON.parse(tools.get_active_doc_info());
       expect(result).toEqual({ error: "No active document" });
     });
@@ -82,11 +78,7 @@ describe("WorkspaceTools", () => {
         makeDoc({ id: "a", title: "Alpha", content: "secret" }),
         makeDoc({ id: "b", title: "Beta", content: "also secret" }),
       ];
-      const tools = new WorkspaceTools(
-        makeRef(docs),
-        noActiveDoc,
-        adapterFactory,
-      );
+      const tools = new WorkspaceTools(makeRef(docs), noActiveDoc, mockFactory);
       const result = JSON.parse(tools.list_workspace_docs());
       expect(result).toEqual([
         { id: "a", title: "Alpha" },
@@ -95,11 +87,7 @@ describe("WorkspaceTools", () => {
     });
 
     it("returns empty array when workspace has no documents", () => {
-      const tools = new WorkspaceTools(
-        makeRef([]),
-        noActiveDoc,
-        adapterFactory,
-      );
+      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, mockFactory);
       expect(JSON.parse(tools.list_workspace_docs())).toEqual([]);
     });
   });
@@ -114,7 +102,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([doc]),
         noActiveDoc,
-        adapterFactory,
+        mockFactory,
       );
       const result = JSON.parse(tools.read_workspace_doc({ id: "x" }));
       expect(result).toEqual({ title: "My Doc", content: "content here" });
@@ -124,7 +112,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([makeDoc()]),
         noActiveDoc,
-        adapterFactory,
+        mockFactory,
       );
       const result = JSON.parse(tools.read_workspace_doc({ id: "unknown" }));
       expect(result).toEqual({ error: "Document not found" });
@@ -133,21 +121,18 @@ describe("WorkspaceTools", () => {
 
   describe("query_workspace_doc", () => {
     it("returns error for unknown doc id", async () => {
-      const tools = new WorkspaceTools(
-        makeRef([]),
-        noActiveDoc,
-        adapterFactory,
-        runnerFactory,
-      );
+      const tools = new WorkspaceTools(makeRef([]), noActiveDoc, mockFactory);
       const result = JSON.parse(
         await tools.query_workspace_doc({ id: "nope", query: "anything" }),
       );
       expect(result).toEqual({ error: "Document not found" });
-      expect(runnerFactory).not.toHaveBeenCalled();
+      expect(mockFactory.create).not.toHaveBeenCalled();
     });
 
-    it("creates a sub-agent runner with doc content and query, returns summary", async () => {
-      mockRun.mockResolvedValue({ output: "A concise summary." });
+    it("creates a sub-agent runner with doc content and query, returns summary and excerpt", async () => {
+      mockRun.mockResolvedValue({
+        output: '{"summary":"A concise summary.","excerpt":"The sky is blue."}',
+      });
       const doc = makeDoc({
         id: "d1",
         title: "Brief",
@@ -156,8 +141,7 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([doc]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
       );
 
       const result = JSON.parse(
@@ -167,8 +151,11 @@ describe("WorkspaceTools", () => {
         }),
       );
 
-      expect(result).toEqual({ summary: "A concise summary." });
-      expect(runnerFactory).toHaveBeenCalledOnce();
+      expect(result).toEqual({
+        summary: "A concise summary.",
+        excerpt: "The sky is blue.",
+      });
+      expect(mockFactory.create).toHaveBeenCalledOnce();
 
       const [agentConfig, input] = mockRun.mock.calls[0];
       expect(agentConfig.name).toBe("DocQuerier");
@@ -177,22 +164,22 @@ describe("WorkspaceTools", () => {
       expect(input).toContain("What color is the sky?");
     });
 
-    it("calls adapterFactory to create the sub-agent adapter", async () => {
+    it("calls factory.create to create the sub-agent runner", async () => {
       const doc = makeDoc();
       const tools = new WorkspaceTools(
         makeRef([doc]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
       );
       await tools.query_workspace_doc({ id: "doc-1", query: "q" });
-      expect(adapterFactory).toHaveBeenCalledOnce();
+      expect(mockFactory.create).toHaveBeenCalledOnce();
     });
   });
 
   describe("create_document", () => {
     let createDocumentFn: ReturnType<typeof vi.fn> & CreateDocumentFn;
-    let setEditorValueFn: ReturnType<typeof vi.fn> & SetEditorValueFn;
+    let setEditorValueFn: Mock<(content: string) => void>;
+    let mockEditorRef: { current: EditorLike };
     let setPendingWorkspaceAction: ReturnType<typeof vi.fn> &
       SetPendingWorkspaceActionFn;
 
@@ -200,7 +187,13 @@ describe("WorkspaceTools", () => {
       createDocumentFn = vi
         .fn()
         .mockReturnValue("new-doc-id") as unknown as typeof createDocumentFn;
-      setEditorValueFn = vi.fn() as unknown as typeof setEditorValueFn;
+      setEditorValueFn = vi.fn<(content: string) => void>();
+      mockEditorRef = {
+        current: {
+          getValue: vi.fn().mockReturnValue(""),
+          setValue: setEditorValueFn,
+        },
+      };
       setPendingWorkspaceAction =
         vi.fn() as unknown as typeof setPendingWorkspaceAction;
     });
@@ -209,17 +202,16 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
         vi.fn(),
         vi.fn(),
-        vi.fn().mockReturnValue(""),
-        setEditorValueFn,
+        mockEditorRef,
+        { current: "" },
         setPendingWorkspaceAction,
-        approveAll,
+        { current: approveAll },
       );
     }
 
@@ -270,17 +262,16 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
         vi.fn(),
         saveDocContentFn,
-        vi.fn().mockReturnValue(""),
-        setEditorValueFn,
+        mockEditorRef,
+        { current: "" },
         setPendingWorkspaceAction,
-        true,
+        { current: true },
       );
       await tools.create_document({ title: "My Doc", content: "Hello world" });
       expect(setEditorValueFn).toHaveBeenCalledWith("Hello world");
@@ -295,17 +286,16 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
         vi.fn(),
         saveDocContentFn,
-        vi.fn().mockReturnValue(""),
-        setEditorValueFn,
+        mockEditorRef,
+        { current: "" },
         setPendingWorkspaceAction,
-        true,
+        { current: true },
       );
       await tools.create_document({ title: "My Doc" });
       expect(setEditorValueFn).toHaveBeenCalledWith("");
@@ -320,17 +310,16 @@ describe("WorkspaceTools", () => {
       const tools = new WorkspaceTools(
         makeRef([]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         createDocumentFn,
         vi.fn(),
         vi.fn(),
         vi.fn(),
         saveDocContentFn,
-        vi.fn().mockReturnValue(""),
-        setEditorValueFn,
+        mockEditorRef,
+        { current: "" },
         setPendingWorkspaceAction,
-        false,
+        { current: false },
       );
       const promise = tools.create_document({
         title: "Draft",
@@ -360,17 +349,16 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef(docs),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         vi.fn(),
         renameDocumentFn,
         vi.fn(),
         vi.fn(),
         vi.fn(),
-        vi.fn().mockReturnValue(""),
-        vi.fn(),
+        { current: null },
+        { current: "" },
         setPendingWorkspaceAction,
-        approveAll,
+        { current: approveAll },
       );
     }
 
@@ -435,17 +423,16 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef(docs),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         vi.fn(),
         vi.fn(),
         deleteDocumentFn,
         vi.fn(),
         vi.fn(),
-        vi.fn().mockReturnValue(""),
-        vi.fn(),
+        { current: null },
+        { current: "" },
         setPendingWorkspaceAction,
-        approveAll,
+        { current: approveAll },
       );
     }
 
@@ -487,19 +474,20 @@ describe("WorkspaceTools", () => {
   describe("switch_active_document", () => {
     let setActiveDocumentIdFn: ReturnType<typeof vi.fn> & SetActiveDocumentIdFn;
     let saveDocContentFn: ReturnType<typeof vi.fn> & SaveDocContentFn;
-    let getEditorContent: ReturnType<typeof vi.fn> & GetEditorContentFn;
-    let setEditorValueFn: ReturnType<typeof vi.fn> & SetEditorValueFn;
+    let setEditorValueFn: Mock<(content: string) => void>;
+    let mockEditorRef: { current: EditorLike };
 
     beforeEach(() => {
       setActiveDocumentIdFn =
         vi.fn() as unknown as typeof setActiveDocumentIdFn;
       saveDocContentFn = vi.fn() as unknown as typeof saveDocContentFn;
-      getEditorContent = vi
-        .fn()
-        .mockReturnValue(
-          "editor content",
-        ) as unknown as typeof getEditorContent;
-      setEditorValueFn = vi.fn() as unknown as typeof setEditorValueFn;
+      setEditorValueFn = vi.fn<(content: string) => void>();
+      mockEditorRef = {
+        current: {
+          getValue: vi.fn().mockReturnValue("editor content"),
+          setValue: setEditorValueFn,
+        },
+      };
     });
 
     function makeTools(
@@ -509,17 +497,16 @@ describe("WorkspaceTools", () => {
       return new WorkspaceTools(
         makeRef(docs),
         makeActiveDocRef(activeDoc),
-        adapterFactory,
-        runnerFactory,
+        mockFactory,
         vi.fn(),
         vi.fn(),
         vi.fn(),
         setActiveDocumentIdFn,
         saveDocContentFn,
-        getEditorContent,
-        setEditorValueFn,
+        mockEditorRef,
+        { current: "" },
         vi.fn(),
-        false,
+        { current: false },
       );
     }
 
@@ -567,80 +554,114 @@ describe("WorkspaceTools", () => {
   });
 
   describe("query_workspace", () => {
-    it("calls query_workspace_doc for each document and passes summaries to synthesizer", async () => {
+    let mockRunStream: ReturnType<typeof vi.fn>;
+    let mockRunBuilder: ReturnType<typeof vi.fn>;
+    let streamFactory: AgentRunnerFactory;
+
+    beforeEach(() => {
+      mockRunStream = vi.fn();
+      mockRunBuilder = vi.fn().mockReturnValue({ runStream: mockRunStream });
+      streamFactory = {
+        create: vi.fn().mockReturnValue({ runBuilder: mockRunBuilder }),
+      };
+    });
+
+    it("synthesizes results from multiple docs and returns ResearchResult shape", async () => {
       const docs = [
         makeDoc({ id: "d1", title: "Doc 1", content: "content 1" }),
         makeDoc({ id: "d2", title: "Doc 2", content: "content 2" }),
       ];
 
-      mockRun
-        .mockResolvedValueOnce({ output: "Summary of doc 1." })
-        .mockResolvedValueOnce({ output: "Summary of doc 2." })
-        .mockResolvedValueOnce({ output: "Final synthesized answer." });
+      mockRunStream
+        .mockReturnValueOnce(
+          makeStream('{"summary":"Summary 1.","excerpt":"excerpt 1"}'),
+        )
+        .mockReturnValueOnce(
+          makeStream('{"summary":"Summary 2.","excerpt":"excerpt 2"}'),
+        )
+        .mockReturnValueOnce(makeStream('{"summary":"Combined answer."}'));
 
       const tools = new WorkspaceTools(
         makeRef(docs),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        streamFactory,
       );
       const result = JSON.parse(
         await tools.query_workspace({ query: "What do the docs say?" }),
       );
 
-      expect(result).toEqual({ answer: "Final synthesized answer." });
-      expect(mockRun).toHaveBeenCalledTimes(3);
-
-      const [synthAgent, synthInput] = mockRun.mock.calls[2];
-      expect(synthAgent.name).toBe("WorkspaceSynthesizer");
-      expect(synthInput).toContain("Summary of doc 1.");
-      expect(synthInput).toContain("Summary of doc 2.");
-      expect(synthInput).toContain("What do the docs say?");
+      expect(result.summary).toBe("Combined answer.");
+      expect(Array.isArray(result.sources)).toBe(true);
+      expect(result.sources).toHaveLength(2);
+      expect(result.sources[0]).toMatchObject({
+        id: "d1",
+        title: "Doc 1",
+        excerpt: "excerpt 1",
+      });
+      expect(result.sources[1]).toMatchObject({
+        id: "d2",
+        title: "Doc 2",
+        excerpt: "excerpt 2",
+      });
     });
 
-    it("returns an answer even with a single document", async () => {
-      mockRun
-        .mockResolvedValueOnce({ output: "Single doc summary." })
-        .mockResolvedValueOnce({ output: "Final answer." });
+    it("returns a ResearchResult even with a single document", async () => {
+      mockRunStream
+        .mockReturnValueOnce(
+          makeStream('{"summary":"Single doc summary.","excerpt":"passage"}'),
+        )
+        .mockReturnValueOnce(makeStream('{"summary":"Final answer."}'));
 
       const tools = new WorkspaceTools(
         makeRef([makeDoc()]),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        streamFactory,
       );
       const result = JSON.parse(await tools.query_workspace({ query: "q" }));
-      expect(result).toEqual({ answer: "Final answer." });
+      expect(result.summary).toBe("Final answer.");
+      expect(result.sources).toHaveLength(1);
     });
 
-    it("skips docs that return an error from query_workspace_doc", async () => {
+    it("excludes docs with no relevant content from sources", async () => {
       const docs = [
-        makeDoc({ id: "d1", title: "Good", content: "good content" }),
-        makeDoc({ id: "d2", title: "Bad", content: "" }),
+        makeDoc({ id: "d1", title: "Useful", content: "good content" }),
+        makeDoc({ id: "d2", title: "Empty", content: "" }),
       ];
 
-      const spy = vi.spyOn(WorkspaceTools.prototype, "query_workspace_doc");
-      spy.mockImplementation(async ({ id }) => {
-        if (id === "d2") return JSON.stringify({ error: "Document not found" });
-        return JSON.stringify({ summary: "Good summary." });
-      });
-
-      mockRun.mockResolvedValueOnce({ output: "Only good doc answer." });
+      mockRunStream
+        .mockReturnValueOnce(
+          makeStream('{"summary":"Useful info.","excerpt":"good passage"}'),
+        )
+        .mockReturnValueOnce(
+          makeStream('{"summary":"No relevant content.","excerpt":""}'),
+        )
+        .mockReturnValueOnce(makeStream('{"summary":"Only useful info."}'));
 
       const tools = new WorkspaceTools(
         makeRef(docs),
         noActiveDoc,
-        adapterFactory,
-        runnerFactory,
+        streamFactory,
       );
       const result = JSON.parse(await tools.query_workspace({ query: "q" }));
 
-      const [, synthInput] = mockRun.mock.calls[0];
-      expect(synthInput).toContain("Good summary.");
-      expect(synthInput).not.toContain("Document not found");
-      expect(result).toEqual({ answer: "Only good doc answer." });
+      expect(result.sources).toHaveLength(1);
+      expect(result.sources[0].id).toBe("d1");
+    });
 
-      spy.mockRestore();
+    it("returns empty sources and no-content summary when all docs have no relevant content", async () => {
+      mockRunStream.mockReturnValueOnce(
+        makeStream('{"summary":"No relevant content.","excerpt":""}'),
+      );
+
+      const tools = new WorkspaceTools(
+        makeRef([makeDoc()]),
+        noActiveDoc,
+        streamFactory,
+      );
+      const result = JSON.parse(await tools.query_workspace({ query: "q" }));
+
+      expect(result.sources).toHaveLength(0);
+      expect(result.summary).toContain("No relevant content");
     });
   });
 });

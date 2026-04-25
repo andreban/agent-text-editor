@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import { WorkspaceDocument, WorkspaceMeta, WorkspaceData } from "./workspace";
 
 const WORKSPACES_INDEX_KEY = "workspaces_index";
@@ -163,94 +163,106 @@ export function WorkspacesProvider({
       (d) => d.id === activeWorkspace.activeDocumentId,
     ) ?? null;
 
-  const createWorkspace = (name: string): WorkspaceMeta => {
-    const now = Date.now();
-    const meta: WorkspaceMeta = {
-      id: crypto.randomUUID(),
-      name,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const untitled: WorkspaceDocument = {
-      id: crypto.randomUUID(),
-      title: "Untitled Document",
-      content: "",
-      updatedAt: now,
-    };
-    const data: WorkspaceData = {
-      documents: [untitled],
-      activeDocumentId: untitled.id,
-    };
+  const createWorkspace = useCallback(
+    (name: string): WorkspaceMeta => {
+      const now = Date.now();
+      const meta: WorkspaceMeta = {
+        id: crypto.randomUUID(),
+        name,
+        createdAt: now,
+        updatedAt: now,
+      };
+      const untitled: WorkspaceDocument = {
+        id: crypto.randomUUID(),
+        title: "Untitled Document",
+        content: "",
+        updatedAt: now,
+      };
+      const data: WorkspaceData = {
+        documents: [untitled],
+        activeDocumentId: untitled.id,
+      };
 
-    const newIndex = [...index, meta];
-    setIndex(newIndex);
-    saveIndex(newIndex);
-    saveWorkspaceData(meta.id, data);
-    setActiveWorkspaceId(meta.id);
-    setActiveWorkspace(data);
-    localStorage.setItem(ACTIVE_WORKSPACE_KEY, meta.id);
-    return meta;
-  };
+      const newIndex = [...index, meta];
+      setIndex(newIndex);
+      saveIndex(newIndex);
+      saveWorkspaceData(meta.id, data);
+      setActiveWorkspaceId(meta.id);
+      setActiveWorkspace(data);
+      localStorage.setItem(ACTIVE_WORKSPACE_KEY, meta.id);
+      return meta;
+    },
+    [index],
+  );
 
-  const openWorkspace = (id: string) => {
+  const openWorkspace = useCallback((id: string) => {
     const data = loadWorkspaceData(id);
     setActiveWorkspaceId(id);
     setActiveWorkspace(data);
     localStorage.setItem(ACTIVE_WORKSPACE_KEY, id);
-  };
+  }, []);
 
-  const closeWorkspace = () => {
+  const closeWorkspace = useCallback(() => {
     setActiveWorkspaceId(null);
     setActiveWorkspace(null);
     localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
-  };
+  }, []);
 
-  const renameWorkspace = (id: string, newName: string) => {
-    const newIndex = index.map((m) =>
-      m.id === id ? { ...m, name: newName, updatedAt: Date.now() } : m,
-    );
-    setIndex(newIndex);
-    saveIndex(newIndex);
-  };
-
-  const deleteWorkspace = (id: string) => {
-    const newIndex = index.filter((m) => m.id !== id);
-    setIndex(newIndex);
-    saveIndex(newIndex);
-    localStorage.removeItem(workspaceKey(id));
-
-    if (activeWorkspaceId === id) {
-      const next = newIndex[0] ?? null;
-      if (next) {
-        openWorkspace(next.id);
-      } else {
-        setActiveWorkspaceId(null);
-        setActiveWorkspace(null);
-        localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
-      }
-    }
-  };
-
-  function mutateActiveWorkspace(fn: (data: WorkspaceData) => WorkspaceData) {
-    if (!activeWorkspaceId) return;
-    setActiveWorkspace((prev) => {
-      if (!prev) return prev;
-      const updated = fn(prev);
-      saveWorkspaceData(activeWorkspaceId, updated);
-      return updated;
-    });
-
-    const now = Date.now();
-    setIndex((prev) => {
-      const newIndex = prev.map((m) =>
-        m.id === activeWorkspaceId ? { ...m, updatedAt: now } : m,
+  const renameWorkspace = useCallback(
+    (id: string, newName: string) => {
+      const newIndex = index.map((m) =>
+        m.id === id ? { ...m, name: newName, updatedAt: Date.now() } : m,
       );
+      setIndex(newIndex);
       saveIndex(newIndex);
-      return newIndex;
-    });
-  }
+    },
+    [index],
+  );
 
-  const addDocument = () => {
+  const deleteWorkspace = useCallback(
+    (id: string) => {
+      const newIndex = index.filter((m) => m.id !== id);
+      setIndex(newIndex);
+      saveIndex(newIndex);
+      localStorage.removeItem(workspaceKey(id));
+
+      if (activeWorkspaceId === id) {
+        const next = newIndex[0] ?? null;
+        if (next) {
+          openWorkspace(next.id);
+        } else {
+          setActiveWorkspaceId(null);
+          setActiveWorkspace(null);
+          localStorage.removeItem(ACTIVE_WORKSPACE_KEY);
+        }
+      }
+    },
+    [index, activeWorkspaceId, openWorkspace],
+  );
+
+  const mutateActiveWorkspace = useCallback(
+    (fn: (data: WorkspaceData) => WorkspaceData) => {
+      if (!activeWorkspaceId) return;
+      setActiveWorkspace((prev) => {
+        if (!prev) return prev;
+        const updated = fn(prev);
+        saveWorkspaceData(activeWorkspaceId, updated);
+        return updated;
+      });
+
+      const now = Date.now();
+      setIndex((prev) => {
+        const newIndex = prev.map((m) =>
+          m.id === activeWorkspaceId ? { ...m, updatedAt: now } : m,
+        );
+        saveIndex(newIndex);
+        return newIndex;
+      });
+    },
+    [activeWorkspaceId],
+  );
+
+  const addDocument = useCallback(() => {
     const doc: WorkspaceDocument = {
       id: crypto.randomUUID(),
       title: "Untitled Document",
@@ -262,49 +274,61 @@ export function WorkspacesProvider({
       documents: [...data.documents, doc],
       activeDocumentId: doc.id,
     }));
-  };
+  }, [mutateActiveWorkspace]);
 
-  const createDocumentWithTitle = (title: string): string => {
-    const doc: WorkspaceDocument = {
-      id: crypto.randomUUID(),
-      title,
-      content: "",
-      updatedAt: Date.now(),
-    };
-    mutateActiveWorkspace((data) => ({
-      ...data,
-      documents: [...data.documents, doc],
-      activeDocumentId: doc.id,
-    }));
-    return doc.id;
-  };
+  const createDocumentWithTitle = useCallback(
+    (title: string): string => {
+      const doc: WorkspaceDocument = {
+        id: crypto.randomUUID(),
+        title,
+        content: "",
+        updatedAt: Date.now(),
+      };
+      mutateActiveWorkspace((data) => ({
+        ...data,
+        documents: [...data.documents, doc],
+        activeDocumentId: doc.id,
+      }));
+      return doc.id;
+    },
+    [mutateActiveWorkspace],
+  );
 
-  const updateDocument = (
-    id: string,
-    patch: Partial<Pick<WorkspaceDocument, "title" | "content">>,
-  ) => {
-    mutateActiveWorkspace((data) => ({
-      ...data,
-      documents: data.documents.map((d) =>
-        d.id === id ? { ...d, ...patch, updatedAt: Date.now() } : d,
-      ),
-    }));
-  };
+  const updateDocument = useCallback(
+    (
+      id: string,
+      patch: Partial<Pick<WorkspaceDocument, "title" | "content">>,
+    ) => {
+      mutateActiveWorkspace((data) => ({
+        ...data,
+        documents: data.documents.map((d) =>
+          d.id === id ? { ...d, ...patch, updatedAt: Date.now() } : d,
+        ),
+      }));
+    },
+    [mutateActiveWorkspace],
+  );
 
-  const deleteDocument = (id: string) => {
-    mutateActiveWorkspace((data) => {
-      const remaining = data.documents.filter((d) => d.id !== id);
-      let newActiveId = data.activeDocumentId;
-      if (newActiveId === id) {
-        newActiveId = remaining[0]?.id ?? null;
-      }
-      return { documents: remaining, activeDocumentId: newActiveId };
-    });
-  };
+  const deleteDocument = useCallback(
+    (id: string) => {
+      mutateActiveWorkspace((data) => {
+        const remaining = data.documents.filter((d) => d.id !== id);
+        let newActiveId = data.activeDocumentId;
+        if (newActiveId === id) {
+          newActiveId = remaining[0]?.id ?? null;
+        }
+        return { documents: remaining, activeDocumentId: newActiveId };
+      });
+    },
+    [mutateActiveWorkspace],
+  );
 
-  const setActiveDocumentId = (id: string) => {
-    mutateActiveWorkspace((data) => ({ ...data, activeDocumentId: id }));
-  };
+  const setActiveDocumentId = useCallback(
+    (id: string) => {
+      mutateActiveWorkspace((data) => ({ ...data, activeDocumentId: id }));
+    },
+    [mutateActiveWorkspace],
+  );
 
   return (
     <WorkspacesContext.Provider

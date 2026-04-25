@@ -2,9 +2,9 @@
 
 ## The Bug
 
-Our AI agent editor lets an LLM switch between documents, create new ones, and then immediately read or edit the content that should now be open. In practice, after the agent called `switch_active_document`, any subsequent `read()` or `edit()` call would silently operate on the *previous* document. The agent was editing text it thought it had just switched away from.
+Our AI agent editor lets an LLM switch between documents, create new ones, and then immediately read or edit the content that should now be open. In practice, after the agent called `switch_active_document`, any subsequent `read()` or `edit()` call would silently operate on the _previous_ document. The agent was editing text it thought it had just switched away from.
 
-The fix was a single extra line per tool. Understanding *why* it was needed reveals something fundamental about how agent tools must behave.
+The fix was a single extra line per tool. Understanding _why_ it was needed reveals something fundamental about how agent tools must behave.
 
 ---
 
@@ -22,7 +22,7 @@ This is not a subtle edge case. It is the foundational requirement for any tool 
 
 ## "Done" vs "Observable": A General Problem
 
-This contract can be broken any time there is a gap between *initiating* an effect and that effect becoming *visible* to subsequent operations. The agent framework doesn't know about that gap — it sees a resolved Promise and moves on.
+This contract can be broken any time there is a gap between _initiating_ an effect and that effect becoming _visible_ to subsequent operations. The agent framework doesn't know about that gap — it sees a resolved Promise and moves on.
 
 Some familiar examples of the same class of problem:
 
@@ -58,7 +58,7 @@ Agent calls read() next:
   editor.getValue()             → Monaco still holds OLD document content 💥
 ```
 
-React 18 batches state updates and flushes them asynchronously. Even if that flush were instant, `useEffect` — which triggers `setLocalContent` in `EditorPanel` — runs *after the browser paints*. There are two full deferred render cycles before Monaco reflects the new document:
+React 18 batches state updates and flushes them asynchronously. Even if that flush were instant, `useEffect` — which triggers `setLocalContent` in `EditorPanel` — runs _after the browser paints_. There are two full deferred render cycles before Monaco reflects the new document:
 
 ```
 Cycle 1: setActiveDocumentId() flushes → React renders
@@ -83,19 +83,19 @@ The apparent solution is to delay the Promise resolution until the rendering pip
 
 **`flushSync`** forces a synchronous render, but `useEffect` hooks are explicitly deferred until after paint — by design. The `setLocalContent` call still wouldn't happen, so Monaco still wouldn't update.
 
-**`setTimeout(resolve, 0)`** waits one event-loop tick. React's flush usually completes in a microtask, so the first render might be done — but `useEffect` fires post-paint, which is *after* a `requestAnimationFrame`. Chaining `setTimeout(0)` inside `setTimeout(0)` is guessing at timing, not knowing it.
+**`setTimeout(resolve, 0)`** waits one event-loop tick. React's flush usually completes in a microtask, so the first render might be done — but `useEffect` fires post-paint, which is _after_ a `requestAnimationFrame`. Chaining `setTimeout(0)` inside `setTimeout(0)` is guessing at timing, not knowing it.
 
 **`requestAnimationFrame` chains** are closer but still fragile. A slow frame (tab in background, heavy layout work) can push the paint back far enough to race. This adds 16–32 ms of artificial latency per tool call, which accumulates noticeably in a multi-step agent loop. And it's still a timing assumption, not a guarantee.
 
-All of these approaches try to solve the problem at the wrong layer. They're trying to make the write path synchronous, but the write path is asynchronous *by design* — React's async rendering is a feature. The real problem is that the write path and the read path are different, and the agent shouldn't have to wait for a UI rendering pipeline at all.
+All of these approaches try to solve the problem at the wrong layer. They're trying to make the write path synchronous, but the write path is asynchronous _by design_ — React's async rendering is a feature. The real problem is that the write path and the read path are different, and the agent shouldn't have to wait for a UI rendering pipeline at all.
 
 ---
 
 ## The Right Fix: Separate the Agent's State from the UI's State
 
-The core insight is that the agent tools and the UI *don't have to share the same state pathway*. The UI can stay async. The agent just needs its reads and writes to be consistent with each other.
+The core insight is that the agent tools and the UI _don't have to share the same state pathway_. The UI can stay async. The agent just needs its reads and writes to be consistent with each other.
 
-In our case, the agent reads from and writes to Monaco's imperative API (`editor.getValue()`, `editor.setValue()`). React's rendering pipeline drives the *display*, but the agent cares about the *model*. When a tool changes the active document, it should update the model directly:
+In our case, the agent reads from and writes to Monaco's imperative API (`editor.getValue()`, `editor.setValue()`). React's rendering pipeline drives the _display_, but the agent cares about the _model_. When a tool changes the active document, it should update the model directly:
 
 ```ts
 async switch_active_document({ id }: { id: string }): Promise<string> {
@@ -142,7 +142,7 @@ The failure mode was silent. The agent would produce output like:
 > Reading document...
 > I see the document currently begins with "Introduction to..."
 
-— and "Introduction to..." was from the *previous* document. The agent would then propose an edit, the user would accept it, and the wrong document would be modified. No error, no warning — just the wrong behaviour.
+— and "Introduction to..." was from the _previous_ document. The agent would then propose an edit, the user would accept it, and the wrong document would be modified. No error, no warning — just the wrong behaviour.
 
 The bug only appeared when the agent chained multiple tools, which is exactly what a capable agent does. A single-tool interaction (switch, then stop) appeared to work fine because the UI caught up before the user took another action. The more capable you make an agent, the worse this class of bug gets.
 
@@ -164,9 +164,9 @@ The React-specific mechanics (two render cycles, `useEffect` deferral, `flushSyn
 
 ## Summary
 
-| Approach | Works? | Why |
-|---|---|---|
-| Trust React to update before the next tool runs | No | React renders are deferred; the agent runs between state mutations and their effects |
-| Delay Promise with `setTimeout(0)` | Unreliable | `useEffect` runs post-paint, not post-microtask; timing is still a guess |
-| Delay Promise with `flushSync` | Partial | Forces one synchronous render; `useEffect` is still deferred until after paint |
-| Eagerly update Monaco + async React state | ✓ | Closes the gap between write path and read path; React catches up without blocking the agent |
+| Approach                                        | Works?     | Why                                                                                          |
+| ----------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------- |
+| Trust React to update before the next tool runs | No         | React renders are deferred; the agent runs between state mutations and their effects         |
+| Delay Promise with `setTimeout(0)`              | Unreliable | `useEffect` runs post-paint, not post-microtask; timing is still a guess                     |
+| Delay Promise with `flushSync`                  | Partial    | Forces one synchronous render; `useEffect` is still deferred until after paint               |
+| Eagerly update Monaco + async React state       | ✓          | Closes the gap between write path and read path; React catches up without blocking the agent |

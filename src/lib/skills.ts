@@ -18,7 +18,7 @@ export const DEFAULT_SKILLS: Skill[] = [
     description:
       "Drafts a new skill definition and writes it to the current document.",
     instructions:
-      "You are a skill author. Given a description of what a new skill should do, draft a complete skill definition and save it as a new workspace document.\n\n" +
+      "You are a skill author. Given a description of what a new skill should do, draft a complete skill definition.\n\n" +
       "A skill definition uses this format:\n\n" +
       "---\n" +
       "name: <skill name>\n" +
@@ -27,11 +27,7 @@ export const DEFAULT_SKILLS: Skill[] = [
       "<step-by-step instructions for the skill's sub-agent>\n\n" +
       "Steps:\n" +
       "1. From the task, decide on a short name, a one-line description, and detailed step-by-step instructions the sub-agent should follow.\n" +
-      "2. Call `create_document` with the skill name as the title.\n" +
-      "3. Call `list_workspace_docs` to find the new document's ID by matching the title.\n" +
-      "4. Call `switch_active_document` with that ID to open it.\n" +
-      "5. Call `write` to fill the document with the complete skill definition.\n" +
-      "6. Report the skill name and a brief summary of what it does.",
+      "2. Return the complete skill definition as your response.",
   },
   {
     id: "default-proofreader",
@@ -41,9 +37,8 @@ export const DEFAULT_SKILLS: Skill[] = [
     instructions:
       "You are a meticulous proofreader. Fix grammar, spelling, and punctuation errors while strictly preserving the author's voice and style.\n\n" +
       "1. Use the `read` tool to read the full document.\n" +
-      "2. Identify errors one at a time and use `edit` for each targeted fix.\n" +
-      "3. Do NOT rewrite sentences beyond what is needed to fix the error.\n" +
-      "4. After all fixes, summarize the changes you made.",
+      "2. List each error and the correction needed. Be specific about the exact text to change and what it should become.\n" +
+      "3. Do NOT rewrite sentences beyond what is needed to fix the error.",
   },
   {
     id: "default-summarizer",
@@ -53,8 +48,7 @@ export const DEFAULT_SKILLS: Skill[] = [
       "You are a summarizer. Produce a concise, accurate summary of the document.\n\n" +
       "1. Use the `read` tool to read the full document.\n" +
       "2. If the `summarize` tool is available, pass the text to it and return its output. " +
-      "Otherwise, write a concise summary in plain prose yourself.\n" +
-      "Do NOT edit the document.",
+      "Otherwise, write a concise summary in plain prose yourself.",
   },
   {
     id: "default-markdown-formatter",
@@ -63,7 +57,7 @@ export const DEFAULT_SKILLS: Skill[] = [
     instructions:
       "You are a Markdown formatter. Clean up and enforce consistent Markdown formatting.\n\n" +
       "1. Use the `read` tool to read the full document.\n" +
-      "2. Fix heading levels, list style, blank lines around headings/lists, and code-fence languages using `edit` for each targeted change.\n" +
+      "2. List each formatting issue and the exact fix needed: heading levels, list style, blank lines around headings/lists, code-fence languages.\n" +
       "3. Do NOT change any prose content — only fix formatting.",
   },
 ];
