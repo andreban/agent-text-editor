@@ -12,6 +12,7 @@ import {
 import type { ResearchResult } from "../agents/researcher";
 import { runResearch } from "../agents/researcher";
 import { runWriter } from "../agents/writer";
+import { runReview } from "../agents/reviewer";
 import type { PlanConfirmationRequest } from "../store";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
@@ -230,6 +231,38 @@ export function registerDelegationTools(
         args.styleContext,
       );
       return JSON.stringify({ draft });
+    },
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "invoke_reviewer",
+      description:
+        "Evaluates a draft against explicit criteria and returns structured feedback. " +
+        "Returns JSON: { passed: boolean, issues: [{ severity, location?, description, fix? }], summary }. " +
+        "Use after invoke_writer to check a draft before applying it. " +
+        "If passed is false and error-severity issues remain after 3 Writer→Reviewer cycles, " +
+        "present the best available draft via edit() or write() and summarise remaining issues in your response.",
+      parameters: {
+        type: "object",
+        properties: {
+          text: {
+            type: "string",
+            description: "The draft text to review.",
+          },
+          criteria: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Review criteria to check against (e.g. 'grammatical correctness', 'consistent use of past tense', 'no unsupported factual claims').",
+          },
+        },
+        required: ["text", "criteria"],
+      },
+    }),
+    call: async (args: { text: string; criteria: string[] }) => {
+      const result = await runReview(args.text, args.criteria, factory);
+      return JSON.stringify(result);
     },
   });
 }
