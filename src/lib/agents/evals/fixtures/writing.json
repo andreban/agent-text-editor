@@ -1,0 +1,118 @@
+[
+  {
+    "instruction": "Write an introductory paragraph for an article about remote work productivity. Cite both sources provided in the research context.",
+    "researchContext": {
+      "summary": "Studies show remote workers are 13% more productive than office workers, but isolation and communication gaps remain challenges.",
+      "sources": [
+        {
+          "id": "1",
+          "title": "Stanford Remote Work Study",
+          "excerpt": "Remote workers showed a 13% performance increase compared to office-based peers."
+        },
+        {
+          "id": "2",
+          "title": "Harvard Business Review: Isolation Risk",
+          "excerpt": "47% of remote workers report feeling isolated, which can reduce long-term engagement."
+        }
+      ]
+    },
+    "styleContext": null,
+    "rubric": "The paragraph introduces remote work productivity, cites both source titles by name, and flows as a natural article opening with no preamble."
+  },
+  {
+    "instruction": "Draft a two-sentence conclusion for an essay on climate change, drawing on the research provided.",
+    "researchContext": {
+      "summary": "Global temperatures have risen 1.1°C since pre-industrial times. Renewable energy adoption is accelerating but must triple by 2030 to meet targets.",
+      "sources": [
+        {
+          "id": "3",
+          "title": "IPCC 2023 Report",
+          "excerpt": "Global average temperatures have increased by 1.1°C above pre-industrial levels."
+        },
+        {
+          "id": "4",
+          "title": "IEA Energy Outlook",
+          "excerpt": "Renewable capacity additions must triple by 2030 to stay on track for net-zero."
+        }
+      ]
+    },
+    "styleContext": null,
+    "rubric": "Exactly two sentences that reference the research findings and provide a sense of closure appropriate for an essay ending."
+  },
+  {
+    "instruction": "Write a 100-word product description for a noise-cancelling headphone, incorporating the research findings. Match the casual, enthusiastic style of the style reference.",
+    "researchContext": {
+      "summary": "Noise-cancelling headphones reduce ambient noise by up to 35dB and improve focus in open-plan offices by 40%.",
+      "sources": [
+        {
+          "id": "5",
+          "title": "Consumer Audio Lab",
+          "excerpt": "Active noise cancellation reduces ambient noise by up to 35 decibels in real-world testing."
+        }
+      ]
+    },
+    "styleContext": "These earbuds are honestly a game-changer. Pop them in, and the world just disappears — it's like having a personal cone of silence wherever you go.",
+    "rubric": "Approximately 100 words, incorporates the noise-reduction stat from research, and matches the casual enthusiastic first-person voice of the style reference."
+  },
+  {
+    "instruction": "Summarise the research findings as a bullet list of three key points.",
+    "researchContext": {
+      "summary": "Intermittent fasting reduces insulin resistance, supports weight loss, and may improve cognitive function in healthy adults.",
+      "sources": [
+        {
+          "id": "6",
+          "title": "Journal of Metabolic Health",
+          "excerpt": "Subjects practicing 16:8 intermittent fasting showed a 22% reduction in fasting insulin levels."
+        },
+        {
+          "id": "7",
+          "title": "Nutrition Reviews",
+          "excerpt": "Participants lost an average of 3–8% of body weight over 8–24 weeks of intermittent fasting."
+        },
+        {
+          "id": "8",
+          "title": "Cognitive Neuroscience Letters",
+          "excerpt": "Mild caloric restriction was associated with improved working memory scores in adults under 60."
+        }
+      ]
+    },
+    "styleContext": null,
+    "rubric": "Exactly three bullet points that accurately reflect the research summary and source findings, with no preamble."
+  },
+  {
+    "instruction": "Rewrite the following excerpt in a formal academic tone: 'Social media is kind of a double-edged sword. Sure, it connects people, but it also makes everyone anxious and addicted to likes.'",
+    "researchContext": null,
+    "styleContext": "Social media platforms present a paradox for contemporary society: while they facilitate unprecedented global connectivity, empirical evidence increasingly links heavy usage to heightened anxiety and compulsive engagement-seeking behaviours.",
+    "rubric": "Conveys the same meaning as the original but in formal academic prose matching the measured tone of the style reference. No colloquialisms."
+  },
+  {
+    "instruction": "Continue the following sentence in the same voice: 'The library smelled of old paper and possibility, and every time Marcus pushed open the heavy oak door—'",
+    "researchContext": null,
+    "styleContext": "The library smelled of old paper and possibility, and every time Marcus pushed open the heavy oak door—",
+    "rubric": "Flows seamlessly from the provided sentence, maintains the literary evocative prose style, and completes the thought naturally."
+  },
+  {
+    "instruction": "Write a short blog opening paragraph (3–4 sentences) about the benefits of morning routines.",
+    "researchContext": null,
+    "styleContext": "Let's be real — nobody actually loves waking up early. But once you get past those first groggy minutes, a solid morning routine can genuinely change your whole day. Here's what I've learned from six months of actually sticking to one.",
+    "rubric": "3–4 sentences, matches the conversational first-person blog voice of the style reference, and engagingly introduces morning routines."
+  },
+  {
+    "instruction": "Write a three-sentence summary explaining what machine learning is, for a non-technical audience.",
+    "researchContext": null,
+    "styleContext": null,
+    "rubric": "Exactly three sentences, avoids jargon, and gives a non-technical reader a clear accurate mental model of machine learning."
+  },
+  {
+    "instruction": "Write a one-line headline for a news article about a city banning single-use plastics.",
+    "researchContext": null,
+    "styleContext": null,
+    "rubric": "A single line that reads as a compelling news headline accurately reflecting a city banning single-use plastics."
+  },
+  {
+    "instruction": "Write a single transition sentence that bridges a paragraph about the industrial revolution and a paragraph about modern automation.",
+    "researchContext": null,
+    "styleContext": null,
+    "rubric": "Exactly one sentence that logically connects the industrial revolution to modern automation as a smooth paragraph bridge."
+  }
+]
