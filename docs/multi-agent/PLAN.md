@@ -10,7 +10,7 @@ The current agent is a single generalist loop: it reads, edits, and delegates to
 
 All multi-agent work lives off a long-running `multi-agent` branch. Each phase gets its own short-lived branch and a PR back to `multi-agent`. The `multi-agent` branch is only merged to `main` when the full feature is complete.
 
-**Branch naming:** `multi-agent-phase-a`, `multi-agent-phase-b`, …, `multi-agent-phase-f`.
+**Branch naming:** `multi-agent-phase-a`, `multi-agent-phase-b`, …, `multi-agent-phase-g`.
 
 **Workflow per phase:**
 
@@ -52,39 +52,50 @@ Sub-plans are written against these existing files. Each phase lists which of th
 These are the relevant interfaces from `@mast-ai/core` that the implementation depends on.
 
 ```ts
-// Construct and run an agent loop
+// Construct an agent runner — adapter provides the LLM, registry provides tools
 class AgentRunner {
-  constructor(config: AgentConfig);
-  run(prompt: string): AsyncGenerator<AgentEvent>;
+  constructor(adapter: LlmAdapter, tools?: ToolRegistry);
+
+  // Build a bound runner for a specific agent config, then stream its output
+  runBuilder(agentConfig: AgentConfig): {
+    runStream(input: string): AsyncIterable<AgentEvent>;
+  };
+
+  // One-shot run — awaits the full response and returns { output: string }
+  run(agentConfig: AgentConfig, input: string): Promise<{ output: string }>;
 }
 
+// Passed to runBuilder / run to configure a single agent invocation
 interface AgentConfig {
-  adapter: LlmAdapter;
-  tools: ToolRegistry;
-  systemInstructions: string;
-  history?: Message[];
+  name: string;           // identifies the agent in events (agentRole)
+  instructions: string;  // system prompt for this invocation
+  tools: string[];        // names of tools from the registry to expose
 }
 
-// Register tools
+// Register a tool with an object form (definition factory + async call handler)
 class ToolRegistry {
-  register(
-    name: string,
-    description: string,
-    schema: JsonSchema,
-    fn: ToolFn,
-  ): void;
+  register(tool: {
+    definition: () => { name: string; description: string; parameters: JsonSchema };
+    call: (args: unknown, context: ToolContext) => Promise<string>;
+  }): void;
+
+  definitions(): Array<{ name: string; description: string; parameters: JsonSchema }>;
 }
 
-// Events streamed from AgentRunner.run()
+interface ToolContext {
+  onEvent?: (event: AgentEvent) => void;
+}
+
+// Events streamed from runStream()
 type AgentEvent =
-  | { type: "text_delta"; delta: string; agentRole?: string }
+  | { type: "text_delta"; delta: string; agentName?: string }
   | { type: "thinking_delta"; delta: string }
   | { type: "tool_call"; name: string; args: unknown }
   | { type: "tool_result"; name: string; result: unknown }
-  | { type: "done"; text: string };
+  | { type: "done"; output: string };
 ```
 
-Sub-agents are created by constructing a new `AgentRunner` with a fresh `ToolRegistry` and calling `.run()`. The parent tool awaits the generator to completion and returns the final text as the tool result.
+Sub-agents are created by constructing a new `AgentRunner` with a fresh `ToolRegistry`, then calling `runner.runBuilder(agentConfig).runStream(task)` or `runner.run(agentConfig, task)`. Tool names in `AgentConfig.tools` must match names registered on the same registry. Streaming events from sub-agents are forwarded to the parent via `context.onEvent?.()` inside the tool handler.
 
 ---
 
@@ -500,14 +511,14 @@ Extract the `AgentRunner` construction logic from `App.tsx` and `WorkspaceTools.
 ```ts
 interface AgentRunnerFactory {
   create(options: {
-    systemPrompt: string;
+    systemPrompt?: string;
     tools?: ToolRegistry;
-    onEvent?: (event: AgentEvent) => void;
+    model?: string;
   }): AgentRunner;
 }
 ```
 
-The factory is constructed once in `App.tsx` with the user's selected model baked in, then injected into all tools that create sub-agents (`WorkspaceTools`, `EditorTools`, and the new delegation tools). Sub-agents always use the same model as the main agent — no per-agent overrides. This also makes tools testable without hitting the real API.
+The factory is constructed once in `App.tsx` with the user's selected model baked in, then injected into all tools that create sub-agents (`WorkspaceTools`, `EditorTools`, and the new delegation tools). Sub-agents always use the same model as the main agent unless overridden via `model`. This also makes tools testable without hitting the real API.
 
 ### Plan execution state
 
@@ -549,36 +560,47 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase B: Planner Agent
+### Phase B: Tool Registry Refactor
 
-**Goal:** Orchestrator can decompose a task into a structured plan and present it to the user before acting. Also establishes the write access policy in code.
-
-**Prerequisite work (before Planner features):**
+**Goal:** Enforce the write access policy in code. All sub-agent creation sites use named registry builders; `delegate_to_skill` returns `ProposedEdit[]` instead of calling `edit`/`write` directly. No user-visible features — purely infrastructure.
 
 - Create `src/lib/tools/registries.ts` exporting `buildReadonlyRegistry(editorTools, workspaceTools)` and `buildReadWriteRegistry(editorTools, workspaceTools)`.
 - Refactor `delegate_to_skill` in `EditorTools.ts` to give skills a read-only registry and return `ProposedEdit[]` instead of calling `edit`/`write` directly.
-- Orchestrator prompt updated to instruct it to apply the `ProposedEdit[]` list returned by `delegate_to_skill`.
-- `invoke_agent` updated to use `buildReadonlyRegistry()` for group resolution.
+- Update orchestrator system prompt to instruct the Orchestrator to apply the `ProposedEdit[]` list returned by `delegate_to_skill` via its own `edit()` calls.
+- Update `invoke_agent` group resolution in `DelegationTools.ts` to use `buildReadonlyRegistry()`.
 
-**Planner features:**
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/tools/EditorTools.ts`, `src/lib/agents/orchestrator.ts`.
+
+**Files created:** `src/lib/tools/registries.ts`.
+
+**Tests:** `buildReadonlyRegistry` excludes write tools; `buildReadWriteRegistry` includes them; `delegate_to_skill` returns `ProposedEdit[]` not a resolved edit; existing `invoke_agent` tests still pass.
+
+**Working state:** Write access policy enforced in code. Skills and generic sub-agents are structurally read-only. Orchestrator is the sole writer.
+
+---
+
+### Phase C: Planner Agent
+
+**Goal:** Orchestrator can decompose a task into a structured plan and present it to the user before acting.
 
 - Implement `src/lib/agents/planner.ts` + `invoke_planner` tool in `DelegationTools.ts`.
 - Plan Confirmation Widget in `ChatSidebar` (confirm/cancel only — no step editing yet).
 - `WorkflowState` drives the widget's step list.
+- Add `vitest.evals.config.ts` and `npm run evals` script.
 
-**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/tools/EditorTools.ts`, `src/lib/agents/index.ts`, `src/lib/store.tsx`, `src/components/ChatSidebar.tsx`, `src/App.tsx`, `package.json`, `vitest.evals.config.ts` (new).
+**Files modified:** `src/lib/tools/DelegationTools.ts`, `src/lib/agents/index.ts`, `src/lib/store.tsx`, `src/components/ChatSidebar.tsx`, `src/App.tsx`, `package.json`.
 
-**Files created:** `src/lib/tools/registries.ts`, `src/lib/agents/planner.ts`, `src/components/PlanConfirmationWidget.tsx`, `src/lib/agents/evals/planning.eval.ts`, `src/lib/agents/evals/fixtures/planning.json`.
+**Files created:** `src/lib/agents/planner.ts`, `src/components/PlanConfirmationWidget.tsx`, `vitest.evals.config.ts`, `src/lib/agents/evals/planning.eval.ts`, `src/lib/agents/evals/fixtures/planning.json`.
 
-**Tests:** `buildReadonlyRegistry` excludes write tools; `buildReadWriteRegistry` includes them; `delegate_to_skill` returns `ProposedEdit[]` not a resolved edit; Planner factory sets correct system prompt and no tools; `invoke_planner` returns a valid `Plan`; `WorkflowState` updates on confirm/cancel.
+**Tests:** Planner factory sets correct system prompt and no tools; `invoke_planner` returns a valid `Plan`; `WorkflowState` updates on confirm/cancel.
 
-**Evals:** `src/lib/agents/evals/planning.eval.ts` + `fixtures/planning.json` — score plan quality with LLM-as-judge; add `vitest.evals.config.ts` and `npm run evals` script.
+**Evals:** `src/lib/agents/evals/planning.eval.ts` + `fixtures/planning.json` — score plan quality with LLM-as-judge.
 
-**Working state:** Write access policy enforced in code; user can say "plan a rewrite of section 2", see a structured plan, and confirm before the Orchestrator acts.
+**Working state:** User can say "plan a rewrite of section 2", see a structured plan, and confirm before the Orchestrator acts.
 
 ---
 
-### Phase C: Research Agent
+### Phase D: Research Agent
 
 **Goal:** Upgrade the existing workspace query pipeline to return structured, attributable `ResearchResult`.
 
@@ -598,7 +620,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase D: Writer Agent
+### Phase E: Writer Agent
 
 **Goal:** Separate content generation from content application.
 
@@ -618,7 +640,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase E: Review Agent + Iterative Refinement
+### Phase F: Review Agent + Iterative Refinement
 
 **Goal:** Structured feedback loop before content is applied; Writer → Reviewer cycles with hard iteration cap and error recovery.
 
@@ -640,7 +662,7 @@ This is held in React state (not localStorage) and drives the Plan Confirmation 
 
 ---
 
-### Phase F: Parallel Execution + Full Pipelines
+### Phase G: Parallel Execution + Full Pipelines
 
 **Goal:** Enable the Planner to express parallel branches; complete the Plan Confirmation Widget; validate end-to-end pipelines against the single-agent baseline.
 
@@ -737,6 +759,6 @@ A shared `judge(text, rubric, criteria)` utility in `src/lib/agents/evals/judge.
 1. **Model selection per agent** — All agents default to the user's globally selected model. Per-agent overrides are out of scope for now.
 2. **Plan persistence** — In-progress plans are not persisted across page reloads. A reload cancels any active workflow.
 3. **Max iteration guard** — Hard limit of 3 iterations (Writer → Reviewer cycles) before forcing user approval. Not configurable — beyond 3 passes the instructions or context are likely the problem, not the output.
-4. **Streaming sub-agent output** — Sub-agent responses stream into the chat with agent attribution, same as the main agent. The `onEvent` callback on `AgentRunnerFactory.create()` is the hook for this — callers pass a handler that routes streamed deltas into the correct attributed chat block.
+4. **Streaming sub-agent output** — Sub-agent responses stream into the chat with agent attribution, same as the main agent. The `context.onEvent?.()` callback in each tool handler is the hook for this — tools that run sub-agents call `context.onEvent?.()` for each event so the parent agent can route streamed deltas into the correct attributed chat block.
 5. **Skill → Reviewer mapping** — They serve different purposes and both remain. `invoke_reviewer` is an internal pipeline tool: it returns structured `ReviewResult` so the Orchestrator can act on it programmatically (loop back to the Writer, count errors, pass/fail). `delegate_to_skill` is the user-facing delegation path: it runs a user-defined skill with a read-only registry and returns `ProposedEdit[]` for the Orchestrator to apply. No unification needed.
 6. **Error recovery** — If a mid-pipeline step fails, the Orchestrator retries it once. If it fails again, the step is skipped and the pipeline continues with the remaining steps. The skipped step and its error are reported to the user in chat.
