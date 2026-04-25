@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useApp } from "@/lib/store";
+import { useAgentConfig } from "@/lib/store";
 import { Skill } from "@/lib/skills";
 import { Pencil, Trash2 } from "lucide-react";
 
@@ -32,7 +32,7 @@ function SkillsForm({
 }: {
   onOpenChange: (open: boolean) => void;
 }) {
-  const { skills, setSkills, modelName } = useApp();
+  const { skills, setSkills, modelName } = useAgentConfig();
   const [editState, setEditState] = useState<EditState | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);

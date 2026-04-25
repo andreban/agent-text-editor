@@ -23,7 +23,7 @@ function makeEditorTools(): EditorTools {
     }),
     getSelection: vi.fn().mockReturnValue(null),
   };
-  return new EditorTools(mockEditor, vi.fn(), false);
+  return new EditorTools({ current: mockEditor }, vi.fn(), { current: false });
 }
 
 function makeWorkspaceTools(): WorkspaceTools {

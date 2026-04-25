@@ -13,31 +13,15 @@ const mockSetApiKey = vi.fn();
 const mockSetModelName = vi.fn();
 
 function mockStore(apiKey: string | null, modelName: string) {
-  vi.spyOn(storeModule, "useApp").mockReturnValue({
+  vi.spyOn(storeModule, "useAgentConfig").mockReturnValue({
     apiKey,
     setApiKey: mockSetApiKey,
     modelName,
     setModelName: mockSetModelName,
     totalTokens: 0,
     setTotalTokens: vi.fn(),
-    suggestions: [],
-    setSuggestions: vi.fn(),
-    editorInstance: null,
-    setEditorInstance: vi.fn(),
-    activeTab: "editor",
-    setActiveTab: vi.fn(),
-    editorContent: "",
-    setEditorContent: vi.fn(),
-    pendingTabSwitchRequest: null,
-    setPendingTabSwitchRequest: vi.fn(),
-    pendingWorkspaceAction: null,
-    setPendingWorkspaceAction: vi.fn(),
-    approveAll: false,
-    setApproveAll: vi.fn(),
     skills: [],
     setSkills: vi.fn(),
-    workflowState: null,
-    setWorkflowState: vi.fn(),
   });
 }
 

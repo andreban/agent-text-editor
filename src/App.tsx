@@ -15,7 +15,7 @@ import {
   PanelRightOpen,
   LayoutGrid,
 } from "lucide-react";
-import { useApp } from "@/lib/store";
+import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import {
   Dialog,
@@ -284,21 +284,18 @@ function App() {
     deleteDocument,
     setActiveDocumentId,
   } = useWorkspaces();
+  const { apiKey, setApiKey, modelName, setTotalTokens, skills } =
+    useAgentConfig();
   const {
-    apiKey,
-    setApiKey,
-    modelName,
-    setTotalTokens,
     editorInstance,
     setSuggestions,
     approveAll,
-    skills,
     activeTab,
     editorContent,
     setPendingTabSwitchRequest,
     pendingWorkspaceAction,
     setPendingWorkspaceAction,
-  } = useApp();
+  } = useEditorUI();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
 
@@ -318,27 +315,45 @@ function App() {
       : null;
   }, [activeDocument]);
 
+  const editorInstanceRef = useRef(editorInstance);
+  useEffect(() => {
+    editorInstanceRef.current = editorInstance;
+  }, [editorInstance]);
+
+  const editorContentRef = useRef(editorContent);
+  useEffect(() => {
+    editorContentRef.current = editorContent;
+  }, [editorContent]);
+
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  const approveAllRef = useRef(approveAll);
+  useEffect(() => {
+    approveAllRef.current = approveAll;
+  }, [approveAll]);
+
+  const requestTabSwitch = useCallback(
+    () =>
+      new Promise<boolean>((resolve) => {
+        setPendingTabSwitchRequest({ resolve });
+      }),
+    [setPendingTabSwitchRequest],
+  );
+
   const editorTools = useMemo(
     () =>
       new EditorTools(
-        editorInstance,
+        editorInstanceRef,
         setSuggestions,
-        approveAll,
-        () => editorContent,
-        () => activeTab,
-        () =>
-          new Promise<boolean>((resolve) => {
-            setPendingTabSwitchRequest({ resolve });
-          }),
+        approveAllRef,
+        editorContentRef,
+        activeTabRef,
+        requestTabSwitch,
       ),
-    [
-      editorInstance,
-      setSuggestions,
-      approveAll,
-      editorContent,
-      activeTab,
-      setPendingTabSwitchRequest,
-    ],
+    [setSuggestions, requestTabSwitch],
   );
 
   const factory = useMemo(
@@ -362,10 +377,10 @@ function App() {
         (id) => deleteDocument(id),
         (id) => setActiveDocumentId(id),
         (id, content) => updateDocument(id, { content }),
-        () => editorInstance?.getValue() ?? editorContent,
-        (content) => editorInstance?.setValue(content),
+        editorInstanceRef,
+        editorContentRef,
         setPendingWorkspaceAction,
-        approveAll,
+        approveAllRef,
       ),
     [
       docsRef,
@@ -375,10 +390,7 @@ function App() {
       updateDocument,
       deleteDocument,
       setActiveDocumentId,
-      editorInstance,
-      editorContent,
       setPendingWorkspaceAction,
-      approveAll,
     ],
   );
 
@@ -434,7 +446,7 @@ function App() {
       instructions: buildOrchestratorPrompt(skills),
     };
     return runner.conversation(agent);
-  }, [runner, skills, activeWorkspaceId]);
+  }, [runner, skills]);
 
   const isMobile = useIsMobile();
 

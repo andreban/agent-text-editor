@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useApp } from "@/lib/store";
+import { useAgentConfig } from "@/lib/store";
 
 const MODELS = [
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
@@ -38,7 +38,7 @@ function SettingsForm({
 }: {
   onOpenChange: (open: boolean) => void;
 }) {
-  const { apiKey, setApiKey, modelName, setModelName } = useApp();
+  const { apiKey, setApiKey, modelName, setModelName } = useAgentConfig();
   const { theme: currentTheme, setTheme } = useTheme();
   const [draftKey, setDraftKey] = useState(apiKey ?? "");
   const [draftModel, setDraftModel] = useState(modelName);

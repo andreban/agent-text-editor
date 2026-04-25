@@ -21,31 +21,15 @@ function makeSkill(overrides: Partial<Skill> = {}): Skill {
 }
 
 function mockStore(skills: Skill[]) {
-  vi.spyOn(storeModule, "useApp").mockReturnValue({
+  vi.spyOn(storeModule, "useAgentConfig").mockReturnValue({
     apiKey: "test-key",
     setApiKey: vi.fn(),
     modelName: "gemini-2.5-flash",
     setModelName: vi.fn(),
     totalTokens: 0,
     setTotalTokens: vi.fn(),
-    suggestions: [],
-    setSuggestions: vi.fn(),
-    editorInstance: null,
-    setEditorInstance: vi.fn(),
-    activeTab: "editor",
-    setActiveTab: vi.fn(),
-    editorContent: "",
-    setEditorContent: vi.fn(),
-    pendingTabSwitchRequest: null,
-    setPendingTabSwitchRequest: vi.fn(),
-    pendingWorkspaceAction: null,
-    setPendingWorkspaceAction: vi.fn(),
-    approveAll: false,
-    setApproveAll: vi.fn(),
     skills,
     setSkills: mockSetSkills,
-    workflowState: null,
-    setWorkflowState: vi.fn(),
   });
 }
 
