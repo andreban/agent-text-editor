@@ -7,7 +7,7 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Conversation } from "@mast-ai/core";
 import { Settings, Wand2, Sun, Moon, X } from "lucide-react";
-import { useApp } from "@/lib/store";
+import { useEditorUI } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SettingsDialog } from "./SettingsDialog";
@@ -43,7 +43,7 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
-  const { approveAll, setApproveAll } = useApp();
+  const { approveAll, setApproveAll } = useEditorUI();
   const { theme, toggleTheme } = useTheme();
   const { activeWorkspace } = useWorkspaces();
 

@@ -67,19 +67,27 @@ class AgentRunner {
 
 // Passed to runBuilder / run to configure a single agent invocation
 interface AgentConfig {
-  name: string;           // identifies the agent in events (agentRole)
-  instructions: string;  // system prompt for this invocation
-  tools: string[];        // names of tools from the registry to expose
+  name: string; // identifies the agent in events (agentRole)
+  instructions: string; // system prompt for this invocation
+  tools: string[]; // names of tools from the registry to expose
 }
 
 // Register a tool with an object form (definition factory + async call handler)
 class ToolRegistry {
   register(tool: {
-    definition: () => { name: string; description: string; parameters: JsonSchema };
+    definition: () => {
+      name: string;
+      description: string;
+      parameters: JsonSchema;
+    };
     call: (args: unknown, context: ToolContext) => Promise<string>;
   }): void;
 
-  definitions(): Array<{ name: string; description: string; parameters: JsonSchema }>;
+  definitions(): Array<{
+    name: string;
+    description: string;
+    parameters: JsonSchema;
+  }>;
 }
 
 interface ToolContext {

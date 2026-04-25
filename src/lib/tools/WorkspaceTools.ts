@@ -12,8 +12,6 @@ export type RenameDocumentFn = (id: string, title: string) => void;
 export type DeleteDocumentFn = (id: string) => void;
 export type SetActiveDocumentIdFn = (id: string) => void;
 export type SaveDocContentFn = (id: string, content: string) => void;
-export type GetEditorContentFn = () => string;
-export type SetEditorValueFn = (content: string) => void;
 export type SetPendingWorkspaceActionFn = (
   action: WorkspaceActionRequest | null,
 ) => void;
@@ -27,6 +25,12 @@ export interface ActiveDocRef {
   current: { id: string; title: string } | null;
 }
 
+/** Minimal editor interface needed by WorkspaceTools. */
+export interface EditorLike {
+  getValue(): string;
+  setValue(content: string): void;
+}
+
 export class WorkspaceTools {
   constructor(
     private docsRef: DocsRef,
@@ -37,11 +41,19 @@ export class WorkspaceTools {
     private deleteDocumentFn: DeleteDocumentFn = () => {},
     private setActiveDocumentIdFn: SetActiveDocumentIdFn = () => {},
     private saveDocContentFn: SaveDocContentFn = () => {},
-    private getEditorContent: GetEditorContentFn = () => "",
-    private setEditorValueFn: SetEditorValueFn = () => {},
+    private editorRef: { current: EditorLike | null } = { current: null },
+    private editorContentRef: { current: string } = { current: "" },
     private setPendingWorkspaceAction: SetPendingWorkspaceActionFn = () => {},
-    private approveAll: boolean = false,
+    private approveAllRef: { current: boolean } = { current: false },
   ) {}
+
+  private getEditorContent(): string {
+    return this.editorRef.current?.getValue() ?? this.editorContentRef.current;
+  }
+
+  private setEditorValue(content: string): void {
+    this.editorRef.current?.setValue(content);
+  }
 
   get_active_doc_info(): string {
     const doc = this.activeDocRef.current;
@@ -103,7 +115,7 @@ export class WorkspaceTools {
         const initialContent = content ?? "";
         // Immediately sync Monaco so subsequent reads see the correct content
         // before React's async re-render cycle completes.
-        this.setEditorValueFn(initialContent);
+        this.setEditorValue(initialContent);
         if (content && newId) {
           this.saveDocContentFn(newId, content);
         }
@@ -153,7 +165,7 @@ export class WorkspaceTools {
     this.setActiveDocumentIdFn(id);
     // Immediately sync Monaco so subsequent read/edit calls see the new content
     // before React's async re-render cycle completes.
-    this.setEditorValueFn(doc.content);
+    this.setEditorValue(doc.content);
     return JSON.stringify({ switched: true, id, title: doc.title });
   }
 
@@ -162,7 +174,7 @@ export class WorkspaceTools {
     apply: () => void,
     autoMessage: string,
   ): Promise<string> {
-    if (this.approveAll) {
+    if (this.approveAllRef.current) {
       apply();
       return Promise.resolve(autoMessage);
     }

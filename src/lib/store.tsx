@@ -34,17 +34,26 @@ export interface WorkflowState {
   }>;
 }
 
-interface AppState {
+// --- Agent config context (slow-changing: API key, model, skills, token count) ---
+
+interface AgentConfigState {
   apiKey: string | null;
   setApiKey: (key: string | null) => void;
   modelName: string;
   setModelName: (name: string) => void;
   totalTokens: number;
   setTotalTokens: (tokens: number | ((prev: number) => number)) => void;
-  suggestions: Suggestion[];
-  setSuggestions: (
-    suggestions: Suggestion[] | ((prev: Suggestion[]) => Suggestion[]),
-  ) => void;
+  skills: Skill[];
+  setSkills: (skills: Skill[]) => void;
+}
+
+const AgentConfigContext = createContext<AgentConfigState | undefined>(
+  undefined,
+);
+
+// --- Editor UI context (fast-changing: editor state, suggestions, UI toggles) ---
+
+interface EditorUIState {
   editorInstance: monaco.editor.IStandaloneCodeEditor | null;
   setEditorInstance: (
     editor: monaco.editor.IStandaloneCodeEditor | null,
@@ -53,19 +62,27 @@ interface AppState {
   setActiveTab: (tab: "editor" | "preview") => void;
   editorContent: string;
   setEditorContent: (content: string) => void;
+  suggestions: Suggestion[];
+  setSuggestions: (
+    suggestions: Suggestion[] | ((prev: Suggestion[]) => Suggestion[]),
+  ) => void;
   pendingTabSwitchRequest: TabSwitchRequest | null;
   setPendingTabSwitchRequest: (req: TabSwitchRequest | null) => void;
   pendingWorkspaceAction: WorkspaceActionRequest | null;
   setPendingWorkspaceAction: (action: WorkspaceActionRequest | null) => void;
   approveAll: boolean;
   setApproveAll: (approve: boolean) => void;
-  skills: Skill[];
-  setSkills: (skills: Skill[]) => void;
   workflowState: WorkflowState | null;
   setWorkflowState: (state: WorkflowState | null) => void;
 }
 
-const AppContext = createContext<AppState | undefined>(undefined);
+const EditorUIContext = createContext<EditorUIState | undefined>(undefined);
+
+// --- Combined type (for useApp backward compat) ---
+
+interface AppState extends AgentConfigState, EditorUIState {}
+
+// --- Provider ---
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -79,6 +96,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     return saved || "gemini-3.1-flash-lite-preview";
   });
   const [totalTokens, setTotalTokens] = useState<number>(0);
+  const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());
+
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [editorInstance, setEditorInstance] =
     useState<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -89,7 +108,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [pendingWorkspaceAction, setPendingWorkspaceAction] =
     useState<WorkspaceActionRequest | null>(null);
   const [approveAll, setApproveAll] = useState(false);
-  const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());
   const [workflowState, setWorkflowState] = useState<WorkflowState | null>(
     null,
   );
@@ -111,44 +129,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem("gemini_model_name", modelName);
   }, [modelName]);
 
+  const agentConfigValue: AgentConfigState = {
+    apiKey,
+    setApiKey,
+    modelName,
+    setModelName,
+    totalTokens,
+    setTotalTokens,
+    skills,
+    setSkills,
+  };
+
+  const editorUIValue: EditorUIState = {
+    editorInstance,
+    setEditorInstance,
+    activeTab,
+    setActiveTab,
+    editorContent,
+    setEditorContent,
+    suggestions,
+    setSuggestions,
+    pendingTabSwitchRequest,
+    setPendingTabSwitchRequest,
+    pendingWorkspaceAction,
+    setPendingWorkspaceAction,
+    approveAll,
+    setApproveAll,
+    workflowState,
+    setWorkflowState,
+  };
+
   return (
-    <AppContext.Provider
-      value={{
-        apiKey,
-        setApiKey,
-        modelName,
-        setModelName,
-        totalTokens,
-        setTotalTokens,
-        suggestions,
-        setSuggestions,
-        editorInstance,
-        setEditorInstance,
-        activeTab,
-        setActiveTab,
-        editorContent,
-        setEditorContent,
-        pendingTabSwitchRequest,
-        setPendingTabSwitchRequest,
-        pendingWorkspaceAction,
-        setPendingWorkspaceAction,
-        approveAll,
-        setApproveAll,
-        skills,
-        setSkills,
-        workflowState,
-        setWorkflowState,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    <AgentConfigContext.Provider value={agentConfigValue}>
+      <EditorUIContext.Provider value={editorUIValue}>
+        {children}
+      </EditorUIContext.Provider>
+    </AgentConfigContext.Provider>
   );
 };
 
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (context === undefined) {
-    throw new Error("useApp must be used within an AppProvider");
+export const useAgentConfig = (): AgentConfigState => {
+  const ctx = useContext(AgentConfigContext);
+  if (ctx === undefined) {
+    throw new Error("useAgentConfig must be used within an AppProvider");
   }
-  return context;
+  return ctx;
+};
+
+export const useEditorUI = (): EditorUIState => {
+  const ctx = useContext(EditorUIContext);
+  if (ctx === undefined) {
+    throw new Error("useEditorUI must be used within an AppProvider");
+  }
+  return ctx;
+};
+
+/** Combined hook — subscribes to both contexts. Use targeted hooks where possible. */
+export const useApp = (): AppState => {
+  return { ...useAgentConfig(), ...useEditorUI() };
 };
