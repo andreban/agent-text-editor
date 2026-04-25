@@ -1,13 +1,14 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { registerDelegationTools } from "./DelegationTools";
 import { ToolRegistry } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../agents/factory";
 import type { AgentEvent } from "@mast-ai/core";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
+import type { PlanConfirmationRequest } from "../store";
 
 function makeMockStream(
   output: string,
@@ -182,12 +183,14 @@ describe("registerDelegationTools / invoke_agent", () => {
 });
 
 describe("registerDelegationTools / invoke_planner", () => {
-  let autoConfirm: ReturnType<typeof vi.fn>;
+  let autoConfirm: Mock<(req: PlanConfirmationRequest | null) => void>;
 
   beforeEach(() => {
-    autoConfirm = vi.fn().mockImplementation((req) => {
-      if (req) req.resolve(true);
-    });
+    autoConfirm = vi
+      .fn<(req: PlanConfirmationRequest | null) => void>()
+      .mockImplementation((req) => {
+        if (req) req.resolve(true);
+      });
   });
 
   it("invoke_planner tool is registered on the registry", () => {

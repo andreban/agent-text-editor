@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import type { AgentEvent } from "@mast-ai/core";
 import { WorkspaceTools } from "./WorkspaceTools";
 import type {
@@ -178,7 +178,7 @@ describe("WorkspaceTools", () => {
 
   describe("create_document", () => {
     let createDocumentFn: ReturnType<typeof vi.fn> & CreateDocumentFn;
-    let setEditorValueFn: ReturnType<typeof vi.fn>;
+    let setEditorValueFn: Mock<(content: string) => void>;
     let mockEditorRef: { current: EditorLike };
     let setPendingWorkspaceAction: ReturnType<typeof vi.fn> &
       SetPendingWorkspaceActionFn;
@@ -187,7 +187,7 @@ describe("WorkspaceTools", () => {
       createDocumentFn = vi
         .fn()
         .mockReturnValue("new-doc-id") as unknown as typeof createDocumentFn;
-      setEditorValueFn = vi.fn();
+      setEditorValueFn = vi.fn<(content: string) => void>();
       mockEditorRef = {
         current: {
           getValue: vi.fn().mockReturnValue(""),
@@ -474,14 +474,14 @@ describe("WorkspaceTools", () => {
   describe("switch_active_document", () => {
     let setActiveDocumentIdFn: ReturnType<typeof vi.fn> & SetActiveDocumentIdFn;
     let saveDocContentFn: ReturnType<typeof vi.fn> & SaveDocContentFn;
-    let setEditorValueFn: ReturnType<typeof vi.fn>;
+    let setEditorValueFn: Mock<(content: string) => void>;
     let mockEditorRef: { current: EditorLike };
 
     beforeEach(() => {
       setActiveDocumentIdFn =
         vi.fn() as unknown as typeof setActiveDocumentIdFn;
       saveDocContentFn = vi.fn() as unknown as typeof saveDocContentFn;
-      setEditorValueFn = vi.fn();
+      setEditorValueFn = vi.fn<(content: string) => void>();
       mockEditorRef = {
         current: {
           getValue: vi.fn().mockReturnValue("editor content"),
