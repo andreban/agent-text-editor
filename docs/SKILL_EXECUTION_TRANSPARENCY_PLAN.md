@@ -64,6 +64,7 @@ Add a `skill` variant to the `StreamItem` union in `ChatSidebar.tsx` / `ChatItem
 ### 4. Render `SkillItem` in `ChatItem.tsx`
 
 A new `SkillItem` component:
+
 - Header: wrench icon + skill name + spinner or check + `task` summary
 - Body (collapsible, open while pending): renders each `ChildStreamItem` using the existing `ThinkingItem` / `ToolItem` / assistant bubble components, indented with a left border
 - Auto-collapses on completion (same logic as `thought` collapsing in `ChatSidebar.tsx:285`)
@@ -71,19 +72,20 @@ A new `SkillItem` component:
 ### 5. Event wiring in `ChatSidebar.tsx`
 
 When a `tool_call_started` event arrives for `delegate_to_skill`:
+
 - Create a `skill` StreamItem instead of a `tool` item
 - Subsequent `onSkillEvent` callbacks append child events into that item's `events` array
 - `tool_call_completed` marks it `pending: false` and triggers collapse
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `src/lib/EditorTools.ts` | Switch to `runStream`, call `onSkillEvent` per child event |
-| `src/App.tsx` | Wire `onSkillEvent` callback into chat event dispatch |
-| `src/components/ChatSidebar.tsx` | Detect `delegate_to_skill` tool calls, create/update `skill` StreamItem |
-| `src/components/ChatItem.tsx` | Add `skill` to `StreamItem` union; add `SkillItem` component |
-| `src/components/ChatItem.test.tsx` (new or existing) | Tests for `SkillItem` render states |
+| File                                                 | Change                                                                  |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/lib/EditorTools.ts`                             | Switch to `runStream`, call `onSkillEvent` per child event              |
+| `src/App.tsx`                                        | Wire `onSkillEvent` callback into chat event dispatch                   |
+| `src/components/ChatSidebar.tsx`                     | Detect `delegate_to_skill` tool calls, create/update `skill` StreamItem |
+| `src/components/ChatItem.tsx`                        | Add `skill` to `StreamItem` union; add `SkillItem` component            |
+| `src/components/ChatItem.test.tsx` (new or existing) | Tests for `SkillItem` render states                                     |
 
 ## Implementation Steps
 

@@ -69,7 +69,12 @@ describe("EditorPanel suggestion toolbar", () => {
       originalText: "old text",
       replacementText: "new text",
       status: "pending",
-      range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 8 },
+      range: {
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 1,
+        endColumn: 8,
+      },
       resolve: vi.fn(),
       ...overrides,
     };
@@ -104,8 +109,12 @@ describe("EditorPanel suggestion toolbar", () => {
   it("shows Accept and Reject buttons when a suggestion is pending", async () => {
     const suggestion = makeSuggestion();
     renderEditorWithSuggestion(suggestion);
-    expect(await screen.findByRole("button", { name: /accept/i })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /reject/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /accept/i }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: /reject/i }),
+    ).toBeInTheDocument();
   });
 
   it("calls resolve with accepted message when Accept is clicked", async () => {
@@ -131,7 +140,9 @@ describe("EditorPanel suggestion toolbar", () => {
     const suggestion = makeSuggestion();
     renderEditorWithSuggestion(suggestion);
     await user.click(await screen.findByRole("button", { name: /reject/i }));
-    expect(screen.queryByRole("button", { name: /accept/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /accept/i }),
+    ).not.toBeInTheDocument();
   });
 });
 

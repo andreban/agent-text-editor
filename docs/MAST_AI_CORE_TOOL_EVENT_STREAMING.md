@@ -78,7 +78,7 @@ Add an `onToolEvent` callback to `RunBuilder`. The runner calls it for every eve
 ### 1. `src/tool.ts` — add `onEvent` to `ToolContext`
 
 ```typescript
-import type { AgentEvent } from './types';
+import type { AgentEvent } from "./types";
 
 export interface ToolContext {
   signal?: AbortSignal;
@@ -136,7 +136,7 @@ const toolResults = await Promise.all(
     try {
       const result = await tool.call(call.args, {
         signal,
-        onEvent: onToolEvent        // ADD
+        onEvent: onToolEvent // ADD
           ? (event) => onToolEvent(call.name, event)
           : undefined,
       });
@@ -144,7 +144,7 @@ const toolResults = await Promise.all(
     } catch (err: any) {
       return { call, result: `Error executing tool: ${err.message}` };
     }
-  })
+  }),
 );
 ```
 
@@ -166,9 +166,9 @@ Tools that don't call `context.onEvent` are completely unaffected.
 
 ## Files changed in `@mast-ai/core`
 
-| File | Change |
-|------|--------|
-| `src/tool.ts` | Add `onEvent?: (event: AgentEvent) => void` to `ToolContext`; import `AgentEvent` from `./types` |
+| File            | Change                                                                                                                                                    |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/tool.ts`   | Add `onEvent?: (event: AgentEvent) => void` to `ToolContext`; import `AgentEvent` from `./types`                                                          |
 | `src/runner.ts` | Add `_onToolEvent` field and `onToolEvent()` method to `RunBuilder`; update `StreamExecutor` type; pass `onEvent` into `ToolContext` inside `Promise.all` |
 
 No changes to `src/types.ts`, `src/conversation.ts`, or any adapter.

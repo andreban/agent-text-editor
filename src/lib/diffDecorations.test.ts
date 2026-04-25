@@ -10,7 +10,12 @@ function makeSuggestion(overrides: Partial<Suggestion> = {}): Suggestion {
     originalText: "old text",
     replacementText: "new text",
     status: "pending",
-    range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 9 },
+    range: {
+      startLineNumber: 1,
+      startColumn: 1,
+      endLineNumber: 1,
+      endColumn: 9,
+    },
     resolve: vi.fn(),
     ...overrides,
   };
@@ -39,7 +44,10 @@ describe("computeDiffDecorations", () => {
   });
 
   it("pure deletion (empty replacementText) produces a DELETE with no after", () => {
-    const s = makeSuggestion({ originalText: "remove this", replacementText: "" });
+    const s = makeSuggestion({
+      originalText: "remove this",
+      replacementText: "",
+    });
     const decorations = computeDiffDecorations(s);
     expect(decorations.length).toBe(1);
     const dec = decorations[0];
@@ -49,7 +57,10 @@ describe("computeDiffDecorations", () => {
 
   it("EQUAL + INSERT produces an equal decoration carrying the after insert", () => {
     // "hello " is EQUAL, "world" is inserted at the end
-    const s = makeSuggestion({ originalText: "hello ", replacementText: "hello world" });
+    const s = makeSuggestion({
+      originalText: "hello ",
+      replacementText: "hello world",
+    });
     const decorations = computeDiffDecorations(s);
     const equalDec = decorations.find(
       (d) => !d.options.inlineClassName && d.options.after !== undefined,
@@ -63,10 +74,17 @@ describe("computeDiffDecorations", () => {
     const s = makeSuggestion({
       originalText: "line1\nline2",
       replacementText: "line1\nchanged",
-      range: { startLineNumber: 3, startColumn: 1, endLineNumber: 4, endColumn: 6 },
+      range: {
+        startLineNumber: 3,
+        startColumn: 1,
+        endLineNumber: 4,
+        endColumn: 6,
+      },
     });
     const decorations = computeDiffDecorations(s);
-    const deleteDec = decorations.find((d) => d.options.inlineClassName === "suggestion-delete");
+    const deleteDec = decorations.find(
+      (d) => d.options.inlineClassName === "suggestion-delete",
+    );
     expect(deleteDec).toBeDefined();
     // "line2" starts on line 4 (3 + 1 for newline)
     expect(deleteDec!.range.startLineNumber).toBe(4);
