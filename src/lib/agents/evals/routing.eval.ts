@@ -4,7 +4,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { AgentConfig, AgentRunner, ToolRegistry } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import { buildOrchestratorPrompt } from "../orchestrator";
+import { buildOrchestratorPrompt } from "./roles/orchestrator";
 import fixtures from "./fixtures/routing.json";
 
 const apiKey = process.env.GEMINI_API_KEY;

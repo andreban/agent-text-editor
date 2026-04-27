@@ -3,9 +3,9 @@
 
 import { beforeAll, describe, expect, it } from "vitest";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import { DefaultAgentRunnerFactory } from "../factory";
-import type { ResearchResult } from "../researcher";
-import { runWriter } from "../writer";
+import { DefaultAgentRunnerFactory } from "./roles/factory";
+import type { ResearchResult } from "./roles/researcher";
+import { runWriter } from "./roles/writer";
 import { judge } from "./judge";
 import fixtures from "./fixtures/writing.json";
 

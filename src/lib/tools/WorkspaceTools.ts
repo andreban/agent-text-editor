@@ -5,8 +5,8 @@ import { AgentConfig, ToolRegistry } from "@mast-ai/core";
 import { v4 as uuidv4 } from "uuid";
 import { WorkspaceDocument } from "../workspace";
 import type { WorkspaceActionRequest } from "../store";
-import type { AgentRunnerFactory } from "../agents/factory";
-import { DOC_QUERIER_SYSTEM_PROMPT, runResearch } from "../agents/researcher";
+import type { AgentRunnerFactory } from "../agents";
+import { DOC_QUERIER_SYSTEM_PROMPT, runResearch } from "../agents";
 
 export type CreateDocumentFn = (title: string) => string;
 export type RenameDocumentFn = (id: string, title: string) => void;

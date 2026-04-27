@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { AgentConfig, ToolContext, ToolRegistry } from "@mast-ai/core";
-import type { AgentRunnerFactory } from "../agents/factory";
-import { createGenericAgent } from "../agents/generic";
+import type { AgentRunnerFactory } from "../agents";
+import { createGenericAgent } from "../agents";
 import {
   createPlannerAgent,
   Plan,
   PLANNER_SYSTEM_PROMPT,
-} from "../agents/planner";
-import type { ResearchResult } from "../agents/researcher";
-import { runResearch } from "../agents/researcher";
-import { runWriter } from "../agents/writer";
-import { runReview } from "../agents/reviewer";
+} from "../agents";
+import type { ResearchResult } from "../agents";
+import { runResearch } from "../agents";
+import { runWriter } from "../agents";
+import { runReview } from "../agents";
 import type { PlanConfirmationRequest } from "../store";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";

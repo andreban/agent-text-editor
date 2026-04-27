@@ -20,7 +20,7 @@ import {
   extractMentionQuery,
 } from "@/lib/mentionUtils";
 import { useAgentContext } from "@/context/AgentContext";
-import type { StreamItem } from "@/lib/agent/types";
+import type { StreamItem } from "@/lib/agents";
 
 export function ChatSidebar() {
   const { items, isLoading, sendMessage, cancel } = useAgentContext();

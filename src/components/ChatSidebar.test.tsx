@@ -8,7 +8,7 @@ import { AppProvider } from "@/lib/store";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { WorkspacesProvider } from "@/lib/WorkspacesContext";
 import { useAgentContext } from "@/context/AgentContext";
-import type { StreamItem } from "@/lib/agent/types";
+import type { StreamItem } from "@/lib/agents";
 
 vi.mock("@/context/AgentContext");
 

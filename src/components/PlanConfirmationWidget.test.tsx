@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import { useEffect } from "react";
 import { PlanConfirmationWidget } from "./PlanConfirmationWidget";
 import { AppProvider, useEditorUI } from "@/lib/store";
-import type { Plan } from "@/lib/agents/planner";
+import type { Plan } from "@/lib/agents";
 
 const samplePlan: Plan = {
   goal: "Rewrite the introduction",

@@ -11,7 +11,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
-import type { ChildItem, StreamItem } from "@/lib/agent/types";
+import type { ChildItem, StreamItem } from "@/lib/agents";
 
 export type { ChildItem, StreamItem };
 

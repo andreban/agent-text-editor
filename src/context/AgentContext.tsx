@@ -12,7 +12,8 @@ import {
   type ReactNode,
 } from "react";
 import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
-import { DefaultAgentRunnerFactory } from "@/lib/agents";
+import { DefaultAgentRunnerFactory, AgentModel } from "@/lib/agents";
+import type { StreamItem } from "@/lib/agents";
 import {
   EditorTools,
   createDelegateToSkillHandler,
@@ -23,8 +24,6 @@ import { registerDelegationTools } from "@/lib/tools/DelegationTools";
 import { registerWebMCPTools } from "@/lib/WebMCPTools";
 import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
-import { AgentModel } from "@/lib/agent/AgentModel";
-import type { StreamItem } from "@/lib/agent/types";
 
 interface AgentContextValue {
   items: readonly StreamItem[];

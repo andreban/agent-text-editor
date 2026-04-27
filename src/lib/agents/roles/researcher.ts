@@ -3,7 +3,7 @@
 
 import { AgentConfig, AgentRunner, ToolRegistry } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "./factory";
-import type { WorkspaceDocument } from "../workspace";
+import type { WorkspaceDocument } from "../../workspace";
 
 export interface ResearchSource {
   id: string;

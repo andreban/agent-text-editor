@@ -14,7 +14,7 @@ import type {
   EditorLike,
 } from "./WorkspaceTools";
 import type { WorkspaceDocument } from "../workspace";
-import type { AgentRunnerFactory } from "../agents/factory";
+import type { AgentRunnerFactory } from "../agents";
 
 function makeStream(output: string): AsyncIterable<AgentEvent> {
   return (async function* () {

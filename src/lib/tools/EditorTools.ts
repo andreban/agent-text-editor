@@ -10,7 +10,7 @@ import {
   ToolRegistry,
 } from "@mast-ai/core";
 import { Suggestion } from "../store";
-import type { AgentRunnerFactory } from "../agents/factory";
+import type { AgentRunnerFactory } from "../agents";
 import { loadSkills } from "../skills";
 import { WorkspaceTools } from "./WorkspaceTools";
 import { buildReadonlyRegistry } from "./registries";
