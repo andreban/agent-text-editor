@@ -211,7 +211,86 @@ export function registerWorkspaceTools(
   registry: ToolRegistry,
   tools: WorkspaceTools,
 ): void {
-  registerReadonlyWorkspaceTools(registry, tools);
+  registry.register({
+    definition: () => ({
+      name: "get_active_doc_info",
+      description:
+        "Returns the id and title of the document currently open in the editor.",
+      parameters: { type: "object", properties: {} },
+      scope: "read" as const,
+    }),
+    call: async () => tools.get_active_doc_info(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "list_workspace_docs",
+      description:
+        "Lists all documents in the workspace. Returns an array of { id, title } objects.",
+      parameters: { type: "object", properties: {} },
+      scope: "read" as const,
+    }),
+    call: async () => tools.list_workspace_docs(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "read_workspace_doc",
+      description:
+        "Reads the full content of a specific document. Returns { title, content } or { error }.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "The document ID to read." },
+        },
+        required: ["id"],
+      },
+      scope: "read" as const,
+    }),
+    call: async (args: { id: string }) => tools.read_workspace_doc(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "query_workspace_doc",
+      description:
+        "Asks a question about a specific document using a sub-agent. Returns { summary, excerpt } where excerpt is the most relevant verbatim passage.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "The document ID to query." },
+          query: {
+            type: "string",
+            description: "The question about the document.",
+          },
+        },
+        required: ["id", "query"],
+      },
+      scope: "read" as const,
+    }),
+    call: async (args: { id: string; query: string }) =>
+      tools.query_workspace_doc(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "query_workspace",
+      description:
+        "Asks a question spanning all workspace documents and synthesizes the results. Returns { summary, sources: [{ id, title, excerpt }] }.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The question to answer across all documents.",
+          },
+        },
+        required: ["query"],
+      },
+      scope: "read" as const,
+    }),
+    call: async (args: { query: string }) => tools.query_workspace(args),
+  });
 
   registry.register({
     definition: () => ({
@@ -233,6 +312,7 @@ export function registerWorkspaceTools(
         },
         required: ["title"],
       },
+      scope: "write" as const,
     }),
     call: async (args: { title: string; content?: string }) =>
       tools.create_document(args),
@@ -257,6 +337,7 @@ export function registerWorkspaceTools(
         },
         required: ["id", "title"],
       },
+      scope: "write" as const,
     }),
     call: async (args: { id: string; title: string }) =>
       tools.rename_document(args),
@@ -277,6 +358,7 @@ export function registerWorkspaceTools(
         },
         required: ["id"],
       },
+      scope: "write" as const,
     }),
     call: async (args: { id: string }) => tools.delete_document(args),
   });
@@ -296,88 +378,9 @@ export function registerWorkspaceTools(
         },
         required: ["id"],
       },
+      scope: "write" as const,
     }),
     call: async (args: { id: string }) => tools.switch_active_document(args),
   });
 }
 
-export function registerReadonlyWorkspaceTools(
-  registry: ToolRegistry,
-  tools: WorkspaceTools,
-): void {
-  registry.register({
-    definition: () => ({
-      name: "get_active_doc_info",
-      description:
-        "Returns the id and title of the document currently open in the editor.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.get_active_doc_info(),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "list_workspace_docs",
-      description:
-        "Lists all documents in the workspace. Returns an array of { id, title } objects.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.list_workspace_docs(),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "read_workspace_doc",
-      description:
-        "Reads the full content of a specific document. Returns { title, content } or { error }.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: { type: "string", description: "The document ID to read." },
-        },
-        required: ["id"],
-      },
-    }),
-    call: async (args: { id: string }) => tools.read_workspace_doc(args),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "query_workspace_doc",
-      description:
-        "Asks a question about a specific document using a sub-agent. Returns { summary, excerpt } where excerpt is the most relevant verbatim passage.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: { type: "string", description: "The document ID to query." },
-          query: {
-            type: "string",
-            description: "The question about the document.",
-          },
-        },
-        required: ["id", "query"],
-      },
-    }),
-    call: async (args: { id: string; query: string }) =>
-      tools.query_workspace_doc(args),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "query_workspace",
-      description:
-        "Asks a question spanning all workspace documents and synthesizes the results. Returns { summary, sources: [{ id, title, excerpt }] }.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The question to answer across all documents.",
-          },
-        },
-        required: ["query"],
-      },
-    }),
-    call: async (args: { query: string }) => tools.query_workspace(args),
-  });
-}

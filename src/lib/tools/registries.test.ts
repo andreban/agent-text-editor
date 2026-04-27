@@ -33,7 +33,7 @@ describe("buildReadonlyRegistry", () => {
   it("includes read, read_selection, search, get_metadata, get_current_mode", () => {
     const { editorTools, workspaceTools } = makeTools();
     const registry = buildReadonlyRegistry(editorTools, workspaceTools);
-    const names = registry.definitions().map((d) => d.name);
+    const names = registry.getTools().map((d) => d.name);
     expect(names).toContain("read");
     expect(names).toContain("read_selection");
     expect(names).toContain("search");
@@ -44,7 +44,7 @@ describe("buildReadonlyRegistry", () => {
   it("excludes edit, write, request_switch_to_editor", () => {
     const { editorTools, workspaceTools } = makeTools();
     const registry = buildReadonlyRegistry(editorTools, workspaceTools);
-    const names = registry.definitions().map((d) => d.name);
+    const names = registry.getTools().map((d) => d.name);
     expect(names).not.toContain("edit");
     expect(names).not.toContain("write");
     expect(names).not.toContain("request_switch_to_editor");
@@ -53,7 +53,7 @@ describe("buildReadonlyRegistry", () => {
   it("includes workspace read tools", () => {
     const { editorTools, workspaceTools } = makeTools();
     const registry = buildReadonlyRegistry(editorTools, workspaceTools);
-    const names = registry.definitions().map((d) => d.name);
+    const names = registry.getTools().map((d) => d.name);
     expect(names).toContain("get_active_doc_info");
     expect(names).toContain("list_workspace_docs");
     expect(names).toContain("read_workspace_doc");
@@ -64,7 +64,7 @@ describe("buildReadonlyRegistry", () => {
   it("excludes workspace write tools", () => {
     const { editorTools, workspaceTools } = makeTools();
     const registry = buildReadonlyRegistry(editorTools, workspaceTools);
-    const names = registry.definitions().map((d) => d.name);
+    const names = registry.getTools().map((d) => d.name);
     expect(names).not.toContain("create_document");
     expect(names).not.toContain("rename_document");
     expect(names).not.toContain("delete_document");
@@ -76,7 +76,7 @@ describe("buildReadWriteRegistry", () => {
   it("includes all read-only tools", () => {
     const { editorTools, workspaceTools } = makeTools();
     const registry = buildReadWriteRegistry(editorTools, workspaceTools);
-    const names = registry.definitions().map((d) => d.name);
+    const names = registry.getTools().map((d) => d.name);
     expect(names).toContain("read");
     expect(names).toContain("read_selection");
     expect(names).toContain("search");
@@ -92,7 +92,7 @@ describe("buildReadWriteRegistry", () => {
   it("includes edit, write, request_switch_to_editor", () => {
     const { editorTools, workspaceTools } = makeTools();
     const registry = buildReadWriteRegistry(editorTools, workspaceTools);
-    const names = registry.definitions().map((d) => d.name);
+    const names = registry.getTools().map((d) => d.name);
     expect(names).toContain("edit");
     expect(names).toContain("write");
     expect(names).toContain("request_switch_to_editor");
@@ -101,7 +101,7 @@ describe("buildReadWriteRegistry", () => {
   it("includes workspace write tools", () => {
     const { editorTools, workspaceTools } = makeTools();
     const registry = buildReadWriteRegistry(editorTools, workspaceTools);
-    const names = registry.definitions().map((d) => d.name);
+    const names = registry.getTools().map((d) => d.name);
     expect(names).toContain("create_document");
     expect(names).toContain("rename_document");
     expect(names).toContain("delete_document");

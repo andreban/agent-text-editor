@@ -43,7 +43,7 @@ describe("createWriterAgent", () => {
     const { factory, mockCreate } = makeFactory();
     createWriterAgent(factory);
     const { tools } = mockCreate.mock.calls[0][0] as { tools: ToolRegistry };
-    expect(tools.definitions()).toEqual([]);
+    expect(tools.getTools()).toEqual([]);
   });
 });
 
