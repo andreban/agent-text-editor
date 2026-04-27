@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { registerDelegationTools } from "./DelegationTools";
 import { ToolRegistry } from "@mast-ai/core";
-import type { AgentRunnerFactory } from "../agents/factory";
+import type { AgentRunnerFactory } from "../agents";
 import type { AgentEvent } from "@mast-ai/core";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";

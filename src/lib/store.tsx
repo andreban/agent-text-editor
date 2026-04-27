@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import * as monaco from "monaco-editor";
 import { Skill, initializeSkills, saveSkills } from "./skills";
-import type { Plan } from "./agents/planner";
+import type { Plan } from "@/lib/agents";
 
 export interface Suggestion {
   id: string;

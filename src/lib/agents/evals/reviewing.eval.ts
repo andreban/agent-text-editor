@@ -3,8 +3,8 @@
 
 import { beforeAll, describe, expect, it } from "vitest";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import { DefaultAgentRunnerFactory } from "../factory";
-import { runReview } from "../reviewer";
+import { DefaultAgentRunnerFactory } from "./roles/factory";
+import { runReview } from "./roles/reviewer";
 import { judge } from "./judge";
 import fixtures from "./fixtures/reviewing.json";
 

@@ -4,7 +4,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { AgentRunner, ToolRegistry } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import { PLANNER_SYSTEM_PROMPT, type Plan } from "../planner";
+import { PLANNER_SYSTEM_PROMPT, type Plan } from "./roles/planner";
 import { judge } from "./judge";
 import fixtures from "./fixtures/planning.json";
 

@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Skill } from "../skills";
+import type { Skill } from "../../skills";
 
 const BASE_INSTRUCTIONS =
   "You are a helpful senior editorial assistant. Help the user refine their text. " +

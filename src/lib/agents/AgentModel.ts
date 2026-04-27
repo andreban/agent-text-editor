@@ -9,7 +9,7 @@ import {
   ToolProvider,
 } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import { buildOrchestratorPrompt } from "../agents";
+import { buildOrchestratorPrompt } from "./roles/orchestrator";
 import type { Skill } from "../skills";
 import type { StreamItem, ChildItem } from "./types";
 
