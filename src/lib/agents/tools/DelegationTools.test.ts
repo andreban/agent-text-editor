@@ -4,12 +4,12 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { registerDelegationTools } from "./DelegationTools";
 import { ToolRegistry } from "@mast-ai/core";
-import type { AgentRunnerFactory } from "../agents";
+import type { AgentRunnerFactory } from "../../agents";
 import type { AgentEvent } from "@mast-ai/core";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
 import { buildReadWriteRegistry } from "./registries";
-import type { PlanConfirmationRequest } from "../store";
+import type { PlanConfirmationRequest } from "../../store";
 
 function makeMockStream(
   output: string,

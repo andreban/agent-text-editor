@@ -9,9 +9,9 @@ import {
   ToolProvider,
   ToolRegistry,
 } from "@mast-ai/core";
-import { Suggestion } from "../store";
-import type { AgentRunnerFactory } from "../agents";
-import { loadSkills } from "../skills";
+import { Suggestion } from "../../store";
+import type { AgentRunnerFactory } from "../";
+import { loadSkills } from "../../skills";
 import { v4 as uuidv4 } from "uuid";
 
 export class EditorTools {

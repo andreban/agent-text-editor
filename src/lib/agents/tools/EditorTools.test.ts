@@ -4,8 +4,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EditorTools, createDelegateToSkillHandler } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
 import { buildReadWriteRegistry } from "./registries";
-import { saveSkills } from "../skills";
-import type { AgentRunnerFactory } from "../agents";
+import { saveSkills } from "../../skills";
+import type { AgentRunnerFactory } from "../../agents";
 
 describe("EditorTools", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

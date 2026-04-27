@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from "vitest";
 import { buildReadWriteRegistry } from "./registries";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
-import type { AgentRunnerFactory } from "../agents";
+import type { AgentRunnerFactory } from "../../agents";
 
 function makeTools() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

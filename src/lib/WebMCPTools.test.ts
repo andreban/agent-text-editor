@@ -3,8 +3,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { registerWebMCPTools } from "./WebMCPTools";
-import { EditorTools } from "./tools/EditorTools";
-import { WorkspaceTools } from "./tools/WorkspaceTools";
+import { EditorTools } from "./agents/tools/EditorTools";
+import { WorkspaceTools } from "./agents/tools/WorkspaceTools";
 
 function makeEditorTools(): EditorTools {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
