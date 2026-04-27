@@ -17,10 +17,10 @@ import type { StreamItem } from "@/lib/agents";
 import {
   EditorTools,
   createDelegateToSkillHandler,
-} from "@/lib/tools/EditorTools";
-import { WorkspaceTools } from "@/lib/tools/WorkspaceTools";
-import { buildReadWriteRegistry } from "@/lib/tools/registries";
-import { registerDelegationTools } from "@/lib/tools/DelegationTools";
+} from "@/lib/agents/tools/EditorTools";
+import { WorkspaceTools } from "@/lib/agents/tools/WorkspaceTools";
+import { buildReadWriteRegistry } from "@/lib/agents/tools/registries";
+import { registerDelegationTools } from "@/lib/agents/tools/DelegationTools";
 import { registerWebMCPTools } from "@/lib/WebMCPTools";
 import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";

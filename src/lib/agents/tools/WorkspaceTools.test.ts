@@ -13,8 +13,8 @@ import type {
   SetPendingWorkspaceActionFn,
   EditorLike,
 } from "./WorkspaceTools";
-import type { WorkspaceDocument } from "../workspace";
-import type { AgentRunnerFactory } from "../agents";
+import type { WorkspaceDocument } from "../../workspace";
+import type { AgentRunnerFactory } from "../../agents";
 
 function makeStream(output: string): AsyncIterable<AgentEvent> {
   return (async function* () {
