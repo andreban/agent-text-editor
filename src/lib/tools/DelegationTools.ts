@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AgentConfig, ToolContext, ToolRegistry } from "@mast-ai/core";
+import { AgentConfig, ToolContext, ToolProvider, ToolRegistry } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../agents";
 import { createGenericAgent } from "../agents";
 import {
@@ -14,14 +14,12 @@ import { runResearch } from "../agents";
 import { runWriter } from "../agents";
 import { runReview } from "../agents";
 import type { PlanConfirmationRequest } from "../store";
-import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
-import { buildReadonlyRegistry } from "./registries";
 
 export function registerDelegationTools(
   registry: ToolRegistry,
   factory: AgentRunnerFactory,
-  editorTools: EditorTools,
+  readonlyRegistry: ToolProvider,
   workspaceTools: WorkspaceTools,
   setPendingPlanConfirmation: (req: PlanConfirmationRequest | null) => void,
 ): void {
@@ -58,7 +56,7 @@ export function registerDelegationTools(
     ) => {
       const groups = args.tools ?? [];
       const resolvedRegistry = groups.includes("workspace_readonly")
-        ? buildReadonlyRegistry(editorTools, workspaceTools)
+        ? readonlyRegistry
         : new ToolRegistry();
 
       const runner = createGenericAgent(

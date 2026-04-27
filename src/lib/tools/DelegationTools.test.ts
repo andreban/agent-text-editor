@@ -8,6 +8,7 @@ import type { AgentRunnerFactory } from "../agents";
 import type { AgentEvent } from "@mast-ai/core";
 import { EditorTools } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
+import { buildReadWriteRegistry } from "./registries";
 import type { PlanConfirmationRequest } from "../store";
 
 function makeMockStream(
@@ -74,7 +75,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     registerDelegationTools(
       registry,
       factory,
-      editorTools,
+      buildReadWriteRegistry(editorTools, workspaceTools).readOnly(),
       workspaceTools,
       vi.fn(),
     );
@@ -94,7 +95,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const raw = await callTool(registry, "invoke_agent", {
       systemPrompt: "Help.",
@@ -113,7 +114,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const onEvent = vi.fn();
     await callTool(
@@ -137,7 +138,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory, mockRunBuilder } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     await callTool(registry, "invoke_agent", {
       systemPrompt: "s",
@@ -153,7 +154,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const tool = registry.getTool("invoke_agent");
     expect(tool).toBeDefined();
@@ -164,7 +165,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { factory, mockRunBuilder } = makeFactory(mockRunStream);
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
     const registry = new ToolRegistry();
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     await callTool(registry, "invoke_agent", {
       systemPrompt: "s",
@@ -198,7 +199,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const tool = registry.getTool("invoke_planner");
     expect(tool).toBeDefined();
@@ -217,7 +218,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, autoConfirm);
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, autoConfirm);
 
     const raw = await callTool(registry, "invoke_planner", {
       task: "Write a blog post about AI",
@@ -235,7 +236,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, autoConfirm);
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, autoConfirm);
 
     await callTool(registry, "invoke_planner", {
       task: "Write a blog post",
@@ -254,7 +255,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     await expect(
       callTool(registry, "invoke_planner", { task: "t" }),
@@ -268,7 +269,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     await expect(
       callTool(registry, "invoke_planner", { task: "t" }),
@@ -282,7 +283,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, autoConfirm);
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, autoConfirm);
 
     await callTool(registry, "invoke_planner", { task: "Write a blog post" });
 
@@ -298,7 +299,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, autoConfirm);
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, autoConfirm);
 
     await callTool(registry, "invoke_planner", { task: "t" });
 
@@ -315,7 +316,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, rejectConfirm);
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, rejectConfirm);
 
     await expect(
       callTool(registry, "invoke_planner", { task: "t" }),
@@ -332,7 +333,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
-    registerDelegationTools(registry, factory, et, wt, rejectConfirm);
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, rejectConfirm);
 
     await expect(
       callTool(registry, "invoke_planner", { task: "t" }),
@@ -372,7 +373,7 @@ describe("registerDelegationTools / invoke_researcher", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const tool = registry.getTool("invoke_researcher");
     expect(tool).toBeDefined();
@@ -395,7 +396,7 @@ describe("registerDelegationTools / invoke_researcher", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const raw = await callTool(registry, "invoke_researcher", {
       query: "What do the docs say?",
@@ -424,7 +425,7 @@ describe("registerDelegationTools / invoke_researcher", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const raw = await callTool(registry, "invoke_researcher", { query: "q" });
     const result = JSON.parse(raw as string);
@@ -457,7 +458,7 @@ describe("registerDelegationTools / invoke_researcher", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const raw = await callTool(registry, "invoke_researcher", {
       query: "q",
@@ -484,7 +485,7 @@ describe("registerDelegationTools / invoke_researcher", () => {
     const { factory } = makeFactory(mockRunStream);
     const registry = new ToolRegistry();
     const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
-    registerDelegationTools(registry, factory, et, wt, vi.fn());
+    registerDelegationTools(registry, factory, buildReadWriteRegistry(et, wt).readOnly(), wt, vi.fn());
 
     const raw = await callTool(registry, "invoke_researcher", { query: "q" });
     const result = JSON.parse(raw as string);
