@@ -420,6 +420,7 @@ function App() {
           },
           required: ["skillName", "task"],
         },
+        scope: "write" as const,
       }),
       call: createDelegateToSkillHandler(factory, editorTools, workspaceTools),
     });

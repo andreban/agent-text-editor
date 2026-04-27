@@ -50,6 +50,7 @@ export function registerDelegationTools(
         },
         required: ["systemPrompt", "task"],
       },
+      scope: "write" as const,
     }),
     call: async (
       args: { systemPrompt: string; task: string; tools?: string[] },
@@ -68,7 +69,7 @@ export function registerDelegationTools(
       const agentConfig: AgentConfig = {
         name: "Agent",
         instructions: args.systemPrompt,
-        tools: resolvedRegistry.definitions().map((d) => d.name),
+        tools: resolvedRegistry.getTools().map((d) => d.name),
       };
 
       for await (const event of runner
@@ -104,6 +105,7 @@ export function registerDelegationTools(
         },
         required: ["task"],
       },
+      scope: "write" as const,
     }),
     call: async (args: { task: string; context?: string }) => {
       const runner = createPlannerAgent(factory);
@@ -173,6 +175,7 @@ export function registerDelegationTools(
         },
         required: ["query"],
       },
+      scope: "read" as const,
     }),
     call: async (args: { query: string; docIds?: string[] }) => {
       const docs = workspaceTools.docsRef.current;
@@ -210,6 +213,7 @@ export function registerDelegationTools(
         },
         required: ["instruction"],
       },
+      scope: "write" as const,
     }),
     call: async (args: {
       instruction: string;
@@ -259,6 +263,7 @@ export function registerDelegationTools(
         },
         required: ["text", "criteria"],
       },
+      scope: "read" as const,
     }),
     call: async (args: { text: string; criteria: string[] }) => {
       const result = await runReview(args.text, args.criteria, factory);

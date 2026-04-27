@@ -6,6 +6,7 @@ import {
   AgentConfig,
   AgentEvent,
   ToolContext,
+  ToolProvider,
   ToolRegistry,
 } from "@mast-ai/core";
 import { Suggestion } from "../store";
@@ -200,7 +201,64 @@ export function registerEditorTools(
   registry: ToolRegistry,
   tools: EditorTools,
 ): void {
-  registerReadonlyEditorTools(registry, tools);
+  registry.register({
+    definition: () => ({
+      name: "read",
+      description: "Reads the complete current editor content.",
+      parameters: { type: "object", properties: {} },
+      scope: "read" as const,
+    }),
+    call: async () => tools.read(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "read_selection",
+      description: "Reads the currently selected text in the editor.",
+      parameters: { type: "object", properties: {} },
+      scope: "read" as const,
+    }),
+    call: async () => tools.read_selection(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "search",
+      description:
+        "Finds all occurrences of a query string in the document. Returns the line and column of each match.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The text to search for." },
+        },
+        required: ["query"],
+      },
+      scope: "read" as const,
+    }),
+    call: async (args: { query: string }) => tools.search(args),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "get_metadata",
+      description:
+        "Returns metadata about the current document: character count, word count, and line count.",
+      parameters: { type: "object", properties: {} },
+      scope: "read" as const,
+    }),
+    call: async () => tools.get_metadata(),
+  });
+
+  registry.register({
+    definition: () => ({
+      name: "get_current_mode",
+      description:
+        "Returns the current UI mode: 'editor' (Monaco editor is visible) or 'preview' (Markdown preview is visible). Check this before making edits to ensure the editor is accessible.",
+      parameters: { type: "object", properties: {} },
+      scope: "read" as const,
+    }),
+    call: async () => tools.get_current_mode(),
+  });
 
   registry.register({
     definition: () => ({
@@ -222,6 +280,7 @@ export function registerEditorTools(
         },
         required: ["originalText", "replacementText"],
       },
+      scope: "write" as const,
     }),
     call: async (args: { originalText: string; replacementText: string }) =>
       tools.edit(args),
@@ -242,6 +301,7 @@ export function registerEditorTools(
         },
         required: ["content"],
       },
+      scope: "write" as const,
     }),
     call: async (args: { content: string }) => tools.write(args),
   });
@@ -252,68 +312,9 @@ export function registerEditorTools(
       description:
         "Requests the user to switch from Preview mode to Editor mode. This will display a prompt to the user and pause until they accept or decline. Call this before attempting edits when in preview mode.",
       parameters: { type: "object", properties: {} },
+      scope: "write" as const,
     }),
     call: async () => tools.request_switch_to_editor(),
-  });
-}
-
-/** Registers read-only editor tools (no edit, write, or request_switch_to_editor). */
-export function registerReadonlyEditorTools(
-  registry: ToolRegistry,
-  tools: EditorTools,
-): void {
-  registry.register({
-    definition: () => ({
-      name: "read",
-      description: "Reads the complete current editor content.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.read(),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "read_selection",
-      description: "Reads the currently selected text in the editor.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.read_selection(),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "search",
-      description:
-        "Finds all occurrences of a query string in the document. Returns the line and column of each match.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "The text to search for." },
-        },
-        required: ["query"],
-      },
-    }),
-    call: async (args: { query: string }) => tools.search(args),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "get_metadata",
-      description:
-        "Returns metadata about the current document: character count, word count, and line count.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.get_metadata(),
-  });
-
-  registry.register({
-    definition: () => ({
-      name: "get_current_mode",
-      description:
-        "Returns the current UI mode: 'editor' (Monaco editor is visible) or 'preview' (Markdown preview is visible). Check this before making edits to ensure the editor is accessible.",
-      parameters: { type: "object", properties: {} },
-    }),
-    call: async () => tools.get_current_mode(),
   });
 }
 
@@ -331,7 +332,7 @@ export function createDelegateToSkillHandler(
   factory: AgentRunnerFactory,
   editorTools: EditorTools,
   workspaceTools: WorkspaceTools,
-  runnerFactory: (registry: ToolRegistry, model?: string) => RunnerLike = (
+  runnerFactory: (registry: ToolProvider, model?: string) => RunnerLike = (
     registry,
     model,
   ) => factory.create({ tools: registry, model }),
@@ -348,7 +349,7 @@ export function createDelegateToSkillHandler(
     }
 
     const childRegistry = buildReadonlyRegistry(editorTools, workspaceTools);
-    const readonlyToolNames = childRegistry.definitions().map((d) => d.name);
+    const readonlyToolNames = childRegistry.getTools().map((d) => d.name);
 
     const childRunner = runnerFactory(childRegistry, skill.model);
     const agentConfig: AgentConfig = {

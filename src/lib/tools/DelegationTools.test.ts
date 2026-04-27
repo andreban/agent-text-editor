@@ -36,7 +36,7 @@ async function callTool(
   args: unknown,
   context: { onEvent?: (event: AgentEvent) => void } = {},
 ) {
-  const tool = registry.get(name);
+  const tool = registry.getTool(name);
   if (!tool) throw new Error(`Tool '${name}' not registered`);
   return tool.call(args, context);
 }
@@ -155,7 +155,7 @@ describe("registerDelegationTools / invoke_agent", () => {
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
     registerDelegationTools(registry, factory, et, wt, vi.fn());
 
-    const tool = registry.get("invoke_agent");
+    const tool = registry.getTool("invoke_agent");
     expect(tool).toBeDefined();
     expect(tool?.definition().name).toBe("invoke_agent");
   });
@@ -200,7 +200,7 @@ describe("registerDelegationTools / invoke_planner", () => {
     const { editorTools: et, workspaceTools: wt } = makeTools(factory);
     registerDelegationTools(registry, factory, et, wt, vi.fn());
 
-    const tool = registry.get("invoke_planner");
+    const tool = registry.getTool("invoke_planner");
     expect(tool).toBeDefined();
     expect(tool?.definition().name).toBe("invoke_planner");
   });
@@ -374,7 +374,7 @@ describe("registerDelegationTools / invoke_researcher", () => {
     const { editorTools: et, workspaceTools: wt } = makeResearchTools(factory);
     registerDelegationTools(registry, factory, et, wt, vi.fn());
 
-    const tool = registry.get("invoke_researcher");
+    const tool = registry.getTool("invoke_researcher");
     expect(tool).toBeDefined();
     expect(tool?.definition().name).toBe("invoke_researcher");
   });
