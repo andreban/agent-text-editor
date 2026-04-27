@@ -1,13 +1,16 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ChatSidebar } from "./ChatSidebar";
 import { AppProvider } from "@/lib/store";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import { WorkspacesProvider } from "@/lib/WorkspacesContext";
-import type { Conversation } from "@mast-ai/core";
+import { useAgentContext } from "@/context/AgentContext";
+import type { StreamItem } from "@/lib/agent/types";
+
+vi.mock("@/context/AgentContext");
 
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: (opts: {
@@ -28,26 +31,36 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
-function makeConversation(
-  events: object[] = [],
-  history: object[] = [],
-): Conversation {
+function makeContext(
+  overrides: {
+    items?: StreamItem[];
+    isLoading?: boolean;
+    sendMessage?: (prompt: string, displayText?: string) => Promise<void>;
+    cancel?: () => void;
+  } = {},
+) {
   return {
-    history: history as Conversation["history"],
-    runStream: async function* () {
-      for (const event of events) {
-        yield event as never;
-      }
-    },
-  } as unknown as Conversation;
+    items: overrides.items ?? [],
+    isLoading: overrides.isLoading ?? false,
+    sendMessage:
+      overrides.sendMessage ??
+      (vi.fn() as unknown as (
+        prompt: string,
+        displayText?: string,
+      ) => Promise<void>),
+    cancel: overrides.cancel ?? (vi.fn() as () => void),
+  };
 }
 
-function renderSidebar(conversation: Conversation | null = null) {
+function renderSidebar(
+  context: ReturnType<typeof makeContext> = makeContext(),
+) {
+  vi.mocked(useAgentContext).mockReturnValue(context);
   return render(
     <ThemeProvider>
       <WorkspacesProvider>
         <AppProvider>
-          <ChatSidebar conversation={conversation} />
+          <ChatSidebar />
         </AppProvider>
       </WorkspacesProvider>
     </ThemeProvider>,
@@ -61,6 +74,7 @@ function getInput() {
 describe("ChatSidebar", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.clearAllMocks();
   });
 
   it("shows empty state when there are no messages", () => {
@@ -71,101 +85,88 @@ describe("ChatSidebar", () => {
   });
 
   it("disables send button when input is empty", () => {
-    renderSidebar(makeConversation());
+    renderSidebar();
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
   });
 
   it("enables send button when input has text", async () => {
     const user = userEvent.setup();
-    renderSidebar(makeConversation());
+    renderSidebar();
     await user.type(getInput(), "Hello");
     expect(screen.getByRole("button", { name: "Send" })).not.toBeDisabled();
   });
 
-  it("renders user message after send", async () => {
+  it("calls sendMessage with the typed text on send", async () => {
     const user = userEvent.setup();
-    renderSidebar(makeConversation([{ type: "done" }]));
+    const sendMessage = vi.fn();
+    renderSidebar(makeContext({ sendMessage }));
     await user.type(getInput(), "Hello AI");
     await user.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => {
-      expect(screen.getByText("Hello AI")).toBeInTheDocument();
-    });
+    expect(sendMessage).toHaveBeenCalledWith("Hello AI", "Hello AI");
   });
 
-  it("renders thinking section from thinking events", async () => {
+  it("shows cancel button while loading", () => {
+    renderSidebar(makeContext({ isLoading: true }));
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
+  it("calls cancel when cancel button is clicked", async () => {
     const user = userEvent.setup();
+    const cancel = vi.fn();
+    renderSidebar(makeContext({ isLoading: true, cancel }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(cancel).toHaveBeenCalled();
+  });
+
+  it("renders a user message from items", () => {
     renderSidebar(
-      makeConversation([
-        { type: "thinking", delta: "Thinking hard..." },
-        { type: "done" },
-      ]),
+      makeContext({
+        items: [{ kind: "user", id: "u1", text: "Hello from user" }],
+      }),
     );
-    await user.type(getInput(), "test");
-    await user.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => {
-      expect(screen.getByText("Thinking Process")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Hello from user")).toBeInTheDocument();
   });
 
-  it("renders accumulated assistant text from text_delta events", async () => {
-    const user = userEvent.setup();
+  it("renders an assistant message from items", () => {
     renderSidebar(
-      makeConversation([
-        { type: "text_delta", delta: "Hello " },
-        { type: "text_delta", delta: "world" },
-        { type: "done" },
-      ]),
-    );
-    await user.type(getInput(), "test");
-    await user.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => {
-      expect(screen.getByText("Hello world")).toBeInTheDocument();
-    });
-  });
-
-  it("renders tool item for tool_call_started events", async () => {
-    const user = userEvent.setup();
-    renderSidebar(
-      makeConversation([
-        { type: "tool_call_started", name: "read" },
-        { type: "tool_call_completed" },
-        { type: "done" },
-      ]),
-    );
-    await user.type(getInput(), "test");
-    await user.click(screen.getByRole("button", { name: "Send" }));
-    await waitFor(() => {
-      expect(screen.getByText("read")).toBeInTheDocument();
-    });
-  });
-
-  it("reconstructs user and assistant messages from conversation history", () => {
-    const conversation = makeConversation(
-      [],
-      [
-        { role: "user", content: { type: "text", text: "Hello from history" } },
-        { role: "assistant", content: { type: "text", text: "Hi there" } },
-      ],
-    );
-    renderSidebar(conversation);
-    expect(screen.getByText("Hello from history")).toBeInTheDocument();
-    expect(screen.getByText("Hi there")).toBeInTheDocument();
-  });
-
-  it("reconstructs tool call items from conversation history", () => {
-    const conversation = makeConversation(
-      [],
-      [
-        {
-          role: "assistant",
-          content: {
-            type: "tool_calls",
-            calls: [{ id: "1", name: "edit", args: {} }],
+      makeContext({
+        items: [
+          {
+            kind: "assistant",
+            id: "a1",
+            text: "Hello from assistant",
+            thought: "",
+            isStreaming: false,
           },
-        },
-      ],
+        ],
+      }),
     );
-    renderSidebar(conversation);
-    expect(screen.getByText("edit")).toBeInTheDocument();
+    expect(screen.getByText("Hello from assistant")).toBeInTheDocument();
+  });
+
+  it("renders a thinking section when thought is present", () => {
+    renderSidebar(
+      makeContext({
+        items: [
+          {
+            kind: "assistant",
+            id: "a1",
+            text: "",
+            thought: "Thinking hard...",
+            isStreaming: true,
+          },
+        ],
+      }),
+    );
+    expect(screen.getByText("Thinking Process")).toBeInTheDocument();
+  });
+
+  it("renders a tool item from items", () => {
+    renderSidebar(
+      makeContext({
+        items: [{ kind: "tool", id: "t1", name: "read", pending: false }],
+      }),
+    );
+    expect(screen.getByText("read")).toBeInTheDocument();
   });
 });

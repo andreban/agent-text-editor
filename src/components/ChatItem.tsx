@@ -11,55 +11,9 @@ import {
   Wrench,
 } from "lucide-react";
 import { MarkdownContent } from "./MarkdownContent";
+import type { ChildItem, StreamItem } from "@/lib/agent/types";
 
-export type ChildItem =
-  | { kind: "thought"; id: string; text: string }
-  | { kind: "text"; id: string; text: string }
-  | {
-      kind: "tool";
-      id: string;
-      name: string;
-      pending: boolean;
-      params?: unknown;
-      result?: unknown;
-    };
-
-export type StreamItem =
-  | { kind: "user"; id: string; text: string }
-  | {
-      kind: "assistant";
-      id: string;
-      text: string;
-      thought: string;
-      isStreaming: boolean;
-      agentRole?: string;
-      parentMessageId?: string;
-    }
-  | {
-      kind: "tool";
-      id: string;
-      name: string;
-      pending: boolean;
-      params?: unknown;
-      result?: unknown;
-    }
-  | {
-      kind: "skill";
-      id: string;
-      name: string;
-      task: string;
-      pending: boolean;
-      childItems: ChildItem[];
-    }
-  | {
-      kind: "agent";
-      id: string;
-      agentRole: string;
-      task: string;
-      pending: boolean;
-      childItems: ChildItem[];
-      parentMessageId?: string;
-    };
+export type { ChildItem, StreamItem };
 
 function formatValue(value: unknown): string {
   if (typeof value === "string") return value;
