@@ -25,6 +25,8 @@ const MODELS = [
   },
   { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (Preview)" },
   { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (Preview)" },
+  { id: "gemma-4-26b-a4b-it", label: "Gemma 4 26B A4B IT" },
+  { id: "gemma-4-31b-it", label: "Gemma 4 31B IT" },
 ];
 
 interface SettingsDialogProps {
