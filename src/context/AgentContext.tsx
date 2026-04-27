@@ -184,12 +184,12 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
         },
         scope: "write" as const,
       }),
-      call: createDelegateToSkillHandler(factory, editorTools, workspaceTools),
+      call: createDelegateToSkillHandler(factory, r.readOnly()),
     });
     registerDelegationTools(
       r,
       factory,
-      editorTools,
+      r.readOnly(),
       workspaceTools,
       setPendingPlanConfirmation,
     );

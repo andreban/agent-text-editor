@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EditorTools, createDelegateToSkillHandler } from "./EditorTools";
 import { WorkspaceTools } from "./WorkspaceTools";
+import { buildReadWriteRegistry } from "./registries";
 import { saveSkills } from "../skills";
 import type { AgentRunnerFactory } from "../agents";
 
@@ -432,8 +433,7 @@ describe("EditorTools", () => {
     function makeHandler(factory = mockFactory) {
       return createDelegateToSkillHandler(
         factory,
-        editorToolsInstance,
-        mockWorkspaceTools,
+        buildReadWriteRegistry(editorToolsInstance, mockWorkspaceTools).readOnly(),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         () => ({ runBuilder: mockRunBuilder }) as any,
       );
@@ -554,8 +554,7 @@ describe("EditorTools", () => {
         .mockReturnValue({ runBuilder: mockRunBuilder });
       const handler = createDelegateToSkillHandler(
         mockFactory,
-        editorToolsInstance,
-        mockWorkspaceTools,
+        buildReadWriteRegistry(editorToolsInstance, mockWorkspaceTools).readOnly(),
         customRunnerFactory,
       );
       await handler({ skillName: "Proofreader", task: "t" }, {});
