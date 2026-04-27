@@ -3,6 +3,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { registerWebMCPTools } from "./WebMCPTools";
+import { createToolRegistry } from "./agents/tools/registries";
 import type { EditorContext } from "./agents/tools/editor/context";
 import type { WorkspaceContext } from "./agents/tools/workspace/context";
 
@@ -93,7 +94,7 @@ describe("registerWebMCPTools", () => {
       }),
     };
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const cleanup = registerWebMCPTools(makeEditorCtx(), makeWorkspaceCtx());
+    const cleanup = registerWebMCPTools(createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()));
     expect(warnSpy).toHaveBeenCalledWith(
       "WebMCP tool registration failed:",
       expect.any(TypeError),
@@ -105,12 +106,12 @@ describe("registerWebMCPTools", () => {
   it("returns a no-op cleanup when navigator.modelContext is undefined", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (navigator as any).modelContext;
-    const cleanup = registerWebMCPTools(makeEditorCtx(), makeWorkspaceCtx());
+    const cleanup = registerWebMCPTools(createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()));
     expect(() => cleanup()).not.toThrow();
   });
 
   it("registers all expected tools", () => {
-    registerWebMCPTools(makeEditorCtx(), makeWorkspaceCtx());
+    registerWebMCPTools(createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()));
     const expected = [
       "read",
       "read_selection",
@@ -137,14 +138,14 @@ describe("registerWebMCPTools", () => {
   });
 
   it("passes an AbortSignal to each registered tool", () => {
-    registerWebMCPTools(makeEditorCtx(), makeWorkspaceCtx());
+    registerWebMCPTools(createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()));
     for (const [, entry] of registeredTools) {
       expect(entry.signal).toBeInstanceOf(AbortSignal);
     }
   });
 
   it("cleanup aborts the shared signal", () => {
-    const cleanup = registerWebMCPTools(makeEditorCtx(), makeWorkspaceCtx());
+    const cleanup = registerWebMCPTools(createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()));
     const signal = registeredTools.get("read")!.signal!;
     expect(signal.aborted).toBe(false);
     cleanup();
@@ -152,12 +153,12 @@ describe("registerWebMCPTools", () => {
   });
 
   it("read execute returns editor content", async () => {
-    registerWebMCPTools(makeEditorCtx(), makeWorkspaceCtx());
+    registerWebMCPTools(createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()));
     expect(await registeredTools.get("read")!.execute({})).toBe("editor content");
   });
 
   it("get_current_mode execute returns current mode", async () => {
-    registerWebMCPTools(makeEditorCtx(), makeWorkspaceCtx());
+    registerWebMCPTools(createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()));
     expect(await registeredTools.get("get_current_mode")!.execute({})).toBe("editor");
   });
 });
