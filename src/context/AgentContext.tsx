@@ -14,10 +14,8 @@ import {
 import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
 import { DefaultAgentRunnerFactory, AgentModel } from "@/lib/agents";
 import type { StreamItem } from "@/lib/agents";
-import {
-  EditorTools,
-  createDelegateToSkillHandler,
-} from "@/lib/agents/tools/EditorTools";
+import { EditorTools } from "@/lib/agents/tools/EditorTools";
+import { DelegateToSkillTool } from "@/lib/agents/tools/delegate_to_skill";
 import { WorkspaceTools } from "@/lib/agents/tools/WorkspaceTools";
 import { buildReadWriteRegistry } from "@/lib/agents/tools/registries";
 import { registerDelegationTools } from "@/lib/agents/tools/DelegationTools";
@@ -162,30 +160,7 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     if (!apiKey || !factory) return null;
     const r = buildReadWriteRegistry(editorTools, workspaceTools);
     addAllBuiltInAITools(r).catch(() => {});
-    r.register({
-      definition: () => ({
-        name: "delegate_to_skill",
-        description:
-          "Delegates a task to a named skill (sub-agent). The skill runs with read-only access and returns its response as a string. Interpret the response and act on it accordingly.",
-        parameters: {
-          type: "object",
-          properties: {
-            skillName: {
-              type: "string",
-              description: "The exact name of the skill to invoke.",
-            },
-            task: {
-              type: "string",
-              description:
-                "The specific task or instructions to pass to the skill.",
-            },
-          },
-          required: ["skillName", "task"],
-        },
-        scope: "write" as const,
-      }),
-      call: createDelegateToSkillHandler(factory, r.readOnly()),
-    });
+    r.register(new DelegateToSkillTool(factory, r.readOnly()));
     registerDelegationTools(
       r,
       factory,
