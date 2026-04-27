@@ -14,11 +14,11 @@ import {
 import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
 import { DefaultAgentRunnerFactory, AgentModel } from "@/lib/agents";
 import type { StreamItem } from "@/lib/agents";
-import { EditorTools } from "@/lib/agents/tools/EditorTools";
-import { DelegateToSkillTool } from "@/lib/agents/tools/delegate_to_skill";
-import { WorkspaceTools } from "@/lib/agents/tools/WorkspaceTools";
-import { buildReadWriteRegistry } from "@/lib/agents/tools/registries";
-import { registerDelegationTools } from "@/lib/agents/tools/DelegationTools";
+import type { EditorContext } from "@/lib/agents/tools/editor/context";
+import type { WorkspaceContext } from "@/lib/agents/tools/workspace/context";
+import { DelegateToSkillTool } from "@/lib/agents/tools/delegation/delegate_to_skill";
+import { createToolRegistry } from "@/lib/agents/tools/registries";
+import { registerDelegationTools } from "@/lib/agents/tools/delegation";
 import { registerWebMCPTools } from "@/lib/WebMCPTools";
 import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
@@ -98,16 +98,15 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     [setPendingTabSwitchRequest],
   );
 
-  const editorTools = useMemo(
-    () =>
-      new EditorTools(
-        editorInstanceRef,
-        setSuggestions,
-        approveAllRef,
-        editorContentRef,
-        activeTabRef,
-        requestTabSwitch,
-      ),
+  const editorCtx = useMemo<EditorContext>(
+    () => ({
+      editorRef: editorInstanceRef,
+      editorContentRef,
+      activeTabRef,
+      requestTabSwitch,
+      setSuggestions,
+      approveAllRef,
+    }),
     [setSuggestions, requestTabSwitch],
   );
 
@@ -125,22 +124,21 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     [apiKey, modelName, usageCallback],
   );
 
-  const workspaceTools = useMemo(
-    () =>
-      new WorkspaceTools(
-        docsRef,
-        activeDocRef,
-        factory ?? new DefaultAgentRunnerFactory("", ""),
-        (title) => createDocumentWithTitle(title),
-        (id, title) => updateDocument(id, { title }),
-        (id) => deleteDocument(id),
-        (id) => setActiveDocumentId(id),
-        (id, content) => updateDocument(id, { content }),
-        editorInstanceRef,
-        editorContentRef,
-        setPendingWorkspaceAction,
-        approveAllRef,
-      ),
+  const workspaceCtx = useMemo<WorkspaceContext>(
+    () => ({
+      docsRef,
+      activeDocRef,
+      factory: factory ?? new DefaultAgentRunnerFactory("", ""),
+      createDocumentFn: (title) => createDocumentWithTitle(title),
+      renameDocumentFn: (id, title) => updateDocument(id, { title }),
+      deleteDocumentFn: (id) => deleteDocument(id),
+      setActiveDocumentIdFn: (id) => setActiveDocumentId(id),
+      saveDocContentFn: (id, content) => updateDocument(id, { content }),
+      editorRef: editorInstanceRef,
+      editorContentRef,
+      setPendingWorkspaceAction,
+      approveAllRef,
+    }),
     [
       factory,
       createDocumentWithTitle,
@@ -152,28 +150,30 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(
-    () => registerWebMCPTools(editorTools, workspaceTools),
-    [editorTools, workspaceTools],
+    () => registerWebMCPTools(editorCtx, workspaceCtx),
+    [editorCtx, workspaceCtx],
   );
 
   const registry = useMemo(() => {
     if (!apiKey || !factory) return null;
-    const r = buildReadWriteRegistry(editorTools, workspaceTools);
+    // eslint-disable-next-line react-hooks/refs
+    const r = createToolRegistry(editorCtx, workspaceCtx);
     addAllBuiltInAITools(r).catch(() => {});
     r.register(new DelegateToSkillTool(factory, r.readOnly()));
     registerDelegationTools(
       r,
       factory,
       r.readOnly(),
-      workspaceTools,
+      // eslint-disable-next-line react-hooks/refs
+      workspaceCtx.docsRef,
       setPendingPlanConfirmation,
     );
     return r;
   }, [
     apiKey,
     factory,
-    editorTools,
-    workspaceTools,
+    editorCtx,
+    workspaceCtx,
     setPendingPlanConfirmation,
   ]);
 

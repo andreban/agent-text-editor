@@ -21,9 +21,6 @@ function renderPanel() {
 }
 
 function getActiveWorkspaceData(): WorkspaceData {
-  const index: WorkspaceMeta[] = JSON.parse(
-    localStorage.getItem("workspaces_index")!,
-  );
   const id = localStorage.getItem("active_workspace_id")!;
   return JSON.parse(localStorage.getItem(`workspace_${id}`)!);
 }
