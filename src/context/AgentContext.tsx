@@ -149,9 +149,15 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  useEffect(
-    () => registerWebMCPTools(editorCtx, workspaceCtx),
+  const baseRegistry = useMemo(
+    // eslint-disable-next-line react-hooks/refs
+    () => createToolRegistry(editorCtx, workspaceCtx),
     [editorCtx, workspaceCtx],
+  );
+
+  useEffect(
+    () => registerWebMCPTools(baseRegistry),
+    [baseRegistry],
   );
 
   const registry = useMemo(() => {
