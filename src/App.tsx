@@ -1,6 +1,6 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState } from "react";
 import { EditorPanel } from "@/components/EditorPanel";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { WorkspacePanel } from "@/components/WorkspacePanel";
@@ -26,21 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AgentRunner, AgentConfig, Conversation } from "@mast-ai/core";
-import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
-import {
-  EditorTools,
-  createDelegateToSkillHandler,
-} from "@/lib/tools/EditorTools";
-import { WorkspaceTools } from "@/lib/tools/WorkspaceTools";
-import { buildReadWriteRegistry } from "@/lib/tools/registries";
-import { registerDelegationTools } from "@/lib/tools/DelegationTools";
-import {
-  DefaultAgentRunnerFactory,
-  buildOrchestratorPrompt,
-} from "@/lib/agents";
-import { registerWebMCPTools } from "@/lib/WebMCPTools";
-import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
+import { AgentContextProvider } from "@/context/AgentContext";
+import { useEffect, useRef } from "react";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
@@ -55,12 +42,7 @@ function useIsMobile() {
   return isMobile;
 }
 
-interface LayoutProps {
-  conversation: Conversation | null;
-  onBeforeSend?: () => void;
-}
-
-function DesktopLayout({ conversation, onBeforeSend }: LayoutProps) {
+function DesktopLayout() {
   const [refOpen, setRefOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(true);
   const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
@@ -149,10 +131,7 @@ function DesktopLayout({ conversation, onBeforeSend }: LayoutProps) {
         </div>
         {chatOpen && (
           <div className="flex-1 min-h-0 overflow-hidden">
-            <ChatSidebar
-              conversation={conversation}
-              onBeforeSend={onBeforeSend}
-            />
+            <ChatSidebar />
           </div>
         )}
       </aside>
@@ -160,7 +139,7 @@ function DesktopLayout({ conversation, onBeforeSend }: LayoutProps) {
   );
 }
 
-function MobileLayout({ conversation, onBeforeSend }: LayoutProps) {
+function MobileLayout() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<"chat" | "reference">("chat");
   const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
@@ -252,215 +231,21 @@ function MobileLayout({ conversation, onBeforeSend }: LayoutProps) {
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          {sheetMode === "chat" ? (
-            <ChatSidebar
-              conversation={conversation}
-              onBeforeSend={onBeforeSend}
-            />
-          ) : (
-            <WorkspacePanel />
-          )}
+          {sheetMode === "chat" ? <ChatSidebar /> : <WorkspacePanel />}
         </div>
       </div>
     </div>
   );
 }
 
-function App() {
-  const {
-    activeWorkspaceId,
-    activeWorkspace,
-    activeDocument,
-    createDocumentWithTitle,
-    updateDocument,
-    deleteDocument,
-    setActiveDocumentId,
-  } = useWorkspaces();
-  const { apiKey, setApiKey, modelName, setTotalTokens, skills } =
-    useAgentConfig();
-  const {
-    editorInstance,
-    setSuggestions,
-    approveAll,
-    activeTab,
-    editorContent,
-    setPendingTabSwitchRequest,
-    pendingWorkspaceAction,
-    setPendingWorkspaceAction,
-    setPendingPlanConfirmation,
-  } = useEditorUI();
+function AppContent() {
+  const { apiKey, setApiKey } = useAgentConfig();
+  const { pendingWorkspaceAction, setPendingWorkspaceAction } = useEditorUI();
+  const { activeWorkspaceId } = useWorkspaces();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
 
-  const docsRef = useRef(activeWorkspace?.documents ?? []);
-  useEffect(() => {
-    docsRef.current = activeWorkspace?.documents ?? [];
-  }, [activeWorkspace]);
-
-  const activeDocRef = useRef(
-    activeDocument
-      ? { id: activeDocument.id, title: activeDocument.title }
-      : null,
-  );
-  useEffect(() => {
-    activeDocRef.current = activeDocument
-      ? { id: activeDocument.id, title: activeDocument.title }
-      : null;
-  }, [activeDocument]);
-
-  const editorInstanceRef = useRef(editorInstance);
-  useEffect(() => {
-    editorInstanceRef.current = editorInstance;
-  }, [editorInstance]);
-
-  const editorContentRef = useRef(editorContent);
-  useEffect(() => {
-    editorContentRef.current = editorContent;
-  }, [editorContent]);
-
-  const activeTabRef = useRef(activeTab);
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
-
-  const approveAllRef = useRef(approveAll);
-  useEffect(() => {
-    approveAllRef.current = approveAll;
-  }, [approveAll]);
-
-  const requestTabSwitch = useCallback(
-    () =>
-      new Promise<boolean>((resolve) => {
-        setPendingTabSwitchRequest({ resolve });
-      }),
-    [setPendingTabSwitchRequest],
-  );
-
-  const editorTools = useMemo(
-    () =>
-      new EditorTools(
-        editorInstanceRef,
-        setSuggestions,
-        approveAllRef,
-        editorContentRef,
-        activeTabRef,
-        requestTabSwitch,
-      ),
-    [setSuggestions, requestTabSwitch],
-  );
-
-  const factory = useMemo(
-    () =>
-      apiKey
-        ? new DefaultAgentRunnerFactory(apiKey, modelName, (usage) =>
-            setTotalTokens((prev) => prev + (usage.totalTokenCount || 0)),
-          )
-        : null,
-    [apiKey, modelName, setTotalTokens],
-  );
-
-  const workspaceTools = useMemo(
-    () =>
-      new WorkspaceTools(
-        docsRef,
-        activeDocRef,
-        factory ?? new DefaultAgentRunnerFactory("", ""),
-        (title) => createDocumentWithTitle(title),
-        (id, title) => updateDocument(id, { title }),
-        (id) => deleteDocument(id),
-        (id) => setActiveDocumentId(id),
-        (id, content) => updateDocument(id, { content }),
-        editorInstanceRef,
-        editorContentRef,
-        setPendingWorkspaceAction,
-        approveAllRef,
-      ),
-    [
-      docsRef,
-      activeDocRef,
-      factory,
-      createDocumentWithTitle,
-      updateDocument,
-      deleteDocument,
-      setActiveDocumentId,
-      setPendingWorkspaceAction,
-    ],
-  );
-
-  useEffect(
-    () => registerWebMCPTools(editorTools, workspaceTools),
-    [editorTools, workspaceTools],
-  );
-
-  const runner = useMemo(() => {
-    if (!apiKey || !factory) return null;
-    const adapter = new GoogleGenAIAdapter(apiKey, modelName, (usage) => {
-      setTotalTokens((prev) => prev + (usage.totalTokenCount || 0));
-    });
-    const registry = buildReadWriteRegistry(editorTools, workspaceTools);
-    addAllBuiltInAITools(registry).catch(() => {});
-
-    registry.register({
-      definition: () => ({
-        name: "delegate_to_skill",
-        description:
-          "Delegates a task to a named skill (sub-agent). The skill runs with read-only access and returns its response as a string. Interpret the response and act on it accordingly.",
-        parameters: {
-          type: "object",
-          properties: {
-            skillName: {
-              type: "string",
-              description: "The exact name of the skill to invoke.",
-            },
-            task: {
-              type: "string",
-              description:
-                "The specific task or instructions to pass to the skill.",
-            },
-          },
-          required: ["skillName", "task"],
-        },
-        scope: "write" as const,
-      }),
-      call: createDelegateToSkillHandler(factory, editorTools, workspaceTools),
-    });
-
-    registerDelegationTools(
-      registry,
-      factory,
-      editorTools,
-      workspaceTools,
-      setPendingPlanConfirmation,
-    );
-
-    return new AgentRunner(adapter, registry);
-  }, [
-    apiKey,
-    factory,
-    modelName,
-    setTotalTokens,
-    editorTools,
-    workspaceTools,
-    setPendingPlanConfirmation,
-  ]);
-
-  const conversation = useMemo(() => {
-    if (!runner) return null;
-    const agent: AgentConfig = {
-      name: "EditorAssistant",
-      instructions: buildOrchestratorPrompt(skills),
-    };
-    return runner.conversation(agent);
-  }, [runner, skills]);
-
   const isMobile = useIsMobile();
-
-  const flushEditorContent = useCallback(() => {
-    if (activeDocument) {
-      const content = editorInstance?.getValue() ?? editorContent;
-      updateDocument(activeDocument.id, { content });
-    }
-  }, [activeDocument, editorInstance, editorContent, updateDocument]);
 
   const handleSaveKey = () => {
     if (tempKey.trim()) {
@@ -475,17 +260,7 @@ function App() {
 
   return (
     <>
-      {isMobile ? (
-        <MobileLayout
-          conversation={conversation}
-          onBeforeSend={flushEditorContent}
-        />
-      ) : (
-        <DesktopLayout
-          conversation={conversation}
-          onBeforeSend={flushEditorContent}
-        />
-      )}
+      {isMobile ? <MobileLayout /> : <DesktopLayout />}
 
       <Dialog
         open={!!pendingWorkspaceAction}
@@ -555,4 +330,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <AgentContextProvider>
+      <AppContent />
+    </AgentContextProvider>
+  );
+}

@@ -383,4 +383,3 @@ export function registerWorkspaceTools(
     call: async (args: { id: string }) => tools.switch_active_document(args),
   });
 }
-

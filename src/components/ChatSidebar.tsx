@@ -5,14 +5,13 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
-import { Conversation } from "@mast-ai/core";
 import { Settings, Wand2, Sun, Moon, X } from "lucide-react";
 import { useEditorUI } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
-import { ChatItem, ChildItem, StreamItem } from "./ChatItem";
+import { ChatItem } from "./ChatItem";
 import { PlanConfirmationWidget } from "./PlanConfirmationWidget";
 import {
   DocRef,
@@ -20,26 +19,19 @@ import {
   buildPromptWithMentions,
   extractMentionQuery,
 } from "@/lib/mentionUtils";
+import { useAgentContext } from "@/context/AgentContext";
+import type { StreamItem } from "@/lib/agent/types";
 
-interface ChatSidebarProps {
-  conversation: Conversation | null;
-  onBeforeSend?: () => void;
-}
+export function ChatSidebar() {
+  const { items, isLoading, sendMessage, cancel } = useAgentContext();
 
-export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
   const [trailingInput, setTrailingInput] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [items, setItems] = useState<StreamItem[]>([]);
   const [expandedThoughts, setExpandedThoughts] = useState<Set<string>>(
     new Set(),
   );
-  const [prevConversation, setPrevConversation] = useState<Conversation | null>(
-    null,
-  );
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [pickerIndex, setPickerIndex] = useState(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -59,38 +51,30 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
         )
       : [];
 
-  // Rebuild display items when the conversation instance changes (e.g. new session)
-  if (conversation !== prevConversation) {
-    setPrevConversation(conversation);
-    if (conversation && conversation.history.length > 0) {
-      const rebuilt: StreamItem[] = conversation.history.flatMap((m, i) => {
-        if (m.content.type === "text") {
-          return [
-            {
-              kind: m.role === "user" ? "user" : "assistant",
-              id: `hist-${i}`,
-              text: m.content.text,
-              ...(m.role === "assistant"
-                ? { thought: "", isStreaming: false }
-                : {}),
-            } as StreamItem,
-          ];
+  // Sync expandedThoughts with streaming assistant items.
+  const prevItemsRef = useRef<readonly StreamItem[]>([]);
+  useEffect(() => {
+    const prevItems = prevItemsRef.current;
+    prevItemsRef.current = items;
+    setExpandedThoughts((prev) => {
+      const next = new Set(prev);
+      for (const item of items) {
+        if (item.kind !== "assistant") continue;
+        const prevItem = prevItems.find((p) => p.id === item.id);
+        if (!prevItem && item.isStreaming) {
+          next.add(item.id);
+        } else if (
+          prevItem &&
+          prevItem.kind === "assistant" &&
+          prevItem.isStreaming &&
+          !item.isStreaming
+        ) {
+          next.delete(item.id);
         }
-        if (m.content.type === "tool_calls") {
-          return m.content.calls.map(
-            (c, j): StreamItem => ({
-              kind: "tool",
-              id: `hist-${i}-${j}`,
-              name: c.name,
-              pending: false,
-            }),
-          );
-        }
-        return [];
-      });
-      setItems(rebuilt);
-    }
-  }
+      }
+      return next;
+    });
+  }, [items]);
 
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -189,274 +173,19 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     const displayText =
       segments.map((s) => `${s.text}@${s.doc.title}`).join("") + trailingInput;
-    if (!displayText.trim() || !conversation || isLoading) return;
+    if (!displayText.trim() || isLoading) return;
 
     const prompt = buildPromptWithMentions(segments, trailingInput);
 
     setTrailingInput("");
     setSegments([]);
     setMentionQuery(null);
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-    setIsLoading(true);
     if (inputRef.current) inputRef.current.style.height = "";
 
-    setItems((prev) => [
-      ...prev,
-      {
-        kind: "user",
-        id: `user-${crypto.randomUUID()}`,
-        text: displayText.trim(),
-      },
-    ]);
-
-    // IDs of in-flight items — local vars are sufficient since this all runs
-    // within a single async invocation.
-    let assistantId: string | null = null;
-    let toolId: string | null = null;
-
-    // Tracks the active skill item and its pending child tool ID.
-    const activeSkillRef = {
-      id: null as string | null,
-      toolId: null as string | null,
-    };
-
-    const ensureAssistant = (): string => {
-      if (assistantId) return assistantId;
-      const id = `asst-${crypto.randomUUID()}`;
-      assistantId = id;
-      setItems((prev) => [
-        ...prev,
-        { kind: "assistant", id, text: "", thought: "", isStreaming: true },
-      ]);
-      setExpandedThoughts((prev) => new Set(prev).add(id));
-      return id;
-    };
-
-    const onToolEvent = (
-      _toolName: string,
-      event: import("@mast-ai/core").AgentEvent,
-    ) => {
-      const skillId = activeSkillRef.id;
-      if (!skillId) return;
-
-      if (event.type === "thinking" || event.type === "text_delta") {
-        const kind =
-          event.type === "thinking" ? ("thought" as const) : ("text" as const);
-        const delta = event.delta;
-        setItems((prev) =>
-          prev.map((it) => {
-            if (
-              (it.kind !== "skill" && it.kind !== "agent") ||
-              it.id !== skillId
-            )
-              return it;
-            const last = it.childItems[it.childItems.length - 1];
-            if (last && last.kind === kind) {
-              return {
-                ...it,
-                childItems: it.childItems.map((c, i) =>
-                  i === it.childItems.length - 1
-                    ? { ...c, text: (c as { text: string }).text + delta }
-                    : c,
-                ),
-              };
-            }
-            return {
-              ...it,
-              childItems: [
-                ...it.childItems,
-                { kind, id: `child-${crypto.randomUUID()}`, text: delta },
-              ],
-            };
-          }),
-        );
-      } else if (event.type === "tool_call_started") {
-        const tid = `child-tool-${crypto.randomUUID()}`;
-        activeSkillRef.toolId = tid;
-        const childTool: ChildItem = {
-          kind: "tool",
-          id: tid,
-          name: event.name,
-          pending: true,
-          params: event.args,
-        };
-        setItems((prev) =>
-          prev.map((it) =>
-            (it.kind === "skill" || it.kind === "agent") && it.id === skillId
-              ? { ...it, childItems: [...it.childItems, childTool] }
-              : it,
-          ),
-        );
-      } else if (event.type === "tool_call_completed") {
-        const tid = activeSkillRef.toolId;
-        if (tid) {
-          const toolResult = event.result;
-          setItems((prev) =>
-            prev.map((it) => {
-              if (
-                (it.kind !== "skill" && it.kind !== "agent") ||
-                it.id !== skillId
-              )
-                return it;
-              return {
-                ...it,
-                childItems: it.childItems.map((c) =>
-                  c.kind === "tool" && c.id === tid
-                    ? { ...c, pending: false, result: toolResult }
-                    : c,
-                ),
-              };
-            }),
-          );
-          activeSkillRef.toolId = null;
-        }
-      }
-    };
-
-    try {
-      onBeforeSend?.();
-      for await (const event of conversation.runStream(
-        prompt,
-        abortController.signal,
-        onToolEvent,
-      )) {
-        if (event.type === "thinking") {
-          const id = ensureAssistant();
-          const delta = event.delta;
-          setItems((prev) =>
-            prev.map((it) =>
-              it.kind === "assistant" && it.id === id
-                ? { ...it, thought: it.thought + delta }
-                : it,
-            ),
-          );
-        } else if (event.type === "text_delta") {
-          const id = ensureAssistant();
-          const delta = event.delta;
-          setItems((prev) =>
-            prev.map((it) =>
-              it.kind === "assistant" && it.id === id
-                ? { ...it, text: it.text + delta }
-                : it,
-            ),
-          );
-        } else if (event.type === "tool_call_started") {
-          // Finalize any open assistant bubble, then open a pending tool/skill item.
-          if (assistantId) {
-            const closeId = assistantId;
-            setItems((prev) =>
-              prev.map((it) =>
-                it.kind === "assistant" && it.id === closeId
-                  ? { ...it, isStreaming: false }
-                  : it,
-              ),
-            );
-            assistantId = null;
-          }
-          const tid = `tool-${crypto.randomUUID()}`;
-          toolId = tid;
-          if (event.name === "invoke_agent") {
-            const args = event.args as { systemPrompt?: string; task?: string };
-            activeSkillRef.id = tid;
-            activeSkillRef.toolId = null;
-            setItems((prev) => [
-              ...prev,
-              {
-                kind: "agent",
-                id: tid,
-                agentRole: "Agent",
-                task: args.task ?? "",
-                pending: true,
-                childItems: [],
-              },
-            ]);
-          } else if (event.name === "delegate_to_skill") {
-            const args = event.args as { skillName?: string; task?: string };
-            activeSkillRef.id = tid;
-            activeSkillRef.toolId = null;
-            setItems((prev) => [
-              ...prev,
-              {
-                kind: "skill",
-                id: tid,
-                name: args.skillName ?? "skill",
-                task: args.task ?? "",
-                pending: true,
-                childItems: [],
-              },
-            ]);
-          } else {
-            const name = event.name;
-            const params = event.args;
-            setItems((prev) => [
-              ...prev,
-              { kind: "tool", id: tid, name, pending: true, params },
-            ]);
-          }
-        } else if (event.type === "tool_call_completed") {
-          // Mark the tool/skill as done. Next content will lazily open a new assistant bubble.
-          if (toolId) {
-            const closeToolId = toolId;
-            if (activeSkillRef.id === closeToolId) {
-              setItems((prev) =>
-                prev.map((it) =>
-                  (it.kind === "skill" || it.kind === "agent") &&
-                  it.id === closeToolId
-                    ? { ...it, pending: false }
-                    : it,
-                ),
-              );
-              activeSkillRef.id = null;
-            } else {
-              const toolResult = event.result;
-              setItems((prev) =>
-                prev.map((it) =>
-                  it.kind === "tool" && it.id === closeToolId
-                    ? { ...it, pending: false, result: toolResult }
-                    : it,
-                ),
-              );
-            }
-            toolId = null;
-          }
-          assistantId = null;
-        } else if (event.type === "done") {
-          // Finalize the last assistant bubble and auto-collapse its thought.
-          if (assistantId) {
-            const closeId = assistantId;
-            setItems((prev) =>
-              prev.map((it) =>
-                it.kind === "assistant" && it.id === closeId
-                  ? { ...it, isStreaming: false }
-                  : it,
-              ),
-            );
-            setExpandedThoughts((prev) => {
-              const next = new Set(prev);
-              next.delete(closeId);
-              return next;
-            });
-            assistantId = null;
-          }
-        }
-      }
-    } catch (error) {
-      if ((error as { name?: string }).name !== "AbortError") {
-        console.error("Chat Error:", error);
-      }
-      // Remove any open (empty) assistant bubble on failure/cancel.
-      if (assistantId) {
-        const removeId = assistantId;
-        setItems((prev) => prev.filter((it) => it.id !== removeId));
-      }
-    } finally {
-      abortControllerRef.current = null;
-      setIsLoading(false);
-    }
+    sendMessage(prompt, displayText.trim());
   };
 
   const canSend =
@@ -621,11 +350,7 @@ export function ChatSidebar({ conversation, onBeforeSend }: ChatSidebarProps) {
           </div>
         </div>
         {isLoading ? (
-          <Button
-            variant="outline"
-            onClick={() => abortControllerRef.current?.abort()}
-            className="min-h-11"
-          >
+          <Button variant="outline" onClick={cancel} className="min-h-11">
             Cancel
           </Button>
         ) : (
