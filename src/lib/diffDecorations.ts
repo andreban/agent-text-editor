@@ -1,11 +1,6 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import {
-  diff_match_patch,
-  DIFF_EQUAL,
-  DIFF_DELETE,
-  DIFF_INSERT,
-} from "diff-match-patch";
+import { diff_match_patch, DIFF_DELETE, DIFF_INSERT } from "diff-match-patch";
 import type * as monaco from "monaco-editor";
 import type { Suggestion } from "./store";
 
