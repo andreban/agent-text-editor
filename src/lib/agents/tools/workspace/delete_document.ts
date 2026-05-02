@@ -28,6 +28,7 @@ export class DeleteDocumentTool implements Tool<DeleteDocumentArgs, string> {
         required: ["id"],
       },
       scope: "write",
+      requiresApproval: true,
     };
   }
 
