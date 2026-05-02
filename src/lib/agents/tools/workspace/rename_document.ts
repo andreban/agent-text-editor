@@ -33,6 +33,7 @@ export class RenameDocumentTool implements Tool<RenameDocumentArgs, string> {
         required: ["id", "title"],
       },
       scope: "write",
+      requiresApproval: true,
     };
   }
 

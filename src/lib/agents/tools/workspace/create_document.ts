@@ -34,6 +34,7 @@ export class CreateDocumentTool implements Tool<CreateDocumentArgs, string> {
         required: ["title"],
       },
       scope: "write",
+      requiresApproval: true,
     };
   }
 

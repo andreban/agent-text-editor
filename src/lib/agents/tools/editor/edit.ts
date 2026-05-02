@@ -34,6 +34,7 @@ export class EditTool implements Tool<EditArgs, string> {
         required: ["originalText", "replacementText"],
       },
       scope: "write",
+      requiresApproval: true,
     };
   }
 

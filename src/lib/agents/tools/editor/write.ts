@@ -28,6 +28,7 @@ export class WriteTool implements Tool<WriteArgs, string> {
         required: ["content"],
       },
       scope: "write",
+      requiresApproval: true,
     };
   }
 
