@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AgentContextProvider } from "@/context/AgentContext";
+import { AgentProviderShim } from "@/context/AgentProviderShim";
 import { useEffect, useRef } from "react";
 
 function useIsMobile() {
@@ -332,8 +333,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AgentContextProvider>
-      <AppContent />
-    </AgentContextProvider>
+    <AgentProviderShim>
+      <AgentContextProvider>
+        <AppContent />
+      </AgentContextProvider>
+    </AgentProviderShim>
   );
 }

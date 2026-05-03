@@ -4,14 +4,14 @@ Companion to [PRD.md](./PRD.md). Tracking issue: [#82](https://github.com/andreb
 
 ## Current state (what we're replacing)
 
-| File | Lines | Role |
-| --- | ---: | --- |
-| `src/components/ChatSidebar.tsx` | 364 | Sidebar chrome (header, theme toggle, settings/skills buttons, approve-all switch) **plus** virtualised message list, mention picker, chip-based input, streaming state machine, scroll-to-bottom, `expandedThoughts` set. |
-| `src/components/ChatItem.tsx` | 300 | Renders one user/assistant message: streaming text, collapsible thinking chunks, tool call/result events. |
-| `src/lib/mentionUtils.ts` | 48 | `Segment`, `DocRef`, `extractMentionQuery`, `buildPromptWithMentions`. |
-| `src/context/AgentContext.tsx` | 228 | Custom React context: builds `AgentRunnerFactory`, `EditorContext`, `WorkspaceContext`, `ToolRegistry` (with `DelegateToSkillTool`, delegation tools, web MCP, built-in AI tools), constructs `AgentModel`, exposes `items`, `isLoading`, `sendMessage(prompt, displayText?)`, `cancel`. |
-| `src/components/ChatSidebar.test.tsx` | 172 | Tests for the bespoke sidebar. |
-| `src/components/ChatItem.test.tsx` | 88 | Tests for the bespoke message renderer. |
+| File                                  | Lines | Role                                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ----: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/ChatSidebar.tsx`      |   364 | Sidebar chrome (header, theme toggle, settings/skills buttons, approve-all switch) **plus** virtualised message list, mention picker, chip-based input, streaming state machine, scroll-to-bottom, `expandedThoughts` set.                                                               |
+| `src/components/ChatItem.tsx`         |   300 | Renders one user/assistant message: streaming text, collapsible thinking chunks, tool call/result events.                                                                                                                                                                                |
+| `src/lib/mentionUtils.ts`             |    48 | `Segment`, `DocRef`, `extractMentionQuery`, `buildPromptWithMentions`.                                                                                                                                                                                                                   |
+| `src/context/AgentContext.tsx`        |   228 | Custom React context: builds `AgentRunnerFactory`, `EditorContext`, `WorkspaceContext`, `ToolRegistry` (with `DelegateToSkillTool`, delegation tools, web MCP, built-in AI tools), constructs `AgentModel`, exposes `items`, `isLoading`, `sendMessage(prompt, displayText?)`, `cancel`. |
+| `src/components/ChatSidebar.test.tsx` |   172 | Tests for the bespoke sidebar.                                                                                                                                                                                                                                                           |
+| `src/components/ChatItem.test.tsx`    |    88 | Tests for the bespoke message renderer.                                                                                                                                                                                                                                                  |
 
 Other affected entry points:
 
@@ -20,14 +20,14 @@ Other affected entry points:
 
 ## Target state (what it becomes)
 
-| Today | Replacement (`@mast-ai/react-ui`) |
-| --- | --- |
-| `<ChatSidebar>` (compound: header + list + plan widget + input) | A thin sidebar component in this repo containing the existing header chrome, `<MessageList>`, `<PlanConfirmationWidget>`, and `<ChatInput>`. |
-| `ChatItem` (user/assistant rendering, thinking, tool calls) | Library's `<UserMessage>`, `<AssistantMessage>`, `<ThinkingBlock>`, `<ToolCallBlock>` (consumed by `<MessageList>`'s default renderer; override via `renderToolCall` for our bespoke tools). |
-| Virtualiser + `expandedThoughts` + scroll-to-bottom in `ChatSidebar` | `<MessageList>` + `useAgent()`. |
-| `mentionUtils.ts` + segment/picker state | `<ChatInput mentions={{ items, buildPrompt }}>` from the library. |
-| `AgentContext` + `useAgentContext()` | `<AgentProvider runner={...} agent={...} icons={...} onApprovalRequired={...} mentions={...}>` + `useAgent()`. |
-| Skill / approve-all + plan confirmation + custom approval routing | `onApprovalRequired` callback returning `INLINE_APPROVAL` for inline cases; falling through to existing `<PlanConfirmationWidget>` modal for plan approvals. |
+| Today                                                                | Replacement (`@mast-ai/react-ui`)                                                                                                                                                            |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<ChatSidebar>` (compound: header + list + plan widget + input)      | A thin sidebar component in this repo containing the existing header chrome, `<MessageList>`, `<PlanConfirmationWidget>`, and `<ChatInput>`.                                                 |
+| `ChatItem` (user/assistant rendering, thinking, tool calls)          | Library's `<UserMessage>`, `<AssistantMessage>`, `<ThinkingBlock>`, `<ToolCallBlock>` (consumed by `<MessageList>`'s default renderer; override via `renderToolCall` for our bespoke tools). |
+| Virtualiser + `expandedThoughts` + scroll-to-bottom in `ChatSidebar` | `<MessageList>` + `useAgent()`.                                                                                                                                                              |
+| `mentionUtils.ts` + segment/picker state                             | `<ChatInput mentions={{ items, buildPrompt }}>` from the library.                                                                                                                            |
+| `AgentContext` + `useAgentContext()`                                 | `<AgentProvider runner={...} agent={...} icons={...} onApprovalRequired={...}>` + `useAgent()`.                                                                                              |
+| Skill / approve-all + plan confirmation + custom approval routing    | `onApprovalRequired` callback returning `INLINE_APPROVAL` for inline cases; falling through to existing `<PlanConfirmationWidget>` modal for plan approvals.                                 |
 
 ## Implementation phases
 
@@ -36,7 +36,7 @@ Each phase is one issue, one PR against `feat/react-ui-migration`. They are sequ
 ### Phase 1 — Add deps + wire `<AgentProvider>` (replaces step 1+2 in #82)
 
 - Add `@mast-ai/react-ui` to `dependencies`.
-- Mount `<AgentProvider>` at the app root (`src/App.tsx` or a new `src/context/AgentProvider.tsx` shim) wired with: the existing `runner`/`agent` constructed from `DefaultAgentRunnerFactory`, the existing `usageCallback`, lucide icon overrides to keep current visuals, an `onApprovalRequired` that delegates to existing approve-all + plan-confirmation logic, and a `mentions` config built from `activeWorkspace.documents`.
+- Mount `<AgentProvider>` at the app root via a new `src/context/AgentProviderShim.tsx` wired with: the existing `runner`/`agent` constructed from `DefaultAgentRunnerFactory`, the existing `usageCallback`, lucide icon overrides to keep current visuals, and an `onApprovalRequired` that delegates to existing approve-all + plan-confirmation logic. The `mentions` config is a `<ChatInput>` prop and is wired in Phase 3, not here.
 - Keep `AgentContext` in place behind the new provider so the bespoke `ChatSidebar` continues to work. No UI change in this phase.
 - Acceptance: app builds, chat works exactly as before, `useAgent()` is callable from inside the provider.
 
@@ -68,7 +68,7 @@ Each phase is one issue, one PR against `feat/react-ui-migration`. They are sequ
 
 ## Non-obvious decisions
 
-- **`<AgentProvider>` first.** Phase 1 adds the new provider *underneath* the existing `AgentContext` so that subsequent phases can swap UI piecewise without ever leaving the app in a broken state. The two contexts coexist for phases 1–4.
+- **`<AgentProvider>` first.** Phase 1 adds the new provider _underneath_ the existing `AgentContext` so that subsequent phases can swap UI piecewise without ever leaving the app in a broken state. The two contexts coexist for phases 1–4.
 - **`PlanConfirmationWidget` stays.** It's a modal owned by this app's domain (plan-mode delegations) and is explicitly out of scope for `@mast-ai/react-ui`. Only the trigger path moves into `onApprovalRequired`.
 - **Tests as parity baseline.** `ChatSidebar.test.tsx` and `ChatItem.test.tsx` are kept until Phase 5. They exist to catch regressions during phases 2–4; they are deleted (not ported) in Phase 5 because the library has its own coverage for the equivalent behaviour.
 
