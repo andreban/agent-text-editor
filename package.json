@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "preview": "vite preview",
     "test": "vitest",
     "evals": "vitest run --config vitest.evals.config.ts"
