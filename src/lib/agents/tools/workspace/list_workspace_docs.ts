@@ -4,7 +4,10 @@
 import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { WorkspaceContext } from "./context";
 
-export class ListWorkspaceDocsTool implements Tool<Record<string, never>, string> {
+export class ListWorkspaceDocsTool implements Tool<
+  Record<string, never>,
+  string
+> {
   constructor(private ctx: WorkspaceContext) {}
 
   definition(): ToolDefinition {
@@ -18,6 +21,8 @@ export class ListWorkspaceDocsTool implements Tool<Record<string, never>, string
   }
 
   async call(_args: Record<string, never>, _ctx: ToolContext): Promise<string> {
-    return JSON.stringify(this.ctx.docsRef.current.map((d) => ({ id: d.id, title: d.title })));
+    return JSON.stringify(
+      this.ctx.docsRef.current.map((d) => ({ id: d.id, title: d.title })),
+    );
   }
 }

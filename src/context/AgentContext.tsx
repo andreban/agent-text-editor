@@ -155,10 +155,7 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     [editorCtx, workspaceCtx],
   );
 
-  useEffect(
-    () => registerWebMCPTools(baseRegistry),
-    [baseRegistry],
-  );
+  useEffect(() => registerWebMCPTools(baseRegistry), [baseRegistry]);
 
   const registry = useMemo(() => {
     if (!apiKey || !factory) return null;
@@ -175,13 +172,7 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
       setPendingPlanConfirmation,
     );
     return r;
-  }, [
-    apiKey,
-    factory,
-    editorCtx,
-    workspaceCtx,
-    setPendingPlanConfirmation,
-  ]);
+  }, [apiKey, factory, editorCtx, workspaceCtx, setPendingPlanConfirmation]);
 
   const model = useMemo(
     () =>

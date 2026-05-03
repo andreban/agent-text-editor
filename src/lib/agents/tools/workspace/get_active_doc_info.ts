@@ -4,7 +4,10 @@
 import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { WorkspaceContext } from "./context";
 
-export class GetActiveDocInfoTool implements Tool<Record<string, never>, string> {
+export class GetActiveDocInfoTool implements Tool<
+  Record<string, never>,
+  string
+> {
   constructor(private ctx: WorkspaceContext) {}
 
   definition(): ToolDefinition {

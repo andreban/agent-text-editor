@@ -34,7 +34,14 @@ export class SearchTool implements Tool<SearchArgs, string> {
     const model = editor.getModel();
     if (!model) return "Error: Model not found.";
 
-    const matches = model.findMatches(args.query, true, false, false, null, false);
+    const matches = model.findMatches(
+      args.query,
+      true,
+      false,
+      false,
+      null,
+      false,
+    );
     if (matches.length === 0) return `No occurrences of "${args.query}" found.`;
 
     const locations = matches

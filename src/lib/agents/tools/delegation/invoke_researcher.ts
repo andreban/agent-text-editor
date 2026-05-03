@@ -11,7 +11,10 @@ interface InvokeResearcherArgs {
   docIds?: string[];
 }
 
-export class InvokeResearcherTool implements Tool<InvokeResearcherArgs, string> {
+export class InvokeResearcherTool implements Tool<
+  InvokeResearcherArgs,
+  string
+> {
   constructor(
     private factory: AgentRunnerFactory,
     private docsRef: { current: WorkspaceDocument[] },
@@ -43,7 +46,12 @@ export class InvokeResearcherTool implements Tool<InvokeResearcherArgs, string> 
   }
 
   async call(args: InvokeResearcherArgs): Promise<string> {
-    const result = await runResearch(args.query, this.docsRef.current, this.factory, args.docIds);
+    const result = await runResearch(
+      args.query,
+      this.docsRef.current,
+      this.factory,
+      args.docIds,
+    );
     return JSON.stringify(result);
   }
 }

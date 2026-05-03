@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ToolRegistry } from "@mast-ai/core";
-import type { AgentConfig, Tool, ToolContext, ToolDefinition, ToolProvider } from "@mast-ai/core";
+import type {
+  AgentConfig,
+  Tool,
+  ToolContext,
+  ToolDefinition,
+  ToolProvider,
+} from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../../";
 import { createGenericAgent } from "../../";
 
@@ -53,14 +59,20 @@ export class InvokeAgentTool implements Tool<InvokeAgentArgs, string> {
       ? this.readonlyRegistry
       : new ToolRegistry();
 
-    const runner = createGenericAgent(this.factory, args.systemPrompt, resolvedRegistry);
+    const runner = createGenericAgent(
+      this.factory,
+      args.systemPrompt,
+      resolvedRegistry,
+    );
     const agentConfig: AgentConfig = {
       name: "Agent",
       instructions: args.systemPrompt,
       tools: resolvedRegistry.getTools().map((d) => d.name),
     };
 
-    for await (const event of runner.runBuilder(agentConfig).runStream(args.task)) {
+    for await (const event of runner
+      .runBuilder(agentConfig)
+      .runStream(args.task)) {
       if (event.type === "done") {
         return JSON.stringify({ result: event.output });
       }

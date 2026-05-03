@@ -40,7 +40,8 @@ export class RenameDocumentTool implements Tool<RenameDocumentArgs, string> {
   async call(args: RenameDocumentArgs, _ctx: ToolContext): Promise<string> {
     const doc = this.ctx.docsRef.current.find((d) => d.id === args.id);
     if (!doc) return JSON.stringify({ error: "Document not found" });
-    if (!args.title?.trim()) return JSON.stringify({ error: "title is required" });
+    if (!args.title?.trim())
+      return JSON.stringify({ error: "title is required" });
     return applyWorkspaceAction(
       `Rename document "${doc.title}" to "${args.title}"`,
       () => this.ctx.renameDocumentFn(args.id, args.title),

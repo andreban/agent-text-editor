@@ -10,11 +10,12 @@ export { createGenericAgent } from "./roles/generic";
 export type { Plan, PlanStep } from "./roles/planner";
 export { createPlannerAgent, PLANNER_SYSTEM_PROMPT } from "./roles/planner";
 export type { ResearchResult, ResearchSource } from "./roles/researcher";
+export { DOC_QUERIER_SYSTEM_PROMPT, runResearch } from "./roles/researcher";
 export {
-  DOC_QUERIER_SYSTEM_PROMPT,
-  runResearch,
-} from "./roles/researcher";
-export { createWriterAgent, WRITER_SYSTEM_PROMPT, runWriter } from "./roles/writer";
+  createWriterAgent,
+  WRITER_SYSTEM_PROMPT,
+  runWriter,
+} from "./roles/writer";
 export type { ReviewResult, ReviewIssue } from "./roles/reviewer";
 export {
   createReviewerAgent,

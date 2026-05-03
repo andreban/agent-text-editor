@@ -47,12 +47,20 @@ export class EditTool implements Tool<EditArgs, string> {
     const fullText = editor.getValue();
     if (
       args.originalText.length > 3000 ||
-      (fullText.length > 200 && args.originalText.length > fullText.length * 0.8)
+      (fullText.length > 200 &&
+        args.originalText.length > fullText.length * 0.8)
     ) {
       return "Error: `originalText` is too large. The `edit()` tool is for targeted changes. If you must rewrite the entire document, use `write()`. Otherwise, provide a smaller snippet of text to replace.";
     }
 
-    const matches = model.findMatches(args.originalText, true, false, true, null, false);
+    const matches = model.findMatches(
+      args.originalText,
+      true,
+      false,
+      true,
+      null,
+      false,
+    );
     if (matches.length === 0) {
       return `Error: Could not find the text "${args.originalText}" in the document.`;
     }
@@ -69,7 +77,12 @@ export class EditTool implements Tool<EditArgs, string> {
           endColumn: range.endColumn,
         },
       },
-      () => model.pushEditOperations([], [{ range, text: args.replacementText }], () => null),
+      () =>
+        model.pushEditOperations(
+          [],
+          [{ range, text: args.replacementText }],
+          () => null,
+        ),
       "Change applied automatically (Approve All is ON).",
       this.ctx.setSuggestions,
       this.ctx.approveAllRef,

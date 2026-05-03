@@ -8,7 +8,10 @@ interface ReadWorkspaceDocArgs {
   id: string;
 }
 
-export class ReadWorkspaceDocTool implements Tool<ReadWorkspaceDocArgs, string> {
+export class ReadWorkspaceDocTool implements Tool<
+  ReadWorkspaceDocArgs,
+  string
+> {
   constructor(private ctx: WorkspaceContext) {}
 
   definition(): ToolDefinition {
