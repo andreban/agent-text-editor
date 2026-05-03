@@ -1,6 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type * as monaco from "monaco-editor";
 import type { EditorContext } from "./context";
 import { ReadTool } from "./read";
 import { ReadSelectionTool } from "./read_selection";
@@ -11,15 +12,12 @@ import { RequestSwitchToEditorTool } from "./request_switch_to_editor";
 import { EditTool } from "./edit";
 import { WriteTool } from "./write";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function makeCtx(
   overrides: Partial<EditorContext> = {},
-  mockEditor?: any,
+  mockEditor?: monaco.editor.IStandaloneCodeEditor,
 ): EditorContext {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const editor = mockEditor ?? (null as any);
   return {
-    editorRef: { current: editor },
+    editorRef: { current: mockEditor ?? null },
     editorContentRef: { current: "" },
     activeTabRef: { current: "editor" },
     requestTabSwitch: () => Promise.resolve(false),
