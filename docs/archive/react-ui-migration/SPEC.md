@@ -62,7 +62,10 @@ Each phase is one issue, one PR against `feat/react-ui-migration`. They are sequ
 
 ### Phase 5 — Delete unused code (step 6)
 
-- Delete `ChatSidebar.tsx`, `ChatItem.tsx`, their tests, `MarkdownContent` if `<MessageList>` covers it, and the now-unused `AgentContext.tsx` (replaced by `useAgent()`).
+- Keep `ChatSidebar.tsx` — Phases 2–4 already reduced it to the thin shell that composes `<MessageList>` / `<ChatInput>` / `<PlanConfirmationWidget>` plus the existing sidebar chrome (header, theme toggle, settings/skills dialogs, approve-all switch).
+- Delete `ChatItem.tsx`, `ChatSidebar.test.tsx`, `ChatItem.test.tsx` — the bespoke renderers are gone and the library has its own coverage for the equivalent behaviour.
+- Delete `AgentContext.tsx` and unwrap `<AgentContextProvider>` from `App.tsx` — replaced entirely by `<AgentProviderShim>` + `useAgent()`.
+- Keep `MarkdownContent.tsx` — still used by `EditorPanel` for the Markdown preview tab. Chat-side markdown rendering moved to `<MessageList>`.
 - Update imports across the app.
 - Acceptance: `npm run lint`, `npm run build`, `npm run test` all pass; no dead exports; bundle size does not regress meaningfully.
 
