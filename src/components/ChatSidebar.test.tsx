@@ -1,5 +1,6 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -10,9 +11,9 @@ import { WorkspacesProvider } from "@/lib/WorkspacesContext";
 import { useAgent } from "@mast-ai/react-ui";
 import type { ConversationEntry } from "@mast-ai/react-ui";
 
-// Stub MessageList because the real one uses its own bundled useAgent binding
-// that vi.mock cannot reach. The stub renders enough of the entry shape for
-// the smoke tests below.
+// Stub MessageList and ChatInput because the real ones use their own bundled
+// useAgent bindings that vi.mock cannot reach. The stubs render enough of the
+// shapes the smoke tests below assert on.
 vi.mock("@mast-ai/react-ui", async () => {
   const actual =
     await vi.importActual<typeof import("@mast-ai/react-ui")>(
@@ -35,31 +36,47 @@ vi.mock("@mast-ai/react-ui", async () => {
       </div>
     );
   }
+  function ChatInput({ placeholder }: { placeholder?: string }) {
+    const agent = useAgent() as {
+      sendMessage: (text: string, displayText?: string) => void;
+      cancel: () => void;
+      isRunning: boolean;
+    };
+    const [text, setText] = useState("");
+    return (
+      <div>
+        <label htmlFor="ci-stub">Message</label>
+        <textarea
+          id="ci-stub"
+          value={text}
+          placeholder={placeholder}
+          disabled={agent.isRunning}
+          onChange={(e) => setText(e.target.value)}
+        />
+        {agent.isRunning ? (
+          <button type="button" aria-label="Cancel" onClick={agent.cancel}>
+            Cancel
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label="Send"
+            disabled={!text}
+            onClick={() => agent.sendMessage(text, text)}
+          >
+            Send
+          </button>
+        )}
+      </div>
+    );
+  }
   return {
     ...actual,
     useAgent,
     MessageList,
+    ChatInput,
   };
 });
-
-vi.mock("@tanstack/react-virtual", () => ({
-  useVirtualizer: (opts: {
-    count: number;
-    estimateSize: () => number;
-    overscan?: number;
-    getScrollElement: () => HTMLElement | null;
-  }) => ({
-    getVirtualItems: () =>
-      Array.from({ length: opts.count }, (_, i) => ({
-        key: i,
-        index: i,
-        start: i * (opts.estimateSize?.() ?? 80),
-      })),
-    getTotalSize: () => opts.count * (opts.estimateSize?.() ?? 80),
-    scrollToIndex: vi.fn(),
-    measureElement: vi.fn(),
-  }),
-}));
 
 interface AgentMockOverrides {
   messages?: ConversationEntry[];
@@ -82,8 +99,6 @@ function makeAgent(overrides: AgentMockOverrides = {}) {
 
 function renderSidebar(agent: ReturnType<typeof makeAgent> = makeAgent()) {
   vi.mocked(useAgent).mockReturnValue(agent);
-  // The chat input is gated on apiKey; seed it before mount so handleSend runs.
-  localStorage.setItem("gemini_api_key", "test-key");
   return render(
     <ThemeProvider>
       <WorkspacesProvider>
@@ -96,7 +111,7 @@ function renderSidebar(agent: ReturnType<typeof makeAgent> = makeAgent()) {
 }
 
 function getInput() {
-  return screen.getByRole("textbox", { name: "Chat input" });
+  return screen.getByRole("textbox", { name: "Message" });
 }
 
 describe("ChatSidebar", () => {

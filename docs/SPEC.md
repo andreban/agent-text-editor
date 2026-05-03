@@ -71,7 +71,6 @@ src/
 ├── lib/
 │   ├── diffDecorations.ts
 │   ├── EditorTools.ts
-│   ├── mentionUtils.ts
 │   ├── skills.ts
 │   ├── store.tsx
 │   ├── ThemeProvider.tsx
@@ -215,14 +214,6 @@ Computes and applies inline diff decorations to the Monaco editor for a pending 
 - Applies Monaco decorations: removed words receive a red strikethrough class; added words are injected via `after.content` styled in green monospace.
 - Exported as `applyDiffDecorations(editor, suggestion)` and `clearDiffDecorations(editor, decorationIds)`.
 
-### `mentionUtils.ts`
-
-Utilities for the `@`-mention feature in the chat input:
-
-- `extractMentionQuery(input)`: Returns the query after the last `@` if an in-progress mention is detected, otherwise `null`.
-- `removeMentionTrigger(input)`: Strips the trailing `@query` token after a document is selected.
-- `buildPromptWithMentions(userText, mentionedDocs)`: Prepends resolved `{ id, title }` pairs to the prompt so the agent can reference documents by ID without calling `list_workspace_docs`.
-
 ### `WebMCPTools.ts`
 
 Registers all editor and workspace tools with `navigator.modelContext` (WebMCP API), allowing external browser agents to drive the editor. Mirrors the `EditorTools` and `WorkspaceTools` registrations so both the built-in agent and external agents share the same capabilities.
@@ -237,7 +228,7 @@ Provides the streaming chat interface and message history. Key details:
 
 - Uses `@tanstack/react-virtual` to virtualise the message list for performance with long histories.
 - Renders individual messages via `ChatItem.tsx`.
-- Chat input supports `@`-mention autocomplete: typing `@` opens a document picker; selected documents appear as chip tokens resolved by `mentionUtils.ts` on submit.
+- Chat input supports `@`-mention autocomplete via `<ChatInput mentions>` from `@mast-ai/react-ui`: typing `@` opens a document picker; selected documents appear as chip tokens. A local `buildPrompt` callback prepends resolved `{ id, title }` pairs to the prompt so the agent can reference documents by ID without calling `list_workspace_docs`.
 - On desktop, the sidebar is collapsible via a toggle button in the header.
 
 ### `ChatItem.tsx`
