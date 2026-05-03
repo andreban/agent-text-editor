@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-An AI-powered collaborative text editor: a React SPA where an LLM agent assists with editing text in a Monaco editor. The agent runs in the browser via [`@mast-ai/core`](../mast-ai/packages/core), reads and edits the active document through tools, and routes mutating operations through a user-approval workflow before they touch the editor buffer.
+An AI-powered collaborative text editor: a React SPA where an LLM agent assists with editing text in a Monaco editor. The agent runs in the browser via [`@mast-ai/core`](https://www.npmjs.com/package/@mast-ai/core), reads and edits the active document through tools, and routes mutating operations through a user-approval workflow before they touch the editor buffer.
 
 ## Commands
 
@@ -38,7 +38,7 @@ This is an AI-powered collaborative text editor: a React SPA where an LLM agent 
 - `src/components/ChatSidebar.tsx` — streaming chat UI that renders thinking chunks (collapsible), text deltas, and tool call/result events
 - `src/App.tsx` — assembles the agent runner, sets the system prompt ("helpful senior editorial assistant"), and manages API key/model localStorage persistence
 
-**MAST dependency:** `@mast-ai/core` is resolved from a local sibling path (`../mast-ai/packages/core`) via `vite.config.ts` alias. If that path is missing the dev server will fail.
+**MAST dependency:** `@mast-ai/core`, `@mast-ai/built-in-ai`, and `@mast-ai/google-genai` are installed from the npm registry.
 
 ## Documentation
 

@@ -19,7 +19,6 @@ Agent Text Editor is a React SPA that lets you write and edit text with the help
 
 - Node.js 18+
 - A [Google AI Studio](https://aistudio.google.com/) API key
-- The [`@mast-ai/core`](../mast-ai/packages/core) package checked out as a sibling directory at `../mast-ai`
 
 ## Getting Started
 
