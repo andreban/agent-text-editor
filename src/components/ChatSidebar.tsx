@@ -1,17 +1,21 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
-import { useState, useCallback, useRef, useEffect, Fragment } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useState, useCallback, useRef, Fragment } from "react";
+import {
+  MessageList,
+  ToolCallBlock,
+  useAgent,
+  type ToolEventEntry,
+} from "@mast-ai/react-ui";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Settings, Wand2, Sun, Moon, X } from "lucide-react";
-import { useEditorUI } from "@/lib/store";
+import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
-import { ChatItem } from "./ChatItem";
 import { PlanConfirmationWidget } from "./PlanConfirmationWidget";
 import {
   DocRef,
@@ -19,20 +23,25 @@ import {
   buildPromptWithMentions,
   extractMentionQuery,
 } from "@/lib/mentionUtils";
-import { useAgentContext } from "@/context/AgentContext";
-import type { StreamItem } from "@/lib/agents";
+
+function renderToolCall(entry: ToolEventEntry) {
+  if (entry.name === "delegate_to_skill") {
+    const args = entry.args as { skillName?: string } | undefined;
+    if (args?.skillName) {
+      return <ToolCallBlock entry={{ ...entry, name: args.skillName }} />;
+    }
+  }
+  return <ToolCallBlock entry={entry} />;
+}
 
 export function ChatSidebar() {
-  const { items, isLoading, sendMessage, cancel } = useAgentContext();
+  const { messages, isRunning, sendMessage, cancel } = useAgent();
+  const { apiKey } = useAgentConfig();
 
   const [trailingInput, setTrailingInput] = useState("");
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [expandedThoughts, setExpandedThoughts] = useState<Set<string>>(
-    new Set(),
-  );
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [pickerIndex, setPickerIndex] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
@@ -50,57 +59,6 @@ export function ChatSidebar() {
             d.title.toLowerCase().includes(mentionQuery.toLowerCase()),
         )
       : [];
-
-  // Sync expandedThoughts with streaming assistant items.
-  const prevItemsRef = useRef<readonly StreamItem[]>([]);
-  useEffect(() => {
-    const prevItems = prevItemsRef.current;
-    prevItemsRef.current = items;
-    setExpandedThoughts((prev) => {
-      const next = new Set(prev);
-      for (const item of items) {
-        if (item.kind !== "assistant") continue;
-        const prevItem = prevItems.find((p) => p.id === item.id);
-        if (!prevItem && item.isStreaming) {
-          next.add(item.id);
-        } else if (
-          prevItem &&
-          prevItem.kind === "assistant" &&
-          prevItem.isStreaming &&
-          !item.isStreaming
-        ) {
-          next.delete(item.id);
-        }
-      }
-      return next;
-    });
-  }, [items]);
-
-  const virtualizer = useVirtualizer({
-    count: items.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 80,
-    overscan: 5,
-  });
-
-  const scrollToBottom = useCallback(() => {
-    if (items.length > 0) {
-      virtualizer.scrollToIndex(items.length - 1, { align: "end" });
-    }
-  }, [items.length, virtualizer]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [items, scrollToBottom]);
-
-  const toggleThought = (id: string) => {
-    setExpandedThoughts((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const selectDoc = (doc: DocRef) => {
     if (segments.some((s) => s.doc.id === doc.id)) return;
@@ -176,7 +134,7 @@ export function ChatSidebar() {
   const handleSend = () => {
     const displayText =
       segments.map((s) => `${s.text}@${s.doc.title}`).join("") + trailingInput;
-    if (!displayText.trim() || isLoading) return;
+    if (!displayText.trim() || isRunning || !apiKey) return;
 
     const prompt = buildPromptWithMentions(segments, trailingInput);
 
@@ -189,10 +147,16 @@ export function ChatSidebar() {
   };
 
   const canSend =
-    (trailingInput.trim().length > 0 || segments.length > 0) && !isLoading;
+    (trailingInput.trim().length > 0 || segments.length > 0) &&
+    !isRunning &&
+    !!apiKey;
 
   return (
-    <div className="flex flex-col h-full bg-muted/20 border-l">
+    <div
+      data-mast-root
+      data-mast-theme={theme}
+      className="flex flex-col h-full bg-muted/20 border-l"
+    >
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <SkillsDialog open={skillsOpen} onOpenChange={setSkillsOpen} />
       <div className="p-4 border-b flex justify-between items-center gap-4">
@@ -246,39 +210,13 @@ export function ChatSidebar() {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        {items.length === 0 ? (
+      <div className="flex-1 min-h-0 flex flex-col">
+        {messages.length === 0 ? (
           <div className="text-sm text-muted-foreground italic text-center mt-4 p-4">
             Start a conversation with the editor assistant.
           </div>
         ) : (
-          <div
-            style={{
-              height: `${virtualizer.getTotalSize()}px`,
-              position: "relative",
-            }}
-          >
-            {virtualizer.getVirtualItems().map((vItem) => (
-              <div
-                key={vItem.key}
-                data-index={vItem.index}
-                ref={virtualizer.measureElement}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  transform: `translateY(${vItem.start}px)`,
-                  width: "100%",
-                  padding: "8px 16px",
-                }}
-              >
-                <ChatItem
-                  item={items[vItem.index]}
-                  isExpanded={expandedThoughts.has(items[vItem.index].id)}
-                  onToggle={toggleThought}
-                />
-              </div>
-            ))}
-          </div>
+          <MessageList renderToolCall={renderToolCall} />
         )}
       </div>
 
@@ -343,13 +281,13 @@ export function ChatSidebar() {
               value={trailingInput}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              disabled={isLoading}
+              disabled={isRunning}
               className="w-full min-w-0 bg-transparent outline-none text-sm placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-hidden"
               aria-label="Chat input"
             />
           </div>
         </div>
-        {isLoading ? (
+        {isRunning ? (
           <Button variant="outline" onClick={cancel} className="min-h-11">
             Cancel
           </Button>
