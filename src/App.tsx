@@ -15,7 +15,7 @@ import {
   PanelRightOpen,
   LayoutGrid,
 } from "lucide-react";
-import { useAgentConfig, useEditorUI } from "@/lib/store";
+import { useAgentConfig } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import {
   Dialog,
@@ -241,7 +241,6 @@ function MobileLayout() {
 
 function AppContent() {
   const { apiKey, setApiKey } = useAgentConfig();
-  const { pendingWorkspaceAction, setPendingWorkspaceAction } = useEditorUI();
   const { activeWorkspaceId } = useWorkspaces();
   const [tempKey, setTempKey] = useState("");
   const [showKeyDialog, setShowKeyDialog] = useState(!apiKey);
@@ -262,47 +261,6 @@ function AppContent() {
   return (
     <>
       {isMobile ? <MobileLayout /> : <DesktopLayout />}
-
-      <Dialog
-        open={!!pendingWorkspaceAction}
-        onOpenChange={(open) => {
-          if (!open && pendingWorkspaceAction) {
-            pendingWorkspaceAction.resolve("Action rejected by user.");
-            setPendingWorkspaceAction(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Authorize Action</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-              {pendingWorkspaceAction?.description}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                pendingWorkspaceAction?.resolve("Action rejected by user.");
-                setPendingWorkspaceAction(null);
-              }}
-            >
-              Reject
-            </Button>
-            <Button
-              onClick={() => {
-                pendingWorkspaceAction?.apply();
-                pendingWorkspaceAction?.resolve("Action applied successfully.");
-                setPendingWorkspaceAction(null);
-              }}
-            >
-              Accept
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showKeyDialog} onOpenChange={setShowKeyDialog}>
         <DialogContent>

@@ -41,7 +41,6 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     editorContent,
     editorInstance,
     setPendingTabSwitchRequest,
-    setPendingWorkspaceAction,
     setPendingPlanConfirmation,
   } = useEditorUI();
   const {
@@ -136,8 +135,6 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
       saveDocContentFn: (id, content) => updateDocument(id, { content }),
       editorRef: editorInstanceRef,
       editorContentRef,
-      setPendingWorkspaceAction,
-      approveAllRef,
     }),
     [
       factory,
@@ -145,7 +142,6 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
       updateDocument,
       deleteDocument,
       setActiveDocumentId,
-      setPendingWorkspaceAction,
     ],
   );
 

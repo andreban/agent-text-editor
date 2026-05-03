@@ -46,8 +46,6 @@ function makeWorkspaceCtx(): WorkspaceContext {
     saveDocContentFn: vi.fn(),
     editorRef: { current: null },
     editorContentRef: { current: "" },
-    setPendingWorkspaceAction: vi.fn(),
-    approveAllRef: { current: false },
   };
 }
 

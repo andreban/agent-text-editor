@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Tool, ToolDefinition } from "@mast-ai/core";
+import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../../";
 import { runReview } from "../../";
 
@@ -42,8 +42,13 @@ export class InvokeReviewerTool implements Tool<InvokeReviewerArgs, string> {
     };
   }
 
-  async call(args: InvokeReviewerArgs): Promise<string> {
-    const result = await runReview(args.text, args.criteria, this.factory);
+  async call(args: InvokeReviewerArgs, context: ToolContext): Promise<string> {
+    const result = await runReview(
+      args.text,
+      args.criteria,
+      this.factory,
+      context.onEvent,
+    );
     return JSON.stringify(result);
   }
 }

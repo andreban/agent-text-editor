@@ -1,7 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AgentConfig, AgentRunner, ToolRegistry } from "@mast-ai/core";
+import {
+  AgentConfig,
+  AgentEvent,
+  AgentRunner,
+  ToolRegistry,
+} from "@mast-ai/core";
 import type { AgentRunnerFactory } from "./factory";
 
 export interface ReviewIssue {
@@ -46,6 +51,7 @@ export async function runReview(
   text: string,
   criteria: string[],
   factory: AgentRunnerFactory,
+  onEvent?: (event: AgentEvent) => void,
 ): Promise<ReviewResult> {
   const runner = createReviewerAgent(factory);
   const agentConfig: AgentConfig = {
@@ -77,6 +83,7 @@ export async function runReview(
       }
       return result;
     }
+    onEvent?.(event);
   }
 
   throw new Error("runReview: reviewer agent ended without a done event");
