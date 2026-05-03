@@ -24,13 +24,6 @@ export interface PlanConfirmationRequest {
   resolve: (accepted: boolean) => void;
 }
 
-export interface WorkspaceActionRequest {
-  id: string;
-  description: string;
-  apply: () => void;
-  resolve: (message: string) => void;
-}
-
 export interface WorkflowState {
   planId: string;
   steps: Array<{
@@ -74,8 +67,6 @@ interface EditorUIState {
   ) => void;
   pendingTabSwitchRequest: TabSwitchRequest | null;
   setPendingTabSwitchRequest: (req: TabSwitchRequest | null) => void;
-  pendingWorkspaceAction: WorkspaceActionRequest | null;
-  setPendingWorkspaceAction: (action: WorkspaceActionRequest | null) => void;
   pendingPlanConfirmation: PlanConfirmationRequest | null;
   setPendingPlanConfirmation: (req: PlanConfirmationRequest | null) => void;
   approveAll: boolean;
@@ -113,8 +104,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   const [editorContent, setEditorContent] = useState<string>("");
   const [pendingTabSwitchRequest, setPendingTabSwitchRequest] =
     useState<TabSwitchRequest | null>(null);
-  const [pendingWorkspaceAction, setPendingWorkspaceAction] =
-    useState<WorkspaceActionRequest | null>(null);
   const [pendingPlanConfirmation, setPendingPlanConfirmation] =
     useState<PlanConfirmationRequest | null>(null);
   const [approveAll, setApproveAll] = useState(false);
@@ -161,8 +150,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     setSuggestions,
     pendingTabSwitchRequest,
     setPendingTabSwitchRequest,
-    pendingWorkspaceAction,
-    setPendingWorkspaceAction,
     pendingPlanConfirmation,
     setPendingPlanConfirmation,
     approveAll,

@@ -3,11 +3,13 @@
 import { useMemo, useState } from "react";
 import {
   ChatInput,
+  InlineApproval,
   MessageList,
   ToolCallBlock,
   useAgent,
   type MentionItem,
   type MentionSegment,
+  type PendingApproval,
   type ToolEventEntry,
 } from "@mast-ai/react-ui";
 import { Button } from "./ui/button";
@@ -21,14 +23,79 @@ import { SettingsDialog } from "./SettingsDialog";
 import { SkillsDialog } from "./SkillsDialog";
 import { PlanConfirmationWidget } from "./PlanConfirmationWidget";
 
-function renderToolCall(entry: ToolEventEntry) {
-  if (entry.name === "delegate_to_skill") {
-    const args = entry.args as { skillName?: string } | undefined;
-    if (args?.skillName) {
-      return <ToolCallBlock entry={{ ...entry, name: args.skillName }} />;
-    }
+function workspaceApprovalDescription(
+  entry: ToolEventEntry,
+  docs: { id: string; title: string }[],
+): string | null {
+  if (entry.name === "create_document") {
+    const args = entry.args as { title?: string } | undefined;
+    if (args?.title) return `Create document "${args.title}"`;
   }
-  return <ToolCallBlock entry={entry} />;
+  if (entry.name === "rename_document") {
+    const args = entry.args as { id?: string; title?: string } | undefined;
+    const doc = docs.find((d) => d.id === args?.id);
+    if (doc && args?.title)
+      return `Rename document "${doc.title}" to "${args.title}"`;
+  }
+  if (entry.name === "delete_document") {
+    const args = entry.args as { id?: string } | undefined;
+    const doc = docs.find((d) => d.id === args?.id);
+    if (doc) return `Delete document "${doc.title}"`;
+  }
+  return null;
+}
+
+function WorkspaceApprovalCard({
+  description,
+  approval,
+}: {
+  description: string;
+  approval: PendingApproval;
+}) {
+  return (
+    <div className="my-2 rounded-md border border-border bg-muted/30 p-3 text-sm">
+      <p className="mb-3">{description}</p>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={approval.approve}>
+          Approve
+        </Button>
+        <Button size="sm" variant="outline" onClick={approval.reject}>
+          Reject
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function renderToolCallWithDocs(docs: { id: string; title: string }[]) {
+  return (entry: ToolEventEntry, approval?: PendingApproval) => {
+    if (approval) {
+      const description = workspaceApprovalDescription(entry, docs);
+      if (description) {
+        return (
+          <WorkspaceApprovalCard
+            description={description}
+            approval={approval}
+          />
+        );
+      }
+      return (
+        <InlineApproval
+          entry={entry}
+          approve={approval.approve}
+          reject={approval.reject}
+          respondWith={approval.respondWith}
+        />
+      );
+    }
+    if (entry.name === "delegate_to_skill") {
+      const args = entry.args as { skillName?: string } | undefined;
+      if (args?.skillName) {
+        return <ToolCallBlock entry={{ ...entry, name: args.skillName }} />;
+      }
+    }
+    return <ToolCallBlock entry={entry} />;
+  };
 }
 
 // Prepend a "the user has referenced..." preamble so the LLM can use
@@ -58,6 +125,17 @@ export function ChatSidebar() {
         id: d.id,
         label: d.title,
       })),
+    [activeWorkspace],
+  );
+
+  const renderToolCall = useMemo(
+    () =>
+      renderToolCallWithDocs(
+        (activeWorkspace?.documents ?? []).map((d) => ({
+          id: d.id,
+          title: d.title,
+        })),
+      ),
     [activeWorkspace],
   );
 

@@ -3,7 +3,6 @@
 
 import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { WorkspaceContext } from "./context";
-import { applyWorkspaceAction } from "./apply_workspace_action";
 
 interface DeleteDocumentArgs {
   id: string;
@@ -35,12 +34,7 @@ export class DeleteDocumentTool implements Tool<DeleteDocumentArgs, string> {
   async call(args: DeleteDocumentArgs, _ctx: ToolContext): Promise<string> {
     const doc = this.ctx.docsRef.current.find((d) => d.id === args.id);
     if (!doc) return JSON.stringify({ error: "Document not found" });
-    return applyWorkspaceAction(
-      `Delete document "${doc.title}"`,
-      () => this.ctx.deleteDocumentFn(args.id),
-      `Document "${doc.title}" deleted automatically (Approve All is ON).`,
-      this.ctx.setPendingWorkspaceAction,
-      this.ctx.approveAllRef,
-    );
+    this.ctx.deleteDocumentFn(args.id);
+    return `Document "${doc.title}" deleted.`;
   }
 }

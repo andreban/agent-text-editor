@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Tool, ToolDefinition } from "@mast-ai/core";
+import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../../";
 import { runResearch } from "../../";
 import type { WorkspaceDocument } from "../../../workspace";
@@ -45,12 +45,16 @@ export class InvokeResearcherTool implements Tool<
     };
   }
 
-  async call(args: InvokeResearcherArgs): Promise<string> {
+  async call(
+    args: InvokeResearcherArgs,
+    context: ToolContext,
+  ): Promise<string> {
     const result = await runResearch(
       args.query,
       this.docsRef.current,
       this.factory,
       args.docIds,
+      context.onEvent,
     );
     return JSON.stringify(result);
   }

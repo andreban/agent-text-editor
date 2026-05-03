@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import {
   AgentProvider,
+  INLINE_APPROVAL,
   type OnApprovalRequired,
   type IconMap,
 } from "@mast-ai/react-ui";
@@ -61,7 +62,6 @@ export function AgentProviderShim({ children }: { children: ReactNode }) {
     editorContent,
     editorInstance,
     setPendingTabSwitchRequest,
-    setPendingWorkspaceAction,
     setPendingPlanConfirmation,
   } = useEditorUI();
   const {
@@ -155,8 +155,6 @@ export function AgentProviderShim({ children }: { children: ReactNode }) {
       saveDocContentFn: (id, content) => updateDocument(id, { content }),
       editorRef: editorInstanceRef,
       editorContentRef,
-      setPendingWorkspaceAction,
-      approveAllRef,
     }),
     [
       factory,
@@ -164,7 +162,6 @@ export function AgentProviderShim({ children }: { children: ReactNode }) {
       updateDocument,
       deleteDocument,
       setActiveDocumentId,
-      setPendingWorkspaceAction,
     ],
   );
 
@@ -198,12 +195,30 @@ export function AgentProviderShim({ children }: { children: ReactNode }) {
     [skills],
   );
 
-  // Always proceed: tools that need user confirmation (edit, write, etc.) own
-  // their own bespoke approval flow today (Monaco suggestions, plan
-  // confirmation modal, workspace action dialogs). Phase 4 reroutes those
-  // flows through the library's inline approval queue.
+  // Routing rules:
+  // - Approve-all toggle bypasses every prompt (matches the previous bespoke
+  //   behaviour).
+  // - `edit`/`write` keep their Monaco suggestion UI: the tool's own
+  //   `applySuggestion` handles approval inline in the editor, so we simply
+  //   let the call through.
+  // - Workspace mutations (`create_document`, `rename_document`,
+  //   `delete_document`) defer to the library's inline approval queue, which
+  //   renders an Approve / Reject prompt inside the assistant message.
+  // - Anything else falls through unprompted (today nothing else carries
+  //   `requiresApproval: true`).
   const onApprovalRequired = useCallback<OnApprovalRequired>(
-    async () => true,
+    async (toolCall) => {
+      if (approveAllRef.current) return true;
+      if (toolCall.name === "edit" || toolCall.name === "write") return true;
+      if (
+        toolCall.name === "create_document" ||
+        toolCall.name === "rename_document" ||
+        toolCall.name === "delete_document"
+      ) {
+        return INLINE_APPROVAL;
+      }
+      return true;
+    },
     [],
   );
 

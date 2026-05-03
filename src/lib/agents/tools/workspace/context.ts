@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import type { WorkspaceDocument } from "../../../workspace";
-import type { WorkspaceActionRequest } from "../../../store";
 import type { AgentRunnerFactory } from "../../";
 
 export interface EditorLike {
@@ -21,6 +20,4 @@ export interface WorkspaceContext {
   saveDocContentFn: (id: string, content: string) => void;
   editorRef: { current: EditorLike | null };
   editorContentRef: { current: string };
-  setPendingWorkspaceAction: (action: WorkspaceActionRequest | null) => void;
-  approveAllRef: { current: boolean };
 }
