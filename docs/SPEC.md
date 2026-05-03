@@ -25,7 +25,7 @@ The application is a single-page React application bundled with Vite. It consist
 - **UI Components:** `shadcn/ui` (built on Radix UI).
 - **Editor:** `@monaco-editor/react`.
 - **LLM SDK:** `@google/genai`.
-- **Agent Framework:** `@mast-ai/core` (Installed via `npm install github:andreban/mast-ai#packages/core`).
+- **Agent Framework:** `@mast-ai/core` (installed from npm).
 - **Testing:** `vitest`, `@testing-library/react`.
 - **Quality:** `eslint`, `prettier`.
 

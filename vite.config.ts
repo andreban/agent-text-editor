@@ -9,10 +9,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@mast-ai/google-genai": path.resolve(
-        __dirname,
-        "../mast-ai/packages/google-genai/dist/index.js",
-      ),
     },
   },
 });
