@@ -1,7 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AgentConfig, Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
+import type {
+  AgentConfig,
+  Tool,
+  ToolContext,
+  ToolDefinition,
+} from "@mast-ai/core";
 import { DOC_QUERIER_SYSTEM_PROMPT } from "../../";
 import type { WorkspaceContext } from "./context";
 
@@ -10,7 +15,10 @@ interface QueryWorkspaceDocArgs {
   query: string;
 }
 
-export class QueryWorkspaceDocTool implements Tool<QueryWorkspaceDocArgs, string> {
+export class QueryWorkspaceDocTool implements Tool<
+  QueryWorkspaceDocArgs,
+  string
+> {
   constructor(private ctx: WorkspaceContext) {}
 
   definition(): ToolDefinition {
@@ -42,15 +50,23 @@ export class QueryWorkspaceDocTool implements Tool<QueryWorkspaceDocArgs, string
       instructions: DOC_QUERIER_SYSTEM_PROMPT,
       tools: [],
     };
-    const runner = this.ctx.factory.create({ systemPrompt: agent.instructions });
+    const runner = this.ctx.factory.create({
+      systemPrompt: agent.instructions,
+    });
     const input = `Document title: ${doc.title}\n\nDocument content:\n${doc.content}\n\nQuery: ${args.query}`;
     const result = await runner.run(agent, input);
     let parsed: { summary: string; excerpt: string };
     try {
-      parsed = JSON.parse(result.output) as { summary: string; excerpt: string };
+      parsed = JSON.parse(result.output) as {
+        summary: string;
+        excerpt: string;
+      };
     } catch {
       parsed = { summary: result.output, excerpt: "" };
     }
-    return JSON.stringify({ summary: parsed.summary, excerpt: parsed.excerpt ?? "" });
+    return JSON.stringify({
+      summary: parsed.summary,
+      excerpt: parsed.excerpt ?? "",
+    });
   }
 }

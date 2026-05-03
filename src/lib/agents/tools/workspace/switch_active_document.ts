@@ -8,7 +8,10 @@ interface SwitchActiveDocumentArgs {
   id: string;
 }
 
-export class SwitchActiveDocumentTool implements Tool<SwitchActiveDocumentArgs, string> {
+export class SwitchActiveDocumentTool implements Tool<
+  SwitchActiveDocumentArgs,
+  string
+> {
   constructor(private ctx: WorkspaceContext) {}
 
   definition(): ToolDefinition {
@@ -30,14 +33,18 @@ export class SwitchActiveDocumentTool implements Tool<SwitchActiveDocumentArgs, 
     };
   }
 
-  async call(args: SwitchActiveDocumentArgs, _ctx: ToolContext): Promise<string> {
+  async call(
+    args: SwitchActiveDocumentArgs,
+    _ctx: ToolContext,
+  ): Promise<string> {
     const doc = this.ctx.docsRef.current.find((d) => d.id === args.id);
     if (!doc) return JSON.stringify({ error: "Document not found" });
 
     const currentDoc = this.ctx.activeDocRef.current;
     if (currentDoc) {
       const content =
-        this.ctx.editorRef.current?.getValue() ?? this.ctx.editorContentRef.current;
+        this.ctx.editorRef.current?.getValue() ??
+        this.ctx.editorContentRef.current;
       this.ctx.saveDocContentFn(currentDoc.id, content);
     }
     this.ctx.setActiveDocumentIdFn(args.id);

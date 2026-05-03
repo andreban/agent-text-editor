@@ -14,7 +14,9 @@ interface InvokePlannerArgs {
 export class InvokePlannerTool implements Tool<InvokePlannerArgs, string> {
   constructor(
     private factory: AgentRunnerFactory,
-    private setPendingPlanConfirmation: (req: PlanConfirmationRequest | null) => void,
+    private setPendingPlanConfirmation: (
+      req: PlanConfirmationRequest | null,
+    ) => void,
   ) {}
 
   definition(): ToolDefinition {
@@ -50,7 +52,9 @@ export class InvokePlannerTool implements Tool<InvokePlannerArgs, string> {
       tools: [],
     };
 
-    for await (const event of runner.runBuilder(agentConfig).runStream(prompt)) {
+    for await (const event of runner
+      .runBuilder(agentConfig)
+      .runStream(prompt)) {
       if (event.type === "done") {
         let plan: Plan;
         try {

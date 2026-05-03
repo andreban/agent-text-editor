@@ -4,7 +4,10 @@
 import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { EditorContext } from "./context";
 
-export class RequestSwitchToEditorTool implements Tool<Record<string, never>, string> {
+export class RequestSwitchToEditorTool implements Tool<
+  Record<string, never>,
+  string
+> {
   constructor(private ctx: EditorContext) {}
 
   definition(): ToolDefinition {

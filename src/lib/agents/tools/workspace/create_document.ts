@@ -48,7 +48,8 @@ export class CreateDocumentTool implements Tool<CreateDocumentArgs, string> {
         const currentDoc = this.ctx.activeDocRef.current;
         if (currentDoc) {
           const content =
-            this.ctx.editorRef.current?.getValue() ?? this.ctx.editorContentRef.current;
+            this.ctx.editorRef.current?.getValue() ??
+            this.ctx.editorContentRef.current;
           this.ctx.saveDocContentFn(currentDoc.id, content);
         }
         const newId = this.ctx.createDocumentFn(args.title);

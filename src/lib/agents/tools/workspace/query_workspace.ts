@@ -32,7 +32,11 @@ export class QueryWorkspaceTool implements Tool<QueryWorkspaceArgs, string> {
   }
 
   async call(args: QueryWorkspaceArgs, _ctx: ToolContext): Promise<string> {
-    const result = await runResearch(args.query, this.ctx.docsRef.current, this.ctx.factory);
+    const result = await runResearch(
+      args.query,
+      this.ctx.docsRef.current,
+      this.ctx.factory,
+    );
     return JSON.stringify(result);
   }
 }

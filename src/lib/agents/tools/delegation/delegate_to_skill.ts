@@ -1,7 +1,14 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { AgentConfig, AgentEvent, Tool, ToolContext, ToolDefinition, ToolProvider } from "@mast-ai/core";
+import type {
+  AgentConfig,
+  AgentEvent,
+  Tool,
+  ToolContext,
+  ToolDefinition,
+  ToolProvider,
+} from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../../";
 import { loadSkills } from "../../../skills";
 
@@ -25,7 +32,8 @@ export class DelegateToSkillTool implements Tool<DelegateToSkillArgs, string> {
     runnerFactory?: (registry: ToolProvider, model?: string) => RunnerLike,
   ) {
     this.runnerFactory =
-      runnerFactory ?? ((registry, model) => factory.create({ tools: registry, model }));
+      runnerFactory ??
+      ((registry, model) => factory.create({ tools: registry, model }));
   }
 
   definition(): ToolDefinition {
@@ -42,7 +50,8 @@ export class DelegateToSkillTool implements Tool<DelegateToSkillArgs, string> {
           },
           task: {
             type: "string",
-            description: "The specific task or instructions to pass to the skill.",
+            description:
+              "The specific task or instructions to pass to the skill.",
           },
         },
         required: ["skillName", "task"],
@@ -62,7 +71,9 @@ export class DelegateToSkillTool implements Tool<DelegateToSkillArgs, string> {
       return `Error: skill "${skillName}" not found. Available skills: ${names || "none"}`;
     }
 
-    const readonlyToolNames = this.readonlyRegistry.getTools().map((d) => d.name);
+    const readonlyToolNames = this.readonlyRegistry
+      .getTools()
+      .map((d) => d.name);
     const childRunner = this.runnerFactory(this.readonlyRegistry, skill.model);
     const agentConfig: AgentConfig = {
       name: skill.name,
@@ -70,7 +81,9 @@ export class DelegateToSkillTool implements Tool<DelegateToSkillArgs, string> {
       tools: readonlyToolNames,
     };
 
-    for await (const event of childRunner.runBuilder(agentConfig).runStream(task)) {
+    for await (const event of childRunner
+      .runBuilder(agentConfig)
+      .runStream(task)) {
       if (event.type === "done") {
         return event.output;
       }
