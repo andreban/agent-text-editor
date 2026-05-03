@@ -29,7 +29,7 @@ The agent-text-editor was one of the apps that motivated extracting `@mast-ai/re
 - `npm run lint`, `npm run build`, `npm run test` all pass.
 - No regressions in existing tests; library behaviours covered by `@mast-ai/react-ui`'s own tests are not re-tested here.
 - Bundle size does not regress meaningfully (library externalises React; markdown rendering remains optional).
-- The old `ChatSidebar.tsx`, `ChatItem.tsx`, `mentionUtils.ts`, and `AgentContext.tsx` files are deleted once parity is verified.
+- `ChatItem.tsx`, `mentionUtils.ts`, and `AgentContext.tsx` are deleted once parity is verified. `ChatSidebar.tsx` is kept as the thin shell composing `@mast-ai/react-ui` primitives plus this app's sidebar chrome.
 
 ## Dependencies
 

@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AgentContextProvider } from "@/context/AgentContext";
 import { AgentProviderShim } from "@/context/AgentProviderShim";
 import { useEffect, useRef } from "react";
 
@@ -292,9 +291,7 @@ function AppContent() {
 export default function App() {
   return (
     <AgentProviderShim>
-      <AgentContextProvider>
-        <AppContent />
-      </AgentContextProvider>
+      <AppContent />
     </AgentProviderShim>
   );
 }
