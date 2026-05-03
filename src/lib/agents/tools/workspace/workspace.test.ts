@@ -127,11 +127,9 @@ describe("QueryWorkspaceDocTool", () => {
   });
 
   it("creates a sub-agent runner with doc content and query, returns summary and excerpt", async () => {
-    const mockRun = vi
-      .fn()
-      .mockResolvedValue({
-        output: '{"summary":"A concise summary.","excerpt":"The sky is blue."}',
-      });
+    const mockRun = vi.fn().mockResolvedValue({
+      output: '{"summary":"A concise summary.","excerpt":"The sky is blue."}',
+    });
     const mockFactory: AgentRunnerFactory = {
       create: vi.fn().mockReturnValue({ run: mockRun }),
     };

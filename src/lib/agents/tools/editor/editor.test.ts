@@ -247,14 +247,12 @@ describe("EditTool", () => {
     mockModel = {
       findMatches: vi.fn(),
       pushEditOperations: vi.fn(),
-      getFullModelRange: vi
-        .fn()
-        .mockReturnValue({
-          startLineNumber: 1,
-          startColumn: 1,
-          endLineNumber: 10,
-          endColumn: 10,
-        }),
+      getFullModelRange: vi.fn().mockReturnValue({
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 10,
+        endColumn: 10,
+      }),
     };
     mockEditor = {
       getValue: vi.fn().mockReturnValue("Initial content"),
@@ -340,14 +338,12 @@ describe("WriteTool", () => {
 
   beforeEach(() => {
     mockModel = {
-      getFullModelRange: vi
-        .fn()
-        .mockReturnValue({
-          startLineNumber: 1,
-          startColumn: 1,
-          endLineNumber: 10,
-          endColumn: 10,
-        }),
+      getFullModelRange: vi.fn().mockReturnValue({
+        startLineNumber: 1,
+        startColumn: 1,
+        endLineNumber: 10,
+        endColumn: 10,
+      }),
     };
     mockEditor = {
       getValue: vi.fn().mockReturnValue("Initial content"),
