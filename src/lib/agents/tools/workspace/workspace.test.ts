@@ -50,8 +50,6 @@ function makeCtx(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext {
     saveDocContentFn: vi.fn(),
     editorRef: { current: null },
     editorContentRef: { current: "" },
-    setPendingWorkspaceAction: vi.fn(),
-    approveAllRef: { current: false },
     ...overrides,
   };
 }
@@ -160,11 +158,14 @@ describe("QueryWorkspaceDocTool", () => {
   });
 });
 
+// Approval is now a layer above the tool (the library's approval proxy +
+// `onApprovalRequired` in `AgentProviderShim`). These tools assume the call
+// has already been approved and just perform the mutation.
+
 describe("CreateDocumentTool", () => {
   let createDocumentFn: Mock;
   let setEditorValueFn: Mock;
   let mockEditorRef: { current: EditorLike };
-  let setPendingWorkspaceAction: Mock;
 
   beforeEach(() => {
     createDocumentFn = vi.fn().mockReturnValue("new-doc-id");
@@ -175,84 +176,41 @@ describe("CreateDocumentTool", () => {
         setValue: setEditorValueFn,
       },
     };
-    setPendingWorkspaceAction = vi.fn();
   });
 
-  function makeTool(approveAll = false) {
+  function makeTool() {
     return new CreateDocumentTool(
-      makeCtx({
-        createDocumentFn,
-        editorRef: mockEditorRef,
-        setPendingWorkspaceAction,
-        approveAllRef: { current: approveAll },
-      }),
+      makeCtx({ createDocumentFn, editorRef: mockEditorRef }),
     );
   }
 
   it("returns error when title is empty", async () => {
     const result = JSON.parse(await makeTool().call({ title: "" }, {}));
     expect(result).toEqual({ error: "title is required" });
-    expect(setPendingWorkspaceAction).not.toHaveBeenCalled();
-  });
-
-  it("creates document immediately when approveAll is true", async () => {
-    const result = await makeTool(true).call({ title: "My Doc" }, {});
-    expect(createDocumentFn).toHaveBeenCalledWith("My Doc");
-    expect(setEditorValueFn).toHaveBeenCalledWith("");
-    expect(result).toContain("Approve All");
-  });
-
-  it("sets pending workspace action when approveAll is false", async () => {
-    const promise = makeTool().call({ title: "Draft" }, {});
-    expect(setPendingWorkspaceAction).toHaveBeenCalledOnce();
-
-    const request = setPendingWorkspaceAction.mock.calls[0][0];
-    expect(request.description).toContain("Draft");
-    expect(typeof request.apply).toBe("function");
-    expect(typeof request.resolve).toBe("function");
-
-    request.apply();
-    expect(createDocumentFn).toHaveBeenCalledWith("Draft");
-    expect(setEditorValueFn).toHaveBeenCalledWith("");
-
-    request.resolve("Action applied successfully.");
-    expect(await promise).toBe("Action applied successfully.");
-  });
-
-  it("returns rejection message when user rejects", async () => {
-    const promise = makeTool().call({ title: "Draft" }, {});
-    const request = setPendingWorkspaceAction.mock.calls[0][0];
-    request.resolve("Action rejected by user.");
-    expect(await promise).toBe("Action rejected by user.");
     expect(createDocumentFn).not.toHaveBeenCalled();
   });
 
-  it("sets editor to provided content and saves it when approveAll is true", async () => {
+  it("creates the document and clears the editor", async () => {
+    const result = await makeTool().call({ title: "My Doc" }, {});
+    expect(createDocumentFn).toHaveBeenCalledWith("My Doc");
+    expect(setEditorValueFn).toHaveBeenCalledWith("");
+    expect(result).toContain("My Doc");
+  });
+
+  it("seeds the editor with provided content and persists it", async () => {
     const saveDocContentFn = vi.fn();
     const tool = new CreateDocumentTool(
-      makeCtx({
-        createDocumentFn,
-        saveDocContentFn,
-        editorRef: mockEditorRef,
-        setPendingWorkspaceAction,
-        approveAllRef: { current: true },
-      }),
+      makeCtx({ createDocumentFn, saveDocContentFn, editorRef: mockEditorRef }),
     );
     await tool.call({ title: "My Doc", content: "Hello world" }, {});
     expect(setEditorValueFn).toHaveBeenCalledWith("Hello world");
     expect(saveDocContentFn).toHaveBeenCalledWith("new-doc-id", "Hello world");
   });
 
-  it("uses empty string for editor when no content provided", async () => {
+  it("does not persist content when none is provided", async () => {
     const saveDocContentFn = vi.fn();
     const tool = new CreateDocumentTool(
-      makeCtx({
-        createDocumentFn,
-        saveDocContentFn,
-        editorRef: mockEditorRef,
-        setPendingWorkspaceAction,
-        approveAllRef: { current: true },
-      }),
+      makeCtx({ createDocumentFn, saveDocContentFn, editorRef: mockEditorRef }),
     );
     await tool.call({ title: "My Doc" }, {});
     expect(setEditorValueFn).toHaveBeenCalledWith("");
@@ -265,21 +223,14 @@ describe("CreateDocumentTool", () => {
 
 describe("RenameDocumentTool", () => {
   let renameDocumentFn: Mock;
-  let setPendingWorkspaceAction: Mock;
 
   beforeEach(() => {
     renameDocumentFn = vi.fn();
-    setPendingWorkspaceAction = vi.fn();
   });
 
-  function makeTool(docs: WorkspaceDocument[], approveAll = false) {
+  function makeTool(docs: WorkspaceDocument[]) {
     return new RenameDocumentTool(
-      makeCtx({
-        docsRef: { current: docs },
-        renameDocumentFn,
-        setPendingWorkspaceAction,
-        approveAllRef: { current: approveAll },
-      }),
+      makeCtx({ docsRef: { current: docs }, renameDocumentFn }),
     );
   }
 
@@ -288,6 +239,7 @@ describe("RenameDocumentTool", () => {
       await makeTool([]).call({ id: "nope", title: "New" }, {}),
     );
     expect(result).toEqual({ error: "Document not found" });
+    expect(renameDocumentFn).not.toHaveBeenCalled();
   });
 
   it("returns error when title is empty", async () => {
@@ -295,95 +247,44 @@ describe("RenameDocumentTool", () => {
       await makeTool([makeDoc({ id: "d1" })]).call({ id: "d1", title: "" }, {}),
     );
     expect(result).toEqual({ error: "title is required" });
-  });
-
-  it("renames immediately when approveAll is true", async () => {
-    await makeTool([makeDoc({ id: "d1", title: "Old" })], true).call(
-      { id: "d1", title: "New" },
-      {},
-    );
-    expect(renameDocumentFn).toHaveBeenCalledWith("d1", "New");
-  });
-
-  it("sets pending workspace action and renames on accept", async () => {
-    const promise = makeTool([makeDoc({ id: "d1", title: "Old" })]).call(
-      { id: "d1", title: "New" },
-      {},
-    );
-    const request = setPendingWorkspaceAction.mock.calls[0][0];
-    expect(request.description).toContain("Old");
-    expect(request.description).toContain("New");
-
-    request.apply();
-    expect(renameDocumentFn).toHaveBeenCalledWith("d1", "New");
-
-    request.resolve("Action applied successfully.");
-    expect(await promise).toBe("Action applied successfully.");
-  });
-
-  it("does not rename on rejection", async () => {
-    const promise = makeTool([makeDoc({ id: "d1", title: "Old" })]).call(
-      { id: "d1", title: "New" },
-      {},
-    );
-    const request = setPendingWorkspaceAction.mock.calls[0][0];
-    request.resolve("Action rejected by user.");
-    expect(await promise).toBe("Action rejected by user.");
     expect(renameDocumentFn).not.toHaveBeenCalled();
+  });
+
+  it("renames the document", async () => {
+    const result = await makeTool([makeDoc({ id: "d1", title: "Old" })]).call(
+      { id: "d1", title: "New" },
+      {},
+    );
+    expect(renameDocumentFn).toHaveBeenCalledWith("d1", "New");
+    expect(result).toContain("New");
   });
 });
 
 describe("DeleteDocumentTool", () => {
   let deleteDocumentFn: Mock;
-  let setPendingWorkspaceAction: Mock;
 
   beforeEach(() => {
     deleteDocumentFn = vi.fn();
-    setPendingWorkspaceAction = vi.fn();
   });
 
-  function makeTool(docs: WorkspaceDocument[], approveAll = false) {
+  function makeTool(docs: WorkspaceDocument[]) {
     return new DeleteDocumentTool(
-      makeCtx({
-        docsRef: { current: docs },
-        deleteDocumentFn,
-        setPendingWorkspaceAction,
-        approveAllRef: { current: approveAll },
-      }),
+      makeCtx({ docsRef: { current: docs }, deleteDocumentFn }),
     );
   }
 
   it("returns error when document is not found", async () => {
     const result = JSON.parse(await makeTool([]).call({ id: "nope" }, {}));
     expect(result).toEqual({ error: "Document not found" });
-  });
-
-  it("deletes immediately when approveAll is true", async () => {
-    await makeTool([makeDoc({ id: "d1" })], true).call({ id: "d1" }, {});
-    expect(deleteDocumentFn).toHaveBeenCalledWith("d1");
-  });
-
-  it("sets pending workspace action and deletes on accept", async () => {
-    const promise = makeTool([makeDoc({ id: "d1", title: "My Essay" })]).call(
-      { id: "d1" },
-      {},
-    );
-    const request = setPendingWorkspaceAction.mock.calls[0][0];
-    expect(request.description).toContain("My Essay");
-
-    request.apply();
-    expect(deleteDocumentFn).toHaveBeenCalledWith("d1");
-
-    request.resolve("Action applied successfully.");
-    expect(await promise).toBe("Action applied successfully.");
-  });
-
-  it("does not delete on rejection", async () => {
-    const promise = makeTool([makeDoc({ id: "d1" })]).call({ id: "d1" }, {});
-    const request = setPendingWorkspaceAction.mock.calls[0][0];
-    request.resolve("Action rejected by user.");
-    expect(await promise).toBe("Action rejected by user.");
     expect(deleteDocumentFn).not.toHaveBeenCalled();
+  });
+
+  it("deletes the document", async () => {
+    const result = await makeTool([
+      makeDoc({ id: "d1", title: "My Essay" }),
+    ]).call({ id: "d1" }, {});
+    expect(deleteDocumentFn).toHaveBeenCalledWith("d1");
+    expect(result).toContain("My Essay");
   });
 });
 

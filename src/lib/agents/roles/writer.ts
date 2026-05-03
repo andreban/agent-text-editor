@@ -1,7 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AgentConfig, AgentRunner, ToolRegistry } from "@mast-ai/core";
+import {
+  AgentConfig,
+  AgentEvent,
+  AgentRunner,
+  ToolRegistry,
+} from "@mast-ai/core";
 import type { AgentRunnerFactory } from "./factory";
 import type { ResearchResult } from "./researcher";
 
@@ -47,6 +52,7 @@ export async function runWriter(
   factory: AgentRunnerFactory,
   researchContext?: ResearchResult,
   styleContext?: string,
+  onEvent?: (event: AgentEvent) => void,
 ): Promise<string> {
   const runner = createWriterAgent(factory);
   const agentConfig: AgentConfig = {
@@ -61,6 +67,7 @@ export async function runWriter(
     if (event.type === "done") {
       return event.output;
     }
+    onEvent?.(event);
   }
 
   throw new Error("runWriter: writer agent ended without a done event");

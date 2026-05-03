@@ -1,39 +1,60 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  type ReactNode,
-} from "react";
+  AgentProvider,
+  INLINE_APPROVAL,
+  type OnApprovalRequired,
+  type IconMap,
+} from "@mast-ai/react-ui";
+import { AgentRunner } from "@mast-ai/core";
+import type { AgentConfig, LlmAdapter } from "@mast-ai/core";
 import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
-import { DefaultAgentRunnerFactory, AgentModel } from "@/lib/agents";
-import type { StreamItem } from "@/lib/agents";
+import {
+  Brain,
+  Wrench,
+  CircleCheck,
+  CircleX,
+  Ban,
+  Loader2,
+  Send,
+  Square,
+} from "lucide-react";
+import {
+  DefaultAgentRunnerFactory,
+  buildOrchestratorPrompt,
+} from "@/lib/agents";
 import type { EditorContext } from "@/lib/agents/tools/editor/context";
 import type { WorkspaceContext } from "@/lib/agents/tools/workspace/context";
 import { DelegateToSkillTool } from "@/lib/agents/tools/delegation/delegate_to_skill";
 import { createToolRegistry } from "@/lib/agents/tools/registries";
 import { registerDelegationTools } from "@/lib/agents/tools/delegation";
-import { registerWebMCPTools } from "@/lib/WebMCPTools";
 import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 
-interface AgentContextValue {
-  items: readonly StreamItem[];
-  isLoading: boolean;
-  sendMessage: (prompt: string, displayText?: string) => Promise<void>;
-  cancel: () => void;
-}
+// Fallback runner used while the user has no API key configured. Keeps
+// `<AgentProvider>` mounted so consumers can call `useAgent()` unconditionally;
+// the input is gated separately and will not invoke this adapter.
+const STUB_ADAPTER: LlmAdapter = {
+  generate: () =>
+    Promise.reject(new Error("API key required to run the agent.")),
+};
+const STUB_RUNNER = new AgentRunner(STUB_ADAPTER);
 
-const AgentContext = createContext<AgentContextValue | undefined>(undefined);
+const ICONS: IconMap = {
+  brain: <Brain className="w-4 h-4" />,
+  wrench: <Wrench className="w-4 h-4" />,
+  check: <CircleCheck className="w-4 h-4" />,
+  error: <CircleX className="w-4 h-4" />,
+  cancelled: <Ban className="w-4 h-4" />,
+  loader: <Loader2 className="w-4 h-4 animate-spin" />,
+  send: <Send className="w-4 h-4" />,
+  stop: <Square className="w-4 h-4" />,
+};
 
-export function AgentContextProvider({ children }: { children: ReactNode }) {
-  const { apiKey, modelName, setTotalTokens, skills } = useAgentConfig();
+export function AgentProviderShim({ children }: { children: ReactNode }) {
+  const { apiKey, modelName, skills, setTotalTokens } = useAgentConfig();
   const {
     setSuggestions,
     approveAll,
@@ -41,7 +62,6 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     editorContent,
     editorInstance,
     setPendingTabSwitchRequest,
-    setPendingWorkspaceAction,
     setPendingPlanConfirmation,
   } = useEditorUI();
   const {
@@ -53,7 +73,6 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     setActiveDocumentId,
   } = useWorkspaces();
 
-  // Stable refs updated on every render so tool callbacks always see latest values.
   const docsRef = useRef(activeWorkspace?.documents ?? []);
   useEffect(() => {
     docsRef.current = activeWorkspace?.documents ?? [];
@@ -136,8 +155,6 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
       saveDocContentFn: (id, content) => updateDocument(id, { content }),
       editorRef: editorInstanceRef,
       editorContentRef,
-      setPendingWorkspaceAction,
-      approveAllRef,
     }),
     [
       factory,
@@ -145,17 +162,8 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
       updateDocument,
       deleteDocument,
       setActiveDocumentId,
-      setPendingWorkspaceAction,
     ],
   );
-
-  const baseRegistry = useMemo(
-    // eslint-disable-next-line react-hooks/refs
-    () => createToolRegistry(editorCtx, workspaceCtx),
-    [editorCtx, workspaceCtx],
-  );
-
-  useEffect(() => registerWebMCPTools(baseRegistry), [baseRegistry]);
 
   const registry = useMemo(() => {
     if (!apiKey || !factory) return null;
@@ -174,55 +182,54 @@ export function AgentContextProvider({ children }: { children: ReactNode }) {
     return r;
   }, [apiKey, factory, editorCtx, workspaceCtx, setPendingPlanConfirmation]);
 
-  const model = useMemo(
-    () =>
-      apiKey && registry
-        ? new AgentModel(apiKey, modelName, skills, registry, usageCallback)
-        : null,
-    [apiKey, modelName, skills, registry, usageCallback],
+  const runner = useMemo(() => {
+    if (!factory || !registry) return STUB_RUNNER;
+    return factory.create({ tools: registry });
+  }, [factory, registry]);
+
+  const agent = useMemo<AgentConfig>(
+    () => ({
+      name: "EditorAssistant",
+      instructions: buildOrchestratorPrompt(skills),
+    }),
+    [skills],
   );
 
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
-  useEffect(() => {
-    if (!model) return;
-    return model.subscribe(() => forceUpdate());
-  }, [model]);
-
-  const flushEditorContent = useCallback(() => {
-    const doc = activeDocRef.current;
-    if (doc) {
-      const content =
-        editorInstanceRef.current?.getValue() ?? editorContentRef.current;
-      updateDocument(doc.id, { content });
-    }
-  }, [updateDocument]);
-
-  const sendMessage = useCallback(
-    (prompt: string, displayText?: string) =>
-      model?.sendMessage(prompt, displayText, flushEditorContent) ??
-      Promise.resolve(),
-    [model, flushEditorContent],
+  // Routing rules:
+  // - Approve-all toggle bypasses every prompt (matches the previous bespoke
+  //   behaviour).
+  // - `edit`/`write` keep their Monaco suggestion UI: the tool's own
+  //   `applySuggestion` handles approval inline in the editor, so we simply
+  //   let the call through.
+  // - Workspace mutations (`create_document`, `rename_document`,
+  //   `delete_document`) defer to the library's inline approval queue, which
+  //   renders an Approve / Reject prompt inside the assistant message.
+  // - Anything else falls through unprompted (today nothing else carries
+  //   `requiresApproval: true`).
+  const onApprovalRequired = useCallback<OnApprovalRequired>(
+    async (toolCall) => {
+      if (approveAllRef.current) return true;
+      if (toolCall.name === "edit" || toolCall.name === "write") return true;
+      if (
+        toolCall.name === "create_document" ||
+        toolCall.name === "rename_document" ||
+        toolCall.name === "delete_document"
+      ) {
+        return INLINE_APPROVAL;
+      }
+      return true;
+    },
+    [],
   );
-
-  const cancel = useCallback(() => model?.cancel(), [model]);
 
   return (
-    <AgentContext.Provider
-      value={{
-        items: model?.items ?? [],
-        isLoading: model?.isLoading ?? false,
-        sendMessage,
-        cancel,
-      }}
+    <AgentProvider
+      runner={runner}
+      agent={agent}
+      icons={ICONS}
+      onApprovalRequired={onApprovalRequired}
     >
       {children}
-    </AgentContext.Provider>
+    </AgentProvider>
   );
-}
-
-export function useAgentContext(): AgentContextValue {
-  const ctx = useContext(AgentContext);
-  if (!ctx)
-    throw new Error("useAgentContext must be used within AgentContextProvider");
-  return ctx;
 }

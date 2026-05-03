@@ -1,7 +1,12 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import { AgentConfig, AgentRunner, ToolRegistry } from "@mast-ai/core";
+import {
+  AgentConfig,
+  AgentEvent,
+  AgentRunner,
+  ToolRegistry,
+} from "@mast-ai/core";
 import type { AgentRunnerFactory } from "./factory";
 import type { WorkspaceDocument } from "../../workspace";
 
@@ -52,6 +57,7 @@ export async function runResearch(
   docs: WorkspaceDocument[],
   factory: AgentRunnerFactory,
   docIds?: string[],
+  onEvent?: (event: AgentEvent) => void,
 ): Promise<ResearchResult> {
   const filteredDocs = docIds
     ? docs.filter((d) => docIds.includes(d.id))
@@ -89,6 +95,7 @@ export async function runResearch(
         }
         break;
       }
+      onEvent?.(event);
     }
 
     docResults.push({ doc, summary, excerpt });
@@ -134,6 +141,7 @@ export async function runResearch(
       }
       break;
     }
+    onEvent?.(event);
   }
 
   return { summary: finalSummary, sources };

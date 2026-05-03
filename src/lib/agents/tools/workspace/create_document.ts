@@ -3,7 +3,6 @@
 
 import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { WorkspaceContext } from "./context";
-import { applyWorkspaceAction } from "./apply_workspace_action";
 
 interface CreateDocumentArgs {
   title: string;
@@ -42,26 +41,19 @@ export class CreateDocumentTool implements Tool<CreateDocumentArgs, string> {
     if (!args.title?.trim()) {
       return JSON.stringify({ error: "title is required" });
     }
-    return applyWorkspaceAction(
-      `Create document "${args.title}"`,
-      () => {
-        const currentDoc = this.ctx.activeDocRef.current;
-        if (currentDoc) {
-          const content =
-            this.ctx.editorRef.current?.getValue() ??
-            this.ctx.editorContentRef.current;
-          this.ctx.saveDocContentFn(currentDoc.id, content);
-        }
-        const newId = this.ctx.createDocumentFn(args.title);
-        const initialContent = args.content ?? "";
-        this.ctx.editorRef.current?.setValue(initialContent);
-        if (args.content && newId) {
-          this.ctx.saveDocContentFn(newId, args.content);
-        }
-      },
-      `Document "${args.title}" created automatically (Approve All is ON).`,
-      this.ctx.setPendingWorkspaceAction,
-      this.ctx.approveAllRef,
-    );
+    const currentDoc = this.ctx.activeDocRef.current;
+    if (currentDoc) {
+      const content =
+        this.ctx.editorRef.current?.getValue() ??
+        this.ctx.editorContentRef.current;
+      this.ctx.saveDocContentFn(currentDoc.id, content);
+    }
+    const newId = this.ctx.createDocumentFn(args.title);
+    const initialContent = args.content ?? "";
+    this.ctx.editorRef.current?.setValue(initialContent);
+    if (args.content && newId) {
+      this.ctx.saveDocContentFn(newId, args.content);
+    }
+    return `Document "${args.title}" created.`;
   }
 }

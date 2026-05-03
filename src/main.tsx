@@ -3,6 +3,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import "@mast-ai/react-ui/styles.css";
 import "./index.css";
 import { AppProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/ThemeProvider";

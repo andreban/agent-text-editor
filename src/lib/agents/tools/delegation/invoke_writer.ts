@@ -1,7 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 
-import type { Tool, ToolDefinition } from "@mast-ai/core";
+import type { Tool, ToolContext, ToolDefinition } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "../../";
 import type { ResearchResult } from "../../";
 import { runWriter } from "../../";
@@ -48,7 +48,7 @@ export class InvokeWriterTool implements Tool<InvokeWriterArgs, string> {
     };
   }
 
-  async call(args: InvokeWriterArgs): Promise<string> {
+  async call(args: InvokeWriterArgs, context: ToolContext): Promise<string> {
     let parsedResearch: ResearchResult | undefined;
     if (args.researchContext) {
       try {
@@ -62,6 +62,7 @@ export class InvokeWriterTool implements Tool<InvokeWriterArgs, string> {
       this.factory,
       parsedResearch,
       args.styleContext,
+      context.onEvent,
     );
     return JSON.stringify({ draft });
   }

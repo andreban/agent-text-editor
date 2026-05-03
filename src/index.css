@@ -62,6 +62,38 @@ SPDX-License-Identifier: Apache-2.0
   }
 }
 
+/*
+ * Map @mast-ai/react-ui CSS custom properties to this app's Tailwind tokens
+ * so library components (MessageList, ToolCallBlock, ThinkingBlock, etc.)
+ * inherit the app's theme — including dark mode toggled via the `.dark` class
+ * on <html>. The selector list matches the library's so source-order
+ * tie-breaks in our favour (index.css is imported after styles.css).
+ */
+[data-mast-root],
+[data-mast-root][data-mast-theme="dark"],
+[data-mast-root][data-mast-theme="light"] {
+  --mast-bg: hsl(var(--background));
+  --mast-bg-subtle: hsl(var(--muted) / 0.2);
+  --mast-fg: hsl(var(--foreground));
+  --mast-fg-muted: hsl(var(--muted-foreground));
+  --mast-border: hsl(var(--border));
+  --mast-accent: hsl(var(--primary));
+  --mast-accent-fg: hsl(var(--primary-foreground));
+  --mast-thinking-bg: hsl(var(--muted));
+  --mast-thinking-fg: hsl(var(--muted-foreground));
+  --mast-tool-bg: hsl(var(--muted) / 0.4);
+  --mast-tool-fg: hsl(var(--muted-foreground));
+  --mast-tool-pending: hsl(var(--primary));
+  --mast-tool-error-bg: hsl(var(--destructive) / 0.1);
+  --mast-tool-error-fg: hsl(var(--destructive));
+  --mast-tool-cancelled-bg: hsl(var(--muted));
+  --mast-tool-cancelled-fg: hsl(var(--muted-foreground));
+  --mast-user-bubble: hsl(var(--primary));
+  --mast-user-fg: hsl(var(--primary-foreground));
+  --mast-mention-chip-bg: hsl(var(--primary) / 0.1);
+  --mast-mention-chip-fg: hsl(var(--primary));
+}
+
 .suggestion-delete {
   color: #ef4444 !important;
   text-decoration: line-through !important;
