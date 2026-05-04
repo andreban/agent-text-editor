@@ -45,8 +45,50 @@ function useIsMobile() {
 function DesktopLayout() {
   const [refOpen, setRefOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(true);
+  const [chatWidth, setChatWidth] = useState(() => {
+    const stored = localStorage.getItem("chatPanelWidth");
+    return stored ? parseInt(stored, 10) : 400;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const chatWidthRef = useRef(chatWidth);
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartWidthRef = useRef(0);
   const { index, activeWorkspaceId, closeWorkspace } = useWorkspaces();
   const activeMeta = index.find((w) => w.id === activeWorkspaceId);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const delta = dragStartXRef.current - e.clientX;
+      const newWidth = Math.max(
+        280,
+        Math.min(window.innerWidth * 0.5, dragStartWidthRef.current + delta),
+      );
+      chatWidthRef.current = newWidth;
+      setChatWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      if (!isDraggingRef.current) return;
+      isDraggingRef.current = false;
+      setIsResizing(false);
+      localStorage.setItem("chatPanelWidth", String(chatWidthRef.current));
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    setIsResizing(true);
+    dragStartXRef.current = e.clientX;
+    dragStartWidthRef.current = chatWidthRef.current;
+  };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
@@ -105,10 +147,17 @@ function DesktopLayout() {
       </main>
       {/* Collapsible chat sidebar */}
       <aside
-        className={`shrink-0 border-l border-border flex flex-col overflow-hidden transition-[width] duration-300 ease-in-out ${
-          chatOpen ? "w-[400px]" : "w-10"
+        className={`shrink-0 border-l border-border flex flex-col overflow-hidden relative${
+          isResizing ? "" : " transition-[width] duration-300 ease-in-out"
         }`}
+        style={{ width: chatOpen ? chatWidth : 40 }}
       >
+        {chatOpen && (
+          <div
+            onMouseDown={handleResizeMouseDown}
+            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/30 z-10"
+          />
+        )}
         <div className="flex items-center border-b border-border h-10 shrink-0">
           {chatOpen && (
             <span className="text-xs font-medium text-muted-foreground ml-3 truncate flex-1">

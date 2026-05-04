@@ -245,17 +245,15 @@ describe("EditTool", () => {
     mockModel = {
       findMatches: vi.fn(),
       pushEditOperations: vi.fn(),
-      getFullModelRange: vi.fn().mockReturnValue({
-        startLineNumber: 1,
-        startColumn: 1,
-        endLineNumber: 10,
-        endColumn: 10,
-      }),
+      getOffsetAt: vi.fn().mockReturnValue(0),
+      getPositionAt: vi.fn().mockReturnValue({ lineNumber: 1, column: 1 }),
     };
     mockEditor = {
-      getValue: vi.fn().mockReturnValue("Initial content"),
+      getValue: vi.fn().mockReturnValue("old content"),
       setValue: vi.fn(),
       getModel: vi.fn().mockReturnValue(mockModel),
+      revealRangeInCenter: vi.fn(),
+      createDecorationsCollection: vi.fn().mockReturnValue({ clear: vi.fn() }),
     };
     setSuggestions = vi.fn();
   });
@@ -272,17 +270,18 @@ describe("EditTool", () => {
     );
   });
 
-  it("creates a suggestion and resolves when not approveAll", async () => {
+  it("creates a suggestion and resolves with accepted message on apply", async () => {
     mockModel.findMatches.mockReturnValue([
       {
         range: {
           startLineNumber: 1,
           startColumn: 1,
           endLineNumber: 1,
-          endColumn: 5,
+          endColumn: 4,
         },
       },
     ]);
+    mockModel.getOffsetAt.mockReturnValue(0);
     const ctx = makeCtx({ setSuggestions }, mockEditor);
     const promise = new EditTool(ctx).call(
       { originalText: "old", replacementText: "new" },
@@ -293,12 +292,38 @@ describe("EditTool", () => {
     const updateFn = setSuggestions.mock.calls[0][0];
     const newSuggestions = updateFn([]);
     expect(newSuggestions).toHaveLength(1);
-    expect(newSuggestions[0].originalText).toBe("old");
-    expect(newSuggestions[0].replacementText).toBe("new");
     expect(newSuggestions[0].status).toBe("pending");
 
-    newSuggestions[0].resolve("Change accepted.");
-    expect(await promise).toBe("Change accepted.");
+    newSuggestions[0].resolve("applied");
+    expect(await promise).toBe(
+      "User accepted the edit. The document has been updated.",
+    );
+    expect(mockModel.pushEditOperations).toHaveBeenCalled();
+  });
+
+  it("creates a suggestion and resolves with rejected message on reject", async () => {
+    mockModel.findMatches.mockReturnValue([
+      {
+        range: {
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 4,
+        },
+      },
+    ]);
+    mockModel.getOffsetAt.mockReturnValue(0);
+    const ctx = makeCtx({ setSuggestions }, mockEditor);
+    const promise = new EditTool(ctx).call(
+      { originalText: "old", replacementText: "new" },
+      {},
+    );
+
+    const updateFn = setSuggestions.mock.calls[0][0];
+    const newSuggestions = updateFn([]);
+    newSuggestions[0].resolve("rejected");
+    expect(await promise).toBe("User rejected the edit.");
+    expect(mockModel.pushEditOperations).not.toHaveBeenCalled();
   });
 
   it("applies edit immediately if approveAll is true", async () => {
@@ -308,10 +333,11 @@ describe("EditTool", () => {
           startLineNumber: 1,
           startColumn: 1,
           endLineNumber: 1,
-          endColumn: 5,
+          endColumn: 4,
         },
       },
     ]);
+    mockModel.getOffsetAt.mockReturnValue(0);
     const ctx = makeCtx(
       { setSuggestions, approveAllRef: { current: true } },
       mockEditor,
@@ -330,23 +356,13 @@ describe("WriteTool", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockEditor: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockModel: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let setSuggestions: any;
 
   beforeEach(() => {
-    mockModel = {
-      getFullModelRange: vi.fn().mockReturnValue({
-        startLineNumber: 1,
-        startColumn: 1,
-        endLineNumber: 10,
-        endColumn: 10,
-      }),
-    };
     mockEditor = {
       getValue: vi.fn().mockReturnValue("Initial content"),
       setValue: vi.fn(),
-      getModel: vi.fn().mockReturnValue(mockModel),
+      getModel: vi.fn().mockReturnValue(null),
     };
     setSuggestions = vi.fn();
   });
@@ -366,8 +382,24 @@ describe("WriteTool", () => {
     expect(newSuggestions[0].replacementText).toBe("New document content");
     expect(newSuggestions[0].status).toBe("pending");
 
-    newSuggestions[0].resolve("Change rejected.");
-    expect(await promise).toBe("Change rejected.");
+    newSuggestions[0].resolve("rejected");
+    expect(await promise).toBe("User rejected the edit.");
+  });
+
+  it("resolves with accepted message when user applies", async () => {
+    const ctx = makeCtx({ setSuggestions }, mockEditor);
+    const promise = new WriteTool(ctx).call(
+      { content: "New document content" },
+      {},
+    );
+
+    const updateFn = setSuggestions.mock.calls[0][0];
+    const newSuggestions = updateFn([]);
+    newSuggestions[0].resolve("applied");
+    expect(await promise).toBe(
+      "User accepted the edit. The document has been updated.",
+    );
+    expect(mockEditor.setValue).toHaveBeenCalledWith("New document content");
   });
 
   it("applies full replacement immediately if approveAll is true", async () => {

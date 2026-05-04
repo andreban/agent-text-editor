@@ -35,20 +35,14 @@ export class WriteTool implements Tool<WriteArgs, string> {
   async call(args: WriteArgs, _ctx: ToolContext): Promise<string> {
     const editor = this.ctx.editorRef.current;
     if (!editor) return "Error: Editor not initialized.";
-    const model = editor.getModel();
-    if (!model) return "Error: Model not found.";
 
-    const fullRange = model.getFullModelRange();
     return applySuggestion(
       {
         originalText: editor.getValue(),
         replacementText: args.content,
-        range: {
-          startLineNumber: fullRange.startLineNumber,
-          startColumn: fullRange.startColumn,
-          endLineNumber: fullRange.endLineNumber,
-          endColumn: fullRange.endColumn,
-        },
+        contextBefore: "",
+        contextAfter: "",
+        startLine: 1,
       },
       () => editor.setValue(args.content),
       "Document updated automatically (Approve All is ON).",

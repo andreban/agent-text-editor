@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 import { useEffect, useRef, useState } from "react";
 import { Editor, OnMount } from "@monaco-editor/react";
-import * as monaco from "monaco-editor";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -16,8 +15,6 @@ import { MarkdownContent } from "./MarkdownContent";
 import { useEditorUI } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
-import { computeDiffDecorations } from "@/lib/diffDecorations";
-import { Check, X } from "lucide-react";
 import { DEFAULT_EDITOR_CONTENT } from "@/lib/constants";
 
 const DEBOUNCE_MS = 500;
@@ -25,8 +22,6 @@ const DEBOUNCE_MS = 500;
 export function EditorPanel() {
   const {
     setEditorInstance,
-    suggestions,
-    setSuggestions,
     editorInstance,
     activeTab,
     setActiveTab,
@@ -44,12 +39,6 @@ export function EditorPanel() {
   );
   const prevDocIdRef = useRef<string | null>(activeDocument?.id ?? null);
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const decorationsRef =
-    useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
-  const [toolbarTop, setToolbarTop] = useState<number>(8);
-  const pendingSuggestion =
-    suggestions.find((s) => s.status === "pending") ?? null;
 
   useEffect(() => {
     if (activeDocument?.id !== prevDocIdRef.current) {
@@ -85,79 +74,6 @@ export function EditorPanel() {
         updateDocument(activeDocument.id, { content });
       }
     }, DEBOUNCE_MS);
-  };
-
-  useEffect(() => {
-    if (!editorInstance) return;
-
-    if (!pendingSuggestion) {
-      decorationsRef.current?.clear();
-      return;
-    }
-
-    const decorations = computeDiffDecorations(pendingSuggestion);
-
-    if (!decorationsRef.current) {
-      decorationsRef.current =
-        editorInstance.createDecorationsCollection(decorations);
-    } else {
-      decorationsRef.current.set(decorations);
-    }
-
-    editorInstance.revealLineInCenterIfOutsideViewport(
-      pendingSuggestion.range.startLineNumber,
-    );
-  }, [suggestions, editorInstance, pendingSuggestion]);
-
-  useEffect(() => {
-    if (!editorInstance || !pendingSuggestion) return;
-
-    const TOOLBAR_HEIGHT = 36;
-    const GAP = 4;
-
-    const computeTop = () => {
-      const lineTop =
-        editorInstance.getTopForLineNumber(
-          pendingSuggestion.range.startLineNumber,
-        ) - editorInstance.getScrollTop();
-      setToolbarTop(Math.max(GAP, lineTop - TOOLBAR_HEIGHT - GAP));
-    };
-
-    computeTop();
-    const disposable = editorInstance.onDidScrollChange(computeTop);
-    return () => disposable.dispose();
-  }, [pendingSuggestion, editorInstance]);
-
-  const handleAccept = (id: string) => {
-    const suggestion = suggestions.find((s) => s.id === id);
-    if (suggestion) {
-      if (editorInstance) {
-        const model = editorInstance.getModel();
-        if (model) {
-          model.pushEditOperations(
-            [],
-            [{ range: suggestion.range, text: suggestion.replacementText }],
-            () => null,
-          );
-        }
-      }
-      setSuggestions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, status: "accepted" } : s)),
-      );
-      suggestion.resolve(
-        "User accepted the edit. The document has been updated.",
-      );
-    }
-  };
-
-  const handleReject = (id: string) => {
-    const suggestion = suggestions.find((s) => s.id === id);
-    if (suggestion) {
-      setSuggestions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, status: "rejected" } : s)),
-      );
-      suggestion.resolve("User rejected the edit.");
-    }
   };
 
   const handleTabSwitchAccept = () => {
@@ -214,9 +130,9 @@ export function EditorPanel() {
         <TabsContent
           value="editor"
           forceMount
-          className="hidden m-0 flex-1 border-0 p-0 outline-none data-[state=active]:flex data-[state=active]:flex-col relative"
+          className="hidden m-0 flex-1 border-0 p-0 outline-none data-[state=active]:flex data-[state=active]:flex-col"
         >
-          <div className="flex-1 relative">
+          <div className="flex-1">
             <Editor
               height="100%"
               defaultLanguage="markdown"
@@ -232,34 +148,6 @@ export function EditorPanel() {
                 renderLineHighlight: "none",
               }}
             />
-
-            {pendingSuggestion && (
-              <div
-                className="absolute left-0 right-0 z-10 flex justify-center pointer-events-none"
-                style={{ top: toolbarTop }}
-              >
-                <div className="flex items-center gap-2 pointer-events-auto bg-background border rounded-lg px-3 py-1.5 shadow-md text-sm">
-                  <span className="text-muted-foreground text-xs mr-1">
-                    Proposed edit
-                  </span>
-                  <button
-                    onClick={() => handleAccept(pendingSuggestion.id)}
-                    className="flex items-center gap-1 text-green-600 hover:text-green-700 font-medium"
-                  >
-                    <Check size={14} />
-                    Accept
-                  </button>
-                  <span className="text-muted-foreground">|</span>
-                  <button
-                    onClick={() => handleReject(pendingSuggestion.id)}
-                    className="flex items-center gap-1 text-red-500 hover:text-red-600 font-medium"
-                  >
-                    <X size={14} />
-                    Reject
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </TabsContent>
 
