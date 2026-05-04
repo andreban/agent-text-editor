@@ -3,8 +3,8 @@
 
 import {
   AgentConfig,
-  AgentEvent,
   AgentRunner,
+  ToolContext,
   ToolRegistry,
 } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "./factory";
@@ -52,7 +52,7 @@ export async function runWriter(
   factory: AgentRunnerFactory,
   researchContext?: ResearchResult,
   styleContext?: string,
-  onEvent?: (event: AgentEvent) => void,
+  parentContext?: ToolContext,
 ): Promise<string> {
   const runner = createWriterAgent(factory);
   const agentConfig: AgentConfig = {
@@ -63,11 +63,13 @@ export async function runWriter(
 
   const prompt = buildWriterPrompt(instruction, researchContext, styleContext);
 
-  for await (const event of runner.runBuilder(agentConfig).runStream(prompt)) {
+  const builder = runner.runBuilder(agentConfig);
+  if (parentContext) builder.forwardTo(parentContext);
+
+  for await (const event of builder.runStream(prompt)) {
     if (event.type === "done") {
       return event.output;
     }
-    onEvent?.(event);
   }
 
   throw new Error("runWriter: writer agent ended without a done event");

@@ -3,8 +3,8 @@
 
 import {
   AgentConfig,
-  AgentEvent,
   AgentRunner,
+  ToolContext,
   ToolRegistry,
 } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "./factory";
@@ -57,7 +57,7 @@ export async function runResearch(
   docs: WorkspaceDocument[],
   factory: AgentRunnerFactory,
   docIds?: string[],
-  onEvent?: (event: AgentEvent) => void,
+  parentContext?: ToolContext,
 ): Promise<ResearchResult> {
   const filteredDocs = docIds
     ? docs.filter((d) => docIds.includes(d.id))
@@ -81,7 +81,10 @@ export async function runResearch(
     let summary = "No relevant content.";
     let excerpt = "";
 
-    for await (const event of runner.runBuilder(agentConfig).runStream(input)) {
+    const builder = runner.runBuilder(agentConfig);
+    if (parentContext) builder.forwardTo(parentContext);
+
+    for await (const event of builder.runStream(input)) {
       if (event.type === "done") {
         try {
           const parsed = JSON.parse(event.output) as {
@@ -95,7 +98,6 @@ export async function runResearch(
         }
         break;
       }
-      onEvent?.(event);
     }
 
     docResults.push({ doc, summary, excerpt });
@@ -128,9 +130,10 @@ export async function runResearch(
 
   let finalSummary = "No relevant content found in workspace.";
 
-  for await (const event of synth
-    .runBuilder(synthConfig)
-    .runStream(synthInput)) {
+  const synthBuilder = synth.runBuilder(synthConfig);
+  if (parentContext) synthBuilder.forwardTo(parentContext);
+
+  for await (const event of synthBuilder.runStream(synthInput)) {
     if (event.type === "done") {
       try {
         const parsed = JSON.parse(event.output) as { summary: string };
@@ -141,7 +144,6 @@ export async function runResearch(
       }
       break;
     }
-    onEvent?.(event);
   }
 
   return { summary: finalSummary, sources };

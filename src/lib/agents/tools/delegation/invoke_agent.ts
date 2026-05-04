@@ -72,11 +72,11 @@ export class InvokeAgentTool implements Tool<InvokeAgentArgs, string> {
 
     for await (const event of runner
       .runBuilder(agentConfig)
+      .forwardTo(context)
       .runStream(args.task)) {
       if (event.type === "done") {
         return JSON.stringify({ result: event.output });
       }
-      context.onEvent?.(event);
     }
 
     throw new Error("invoke_agent: sub-agent ended without a done event");
