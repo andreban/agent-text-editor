@@ -228,6 +228,7 @@ export function AgentProviderShim({ children }: { children: ReactNode }) {
       agent={agent}
       icons={ICONS}
       onApprovalRequired={onApprovalRequired}
+      disableRoot
     >
       {children}
     </AgentProvider>
