@@ -12,10 +12,13 @@ import type {
 import type { AgentRunnerFactory } from "../../";
 import { loadSkills } from "../../../skills";
 
+type RunBuilderLike = {
+  forwardTo(parentContext: ToolContext): RunBuilderLike;
+  runStream(input: string): AsyncIterable<AgentEvent>;
+};
+
 type RunnerLike = {
-  runBuilder: (agent: AgentConfig) => {
-    runStream: (input: string) => AsyncIterable<AgentEvent>;
-  };
+  runBuilder: (agent: AgentConfig) => RunBuilderLike;
 };
 
 interface DelegateToSkillArgs {
@@ -83,11 +86,11 @@ export class DelegateToSkillTool implements Tool<DelegateToSkillArgs, string> {
 
     for await (const event of childRunner
       .runBuilder(agentConfig)
+      .forwardTo(context)
       .runStream(task)) {
       if (event.type === "done") {
         return event.output;
       }
-      context.onEvent?.(event);
     }
     throw new Error("Child runner ended without a done event");
   }

@@ -3,8 +3,8 @@
 
 import {
   AgentConfig,
-  AgentEvent,
   AgentRunner,
+  ToolContext,
   ToolRegistry,
 } from "@mast-ai/core";
 import type { AgentRunnerFactory } from "./factory";
@@ -51,7 +51,7 @@ export async function runReview(
   text: string,
   criteria: string[],
   factory: AgentRunnerFactory,
-  onEvent?: (event: AgentEvent) => void,
+  parentContext?: ToolContext,
 ): Promise<ReviewResult> {
   const runner = createReviewerAgent(factory);
   const agentConfig: AgentConfig = {
@@ -62,7 +62,10 @@ export async function runReview(
 
   const prompt = buildReviewerPrompt(text, criteria);
 
-  for await (const event of runner.runBuilder(agentConfig).runStream(prompt)) {
+  const builder = runner.runBuilder(agentConfig);
+  if (parentContext) builder.forwardTo(parentContext);
+
+  for await (const event of builder.runStream(prompt)) {
     if (event.type === "done") {
       let result: ReviewResult;
       try {
@@ -83,7 +86,6 @@ export async function runReview(
       }
       return result;
     }
-    onEvent?.(event);
   }
 
   throw new Error("runReview: reviewer agent ended without a done event");

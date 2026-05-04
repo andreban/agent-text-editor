@@ -62,7 +62,7 @@ export class InvokeWriterTool implements Tool<InvokeWriterArgs, string> {
       this.factory,
       parsedResearch,
       args.styleContext,
-      context.onEvent,
+      context,
     );
     return JSON.stringify({ draft });
   }

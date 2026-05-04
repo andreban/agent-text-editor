@@ -47,7 +47,7 @@ export class InvokeReviewerTool implements Tool<InvokeReviewerArgs, string> {
       args.text,
       args.criteria,
       this.factory,
-      context.onEvent,
+      context,
     );
     return JSON.stringify(result);
   }

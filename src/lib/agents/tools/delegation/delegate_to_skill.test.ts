@@ -8,6 +8,7 @@ import type { WorkspaceContext } from "../workspace/context";
 import { createToolRegistry } from "../registries";
 import { saveSkills } from "../../../skills";
 import type { AgentRunnerFactory } from "../../";
+import type { AgentEvent, ToolContext } from "@mast-ai/core";
 
 describe("DelegateToSkillTool", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,7 +38,25 @@ describe("DelegateToSkillTool", () => {
       getSelection: vi.fn().mockReturnValue(null),
     };
     mockRunStream = vi.fn().mockReturnValue(makeMockStream("done"));
-    mockRunBuilder = vi.fn().mockReturnValue({ runStream: mockRunStream });
+    const callStream = mockRunStream as unknown as (
+      input: string,
+    ) => AsyncIterable<AgentEvent>;
+    mockRunBuilder = vi.fn().mockImplementation(() => {
+      let ctx: ToolContext | undefined;
+      const builder = {
+        forwardTo: vi.fn().mockImplementation((c: ToolContext) => {
+          ctx = c;
+          return builder;
+        }),
+        runStream: vi.fn().mockImplementation(async function* (input: string) {
+          for await (const event of callStream(input)) {
+            if (event.type !== "done") ctx?.onEvent?.(event);
+            yield event;
+          }
+        }),
+      };
+      return builder;
+    });
     mockFactory = {
       create: vi.fn().mockReturnValue({ runBuilder: mockRunBuilder }),
     };

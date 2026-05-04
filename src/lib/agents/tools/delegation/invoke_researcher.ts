@@ -54,7 +54,7 @@ export class InvokeResearcherTool implements Tool<
       this.docsRef.current,
       this.factory,
       args.docIds,
-      context.onEvent,
+      context,
     );
     return JSON.stringify(result);
   }

@@ -59,11 +59,9 @@ export class InvokePlannerTool implements Tool<InvokePlannerArgs, string> {
 
     for await (const event of runner
       .runBuilder(agentConfig)
+      .forwardTo(context)
       .runStream(prompt)) {
-      if (event.type !== "done") {
-        context.onEvent?.(event);
-        continue;
-      }
+      if (event.type !== "done") continue;
       let plan: Plan;
       try {
         plan = JSON.parse(event.output) as Plan;

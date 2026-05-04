@@ -23,7 +23,11 @@ function makeFactory(output: string): {
     capturedPrompts.push(prompt);
     yield { type: "done" as const, output, history: [] };
   });
-  const mockRunBuilder = vi.fn().mockReturnValue({ runStream: mockRunStream });
+  const mockRunBuilder = vi.fn().mockImplementation(() => {
+    const builder = { runStream: mockRunStream, forwardTo: vi.fn() };
+    builder.forwardTo.mockReturnValue(builder);
+    return builder;
+  });
   const mockCreate = vi.fn().mockReturnValue({ runBuilder: mockRunBuilder });
   return { factory: { create: mockCreate }, mockCreate, capturedPrompts };
 }
