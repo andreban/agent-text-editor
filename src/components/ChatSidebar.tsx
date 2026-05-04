@@ -67,35 +67,33 @@ function WorkspaceApprovalCard({
   );
 }
 
-function renderToolCallWithDocs(docs: { id: string; title: string }[]) {
-  return (entry: ToolEventEntry, approval?: PendingApproval) => {
-    if (approval) {
-      const description = workspaceApprovalDescription(entry, docs);
-      if (description) {
-        return (
-          <WorkspaceApprovalCard
-            description={description}
-            approval={approval}
-          />
-        );
-      }
+function renderApprovalWithDocs(docs: { id: string; title: string }[]) {
+  return (entry: ToolEventEntry, approval: PendingApproval) => {
+    const description = workspaceApprovalDescription(entry, docs);
+    if (description) {
       return (
-        <InlineApproval
-          entry={entry}
-          approve={approval.approve}
-          reject={approval.reject}
-          respondWith={approval.respondWith}
-        />
+        <WorkspaceApprovalCard description={description} approval={approval} />
       );
     }
-    if (entry.name === "delegate_to_skill") {
-      const args = entry.args as { skillName?: string } | undefined;
-      if (args?.skillName) {
-        return <ToolCallBlock entry={{ ...entry, name: args.skillName }} />;
-      }
-    }
-    return <ToolCallBlock entry={entry} />;
+    return (
+      <InlineApproval
+        entry={entry}
+        approve={approval.approve}
+        reject={approval.reject}
+        respondWith={approval.respondWith}
+      />
+    );
   };
+}
+
+function renderToolCall(entry: ToolEventEntry) {
+  if (entry.name === "delegate_to_skill") {
+    const args = entry.args as { skillName?: string } | undefined;
+    if (args?.skillName) {
+      return <ToolCallBlock entry={{ ...entry, name: args.skillName }} />;
+    }
+  }
+  return <ToolCallBlock entry={entry} />;
 }
 
 // Prepend a "the user has referenced..." preamble so the LLM can use
@@ -128,9 +126,9 @@ export function ChatSidebar() {
     [activeWorkspace],
   );
 
-  const renderToolCall = useMemo(
+  const renderApproval = useMemo(
     () =>
-      renderToolCallWithDocs(
+      renderApprovalWithDocs(
         (activeWorkspace?.documents ?? []).map((d) => ({
           id: d.id,
           title: d.title,
@@ -204,7 +202,10 @@ export function ChatSidebar() {
             Start a conversation with the editor assistant.
           </div>
         ) : (
-          <MessageList renderToolCall={renderToolCall} />
+          <MessageList
+            renderToolCall={renderToolCall}
+            renderApproval={renderApproval}
+          />
         )}
       </div>
 
