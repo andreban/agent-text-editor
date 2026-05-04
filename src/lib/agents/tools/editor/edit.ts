@@ -10,6 +10,34 @@ interface EditArgs {
   replacementText: string;
 }
 
+function linesBefore(text: string, pos: number, n: number): string {
+  if (pos === 0) return "";
+  let start = pos;
+  for (let i = 0; i < n; i++) {
+    const prev = text.lastIndexOf("\n", start - 2);
+    if (prev === -1) {
+      start = 0;
+      break;
+    }
+    start = prev + 1;
+  }
+  return text.slice(start, pos).trimEnd();
+}
+
+function linesAfter(text: string, pos: number, n: number): string {
+  if (pos >= text.length) return "";
+  let end = pos;
+  for (let i = 0; i < n; i++) {
+    const next = text.indexOf("\n", end);
+    if (next === -1) {
+      end = text.length;
+      break;
+    }
+    end = next + 1;
+  }
+  return text.slice(pos, end).trimEnd();
+}
+
 export class EditTool implements Tool<EditArgs, string> {
   constructor(private ctx: EditorContext) {}
 
@@ -66,16 +94,55 @@ export class EditTool implements Tool<EditArgs, string> {
     }
 
     const range = matches[0].range;
+    const idx = model.getOffsetAt({
+      lineNumber: range.startLineNumber,
+      column: range.startColumn,
+    });
+    const endIdx = idx + args.originalText.length;
+
+    // Expand match to full line boundaries for the diff display
+    const lineStart = fullText.lastIndexOf("\n", idx) + 1;
+    const lineEndNl = fullText.indexOf("\n", endIdx);
+    const lineEnd = lineEndNl === -1 ? fullText.length : lineEndNl;
+
+    const beforeLines = fullText.slice(lineStart, lineEnd);
+    const afterLines =
+      fullText.slice(lineStart, idx) +
+      args.replacementText +
+      fullText.slice(endIdx, lineEnd);
+
+    const contextBefore = linesBefore(fullText, lineStart, 2);
+    const contextAfter = linesAfter(fullText, lineEnd + 1, 2);
+    const startLine =
+      (fullText.slice(0, lineStart).match(/\n/g)?.length ?? 0) + 1;
+
+    const revealInEditor = () => {
+      const startPos = model.getPositionAt(idx);
+      const endPos = model.getPositionAt(endIdx);
+      const revealRange = {
+        startLineNumber: startPos.lineNumber,
+        startColumn: startPos.column,
+        endLineNumber: endPos.lineNumber,
+        endColumn: endPos.column,
+      };
+      editor.revealRangeInCenter(revealRange);
+      const collection = editor.createDecorationsCollection([
+        {
+          range: revealRange,
+          options: { inlineClassName: "agent-reveal-highlight" },
+        },
+      ]);
+      setTimeout(() => collection.clear(), 1700);
+    };
+
     return applySuggestion(
       {
-        originalText: args.originalText,
-        replacementText: args.replacementText,
-        range: {
-          startLineNumber: range.startLineNumber,
-          startColumn: range.startColumn,
-          endLineNumber: range.endLineNumber,
-          endColumn: range.endColumn,
-        },
+        originalText: beforeLines,
+        replacementText: afterLines,
+        contextBefore,
+        contextAfter,
+        startLine,
+        revealInEditor,
       },
       () =>
         model.pushEditOperations(

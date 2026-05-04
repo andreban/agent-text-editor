@@ -6,13 +6,13 @@ import type { Suggestion } from "../../../store";
 
 export function applySuggestion(
   data: Omit<Suggestion, "id" | "status" | "resolve">,
-  autoApply: () => void,
+  applyEdit: () => void,
   autoMessage: string,
   setSuggestions: (fn: (prev: Suggestion[]) => Suggestion[]) => void,
   approveAllRef: { current: boolean },
 ): Promise<string> {
   if (approveAllRef.current) {
-    autoApply();
+    applyEdit();
     return Promise.resolve(autoMessage);
   }
   return new Promise((resolve) => {
@@ -20,7 +20,24 @@ export function applySuggestion(
       id: uuidv4(),
       ...data,
       status: "pending",
-      resolve,
+      resolve: (result: string) => {
+        if (result === "applied") {
+          applyEdit();
+          setSuggestions((prev) =>
+            prev.map((s) =>
+              s.id === suggestion.id ? { ...s, status: "accepted" } : s,
+            ),
+          );
+          resolve("User accepted the edit. The document has been updated.");
+        } else {
+          setSuggestions((prev) =>
+            prev.map((s) =>
+              s.id === suggestion.id ? { ...s, status: "rejected" } : s,
+            ),
+          );
+          resolve("User rejected the edit.");
+        }
+      },
     };
     setSuggestions((prev) => [...prev, suggestion]);
   });

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import * as monaco from "monaco-editor";
+import type * as monaco from "monaco-editor";
 import { Skill, initializeSkills, saveSkills } from "./skills";
 import type { Plan } from "@/lib/agents";
 
@@ -11,7 +11,10 @@ export interface Suggestion {
   originalText: string;
   replacementText: string;
   status: "pending" | "accepted" | "rejected";
-  range: monaco.IRange;
+  contextBefore: string;
+  contextAfter: string;
+  startLine: number;
+  revealInEditor?: () => void;
   resolve: (value: string) => void;
 }
 

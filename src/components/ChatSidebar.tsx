@@ -1,6 +1,7 @@
 // Copyright 2026 Andre Cipriani Bandarra
 // SPDX-License-Identifier: Apache-2.0
 import { useMemo, useState } from "react";
+import { diffWords } from "diff";
 import {
   ChatInput,
   InlineApproval,
@@ -14,8 +15,9 @@ import {
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
-import { Settings, Wand2, Sun, Moon } from "lucide-react";
+import { Settings, Wand2, Sun, Moon, ArrowRightToLine } from "lucide-react";
 import { useEditorUI } from "@/lib/store";
+import type { Suggestion } from "@/lib/store";
 import { useTheme } from "@/lib/ThemeProvider";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 import { SettingsDialog } from "./SettingsDialog";
@@ -105,13 +107,150 @@ function buildPrompt(segments: MentionSegment[], trailing: string): string {
   return `The user has referenced the following documents: ${docList}.\n\n${inlineText}`;
 }
 
+function lineCount(text: string): number {
+  if (text === "") return 0;
+  return text.split("\n").length;
+}
+
+function lineRangeLabel(startLine: number, count: number): string {
+  if (count <= 1) return `Line ${startLine}`;
+  return `Lines ${startLine}–${startLine + count - 1}`;
+}
+
+function SuggestionDiff({ suggestion }: { suggestion: Suggestion }) {
+  const {
+    originalText,
+    replacementText,
+    contextBefore,
+    contextAfter,
+    startLine,
+    revealInEditor,
+  } = suggestion;
+  const beforeCount = lineCount(originalText);
+  const afterCount = lineCount(replacementText);
+  const contextBeforeCount = lineCount(contextBefore);
+  const contextBeforeStart = startLine - contextBeforeCount;
+  const contextAfterStart = startLine + beforeCount;
+
+  const changes = diffWords(originalText, replacementText);
+  const beforeParts = changes.filter((c) => !c.added);
+  const afterParts = changes.filter((c) => !c.removed);
+
+  const gutterWidth = "w-10";
+
+  return (
+    <div className="overflow-hidden rounded border font-mono text-xs">
+      <div className="bg-muted/50 flex items-center justify-between gap-2 border-b px-2 py-1">
+        <span className="text-muted-foreground">
+          {beforeCount === 0 && afterCount > 0
+            ? lineRangeLabel(startLine, afterCount)
+            : lineRangeLabel(startLine, beforeCount)}
+        </span>
+        {revealInEditor && (
+          <button
+            type="button"
+            onClick={revealInEditor}
+            className="text-muted-foreground hover:text-foreground hover:bg-accent inline-flex items-center gap-1 rounded px-1.5 py-0.5"
+            title="Scroll editor to this location"
+          >
+            <ArrowRightToLine className="size-3" />
+            <span>Reveal</span>
+          </button>
+        )}
+      </div>
+      {contextBefore && (
+        <div className="bg-muted/30 text-muted-foreground/70 flex break-all whitespace-pre-wrap">
+          <span
+            className={`${gutterWidth} text-muted-foreground/60 shrink-0 border-r px-2 py-1.5 text-right select-none`}
+          >
+            {Array.from(
+              { length: contextBeforeCount },
+              (_, i) => contextBeforeStart + i,
+            ).join("\n")}
+          </span>
+          <span className="px-2 py-1.5">{contextBefore}</span>
+        </div>
+      )}
+      <div className="flex bg-red-50 break-all whitespace-pre-wrap dark:bg-red-950/30">
+        <span
+          className={`${gutterWidth} shrink-0 border-r border-red-200 px-2 py-1.5 text-right text-red-400 select-none dark:border-red-900`}
+        >
+          {Array.from({ length: beforeCount }, (_, i) => startLine + i).join(
+            "\n",
+          )}
+        </span>
+        <span className="flex gap-2 px-2 py-1.5 text-red-800 dark:text-red-300">
+          <span className="shrink-0 text-red-400 select-none">-</span>
+          <span>
+            {beforeParts.map((part, i) =>
+              part.removed ? (
+                <mark
+                  key={i}
+                  className="rounded-[2px] bg-red-200 px-[1px] text-red-900 dark:bg-red-800/70 dark:text-red-100"
+                >
+                  {part.value}
+                </mark>
+              ) : (
+                <span key={i}>{part.value}</span>
+              ),
+            )}
+          </span>
+        </span>
+      </div>
+      <div className="flex bg-green-50 break-all whitespace-pre-wrap dark:bg-green-950/30">
+        <span
+          className={`${gutterWidth} shrink-0 border-r border-green-200 px-2 py-1.5 text-right text-green-500 select-none dark:border-green-900`}
+        >
+          {Array.from({ length: afterCount }, (_, i) => startLine + i).join(
+            "\n",
+          )}
+        </span>
+        <span className="flex gap-2 px-2 py-1.5 text-green-800 dark:text-green-300">
+          <span className="shrink-0 text-green-500 select-none">+</span>
+          <span>
+            {afterParts.map((part, i) =>
+              part.added ? (
+                <mark
+                  key={i}
+                  className="rounded-[2px] bg-green-200 px-[1px] text-green-900 dark:bg-green-800/70 dark:text-green-100"
+                >
+                  {part.value}
+                </mark>
+              ) : (
+                <span key={i}>{part.value}</span>
+              ),
+            )}
+          </span>
+        </span>
+      </div>
+      {contextAfter && (
+        <div className="bg-muted/30 text-muted-foreground/70 flex break-all whitespace-pre-wrap">
+          <span
+            className={`${gutterWidth} text-muted-foreground/60 shrink-0 border-r px-2 py-1.5 text-right select-none`}
+          >
+            {Array.from(
+              { length: lineCount(contextAfter) },
+              (_, i) => contextAfterStart + i,
+            ).join("\n")}
+          </span>
+          <span className="px-2 py-1.5">{contextAfter}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChatSidebar() {
   const { messages } = useAgent();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [skillsOpen, setSkillsOpen] = useState(false);
-  const { approveAll, setApproveAll } = useEditorUI();
+  const { approveAll, setApproveAll, suggestions, setSuggestions } =
+    useEditorUI();
   const { theme, toggleTheme } = useTheme();
   const { activeWorkspace } = useWorkspaces();
+
+  const pendingSuggestion =
+    suggestions.find((s) => s.status === "pending") ?? null;
 
   const mentionItems = useMemo<MentionItem[]>(
     () =>
@@ -132,6 +271,21 @@ export function ChatSidebar() {
       ),
     [activeWorkspace],
   );
+
+  const handleAccept = () => {
+    if (!pendingSuggestion) return;
+    pendingSuggestion.resolve("applied");
+  };
+
+  const handleReject = () => {
+    if (!pendingSuggestion) return;
+    pendingSuggestion.resolve("rejected");
+    setSuggestions((prev) =>
+      prev.map((s) =>
+        s.id === pendingSuggestion.id ? { ...s, status: "rejected" } : s,
+      ),
+    );
+  };
 
   return (
     <div
@@ -206,6 +360,28 @@ export function ChatSidebar() {
       </div>
 
       <PlanConfirmationWidget />
+
+      {pendingSuggestion && (
+        <div className="space-y-2 border-t p-3">
+          <p className="text-xs font-semibold">Proposed Edit</p>
+          <div className="max-h-56 overflow-y-auto">
+            <SuggestionDiff suggestion={pendingSuggestion} />
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" className="flex-1" onClick={handleAccept}>
+              Accept
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              onClick={handleReject}
+            >
+              Reject
+            </Button>
+          </div>
+        </div>
+      )}
 
       <ChatInput
         placeholder="Ask the editor... (@ to reference a doc)"
