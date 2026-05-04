@@ -8,8 +8,7 @@ import {
   type OnApprovalRequired,
   type IconMap,
 } from "@mast-ai/react-ui";
-import { AgentRunner } from "@mast-ai/core";
-import type { AgentConfig, LlmAdapter } from "@mast-ai/core";
+import type { AgentConfig } from "@mast-ai/core";
 import { addAllBuiltInAITools } from "@mast-ai/built-in-ai";
 import {
   Brain,
@@ -32,15 +31,6 @@ import { createToolRegistry } from "@/lib/agents/tools/registries";
 import { registerDelegationTools } from "@/lib/agents/tools/delegation";
 import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
-
-// Fallback runner used while the user has no API key configured. Keeps
-// `<AgentProvider>` mounted so consumers can call `useAgent()` unconditionally;
-// the input is gated separately and will not invoke this adapter.
-const STUB_ADAPTER: LlmAdapter = {
-  generate: () =>
-    Promise.reject(new Error("API key required to run the agent.")),
-};
-const STUB_RUNNER = new AgentRunner(STUB_ADAPTER);
 
 const ICONS: IconMap = {
   brain: <Brain className="w-4 h-4" />,
@@ -183,7 +173,7 @@ export function AgentProviderShim({ children }: { children: ReactNode }) {
   }, [apiKey, factory, editorCtx, workspaceCtx, setPendingPlanConfirmation]);
 
   const runner = useMemo(() => {
-    if (!factory || !registry) return STUB_RUNNER;
+    if (!factory || !registry) return null;
     return factory.create({ tools: registry });
   }, [factory, registry]);
 
