@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "@mast-ai/react-ui/styles.css";
+import "@mast-ai/react-ui/themes/tailwind-shadcn.css";
 import "./index.css";
 import { AppProvider } from "./lib/store";
 import { ThemeProvider } from "./lib/ThemeProvider";
