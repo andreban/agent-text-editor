@@ -5,7 +5,6 @@ import {
   ChatInput,
   InlineApproval,
   MessageList,
-  ToolCallBlock,
   useAgent,
   type MentionItem,
   type MentionSegment,
@@ -86,14 +85,11 @@ function renderApprovalWithDocs(docs: { id: string; title: string }[]) {
   };
 }
 
-function renderToolCall(entry: ToolEventEntry) {
+function getToolLabel(entry: ToolEventEntry) {
   if (entry.name === "delegate_to_skill") {
-    const args = entry.args as { skillName?: string } | undefined;
-    if (args?.skillName) {
-      return <ToolCallBlock entry={{ ...entry, name: args.skillName }} />;
-    }
+    return (entry.args as { skillName?: string } | undefined)?.skillName;
   }
-  return <ToolCallBlock entry={entry} />;
+  return undefined;
 }
 
 // Prepend a "the user has referenced..." preamble so the LLM can use
@@ -203,7 +199,7 @@ export function ChatSidebar() {
           </div>
         ) : (
           <MessageList
-            renderToolCall={renderToolCall}
+            getToolLabel={getToolLabel}
             renderApproval={renderApproval}
           />
         )}
