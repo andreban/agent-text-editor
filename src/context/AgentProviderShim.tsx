@@ -29,6 +29,7 @@ import type { WorkspaceContext } from "@/lib/agents/tools/workspace/context";
 import { DelegateToSkillTool } from "@/lib/agents/tools/delegation/delegate_to_skill";
 import { createToolRegistry } from "@/lib/agents/tools/registries";
 import { registerDelegationTools } from "@/lib/agents/tools/delegation";
+import { registerWebMCPTools } from "@/lib/WebMCPTools";
 import { useAgentConfig, useEditorUI } from "@/lib/store";
 import { useWorkspaces } from "@/lib/WorkspacesContext";
 
@@ -155,25 +156,45 @@ export function AgentProviderShim({ children }: { children: ReactNode }) {
     ],
   );
 
-  const registry = useMemo(() => {
-    if (!apiKey || !factory) return null;
+  const registry = useMemo(
     // eslint-disable-next-line react-hooks/refs
-    const r = createToolRegistry(editorCtx, workspaceCtx);
-    addAllBuiltInAITools(r).catch(() => {});
-    r.register(new DelegateToSkillTool(factory, r.readOnly()));
+    () => createToolRegistry(editorCtx, workspaceCtx),
+    [editorCtx, workspaceCtx],
+  );
+
+  // Built-ins resolve asynchronously based on browser availability, so they
+  // land in the registry after the initial render. The listener-based WebMCP
+  // bridge picks them up via `tool-registered` events.
+  useEffect(() => {
+    addAllBuiltInAITools(registry).catch(() => {});
+  }, [registry]);
+
+  // Mirror the live registry into navigator.modelContext so external WebMCP
+  // agents can drive the editor regardless of internal-agent configuration.
+  useEffect(() => registerWebMCPTools(registry), [registry]);
+
+  useEffect(() => {
+    if (!factory) return;
+    registry.register(new DelegateToSkillTool(factory, registry.readOnly()));
     registerDelegationTools(
-      r,
+      registry,
       factory,
-      r.readOnly(),
-      // eslint-disable-next-line react-hooks/refs
+      registry.readOnly(),
       workspaceCtx.docsRef,
       setPendingPlanConfirmation,
     );
-    return r;
-  }, [apiKey, factory, editorCtx, workspaceCtx, setPendingPlanConfirmation]);
+    return () => {
+      registry.unregister("delegate_to_skill");
+      registry.unregister("invoke_agent");
+      registry.unregister("invoke_planner");
+      registry.unregister("invoke_researcher");
+      registry.unregister("invoke_writer");
+      registry.unregister("invoke_reviewer");
+    };
+  }, [registry, factory, workspaceCtx, setPendingPlanConfirmation]);
 
   const runner = useMemo(() => {
-    if (!factory || !registry) return null;
+    if (!factory) return null;
     return factory.create({ tools: registry });
   }, [factory, registry]);
 
