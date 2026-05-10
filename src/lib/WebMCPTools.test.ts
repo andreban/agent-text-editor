@@ -103,6 +103,23 @@ describe("registerWebMCPTools", () => {
     warnSpy.mockRestore();
   });
 
+  it("stops registering after the first registerTool throw", () => {
+    let calls = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).modelContext = {
+      registerTool: vi.fn(() => {
+        calls += 1;
+        throw new TypeError("broken");
+      }),
+    };
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    registerWebMCPTools(
+      createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()),
+    );
+    expect(calls).toBe(1);
+    warnSpy.mockRestore();
+  });
+
   it("returns a no-op cleanup when navigator.modelContext is undefined", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (navigator as any).modelContext;
@@ -150,14 +167,43 @@ describe("registerWebMCPTools", () => {
     }
   });
 
-  it("cleanup aborts the shared signal", () => {
+  it("cleanup aborts every registered signal", () => {
     const cleanup = registerWebMCPTools(
       createToolRegistry(makeEditorCtx(), makeWorkspaceCtx()),
     );
-    const signal = registeredTools.get("read")!.signal!;
-    expect(signal.aborted).toBe(false);
+    const signals = [...registeredTools.values()].map((e) => e.signal!);
+    expect(signals.length).toBeGreaterThan(0);
+    expect(signals.every((s) => !s.aborted)).toBe(true);
     cleanup();
-    expect(signal.aborted).toBe(true);
+    expect(signals.every((s) => s.aborted)).toBe(true);
+  });
+
+  it("registers tools added to the registry after subscription", () => {
+    const registry = createToolRegistry(makeEditorCtx(), makeWorkspaceCtx());
+    registerWebMCPTools(registry);
+    const initialCount = registeredTools.size;
+    const lateTool = {
+      definition: () => ({
+        name: "late_tool",
+        description: "registered after subscription",
+        parameters: { type: "object", properties: {} },
+        scope: "read" as const,
+      }),
+      call: vi.fn().mockResolvedValue("late result"),
+    };
+    registry.register(lateTool);
+    expect(registeredTools.size).toBe(initialCount + 1);
+    expect(registeredTools.has("late_tool")).toBe(true);
+  });
+
+  it("unregistering from the registry aborts only that tool's signal", () => {
+    const registry = createToolRegistry(makeEditorCtx(), makeWorkspaceCtx());
+    registerWebMCPTools(registry);
+    const readSignal = registeredTools.get("read")!.signal!;
+    const editSignal = registeredTools.get("edit")!.signal!;
+    registry.unregister("edit");
+    expect(editSignal.aborted).toBe(true);
+    expect(readSignal.aborted).toBe(false);
   });
 
   it("read execute returns editor content", async () => {

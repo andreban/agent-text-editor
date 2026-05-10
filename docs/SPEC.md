@@ -215,7 +215,7 @@ Computes and applies inline diff decorations to the Monaco editor for a pending 
 
 ### `WebMCPTools.ts`
 
-Registers all editor and workspace tools with `navigator.modelContext` (WebMCP API), allowing external browser agents to drive the editor. Mirrors the `EditorTools` and `WorkspaceTools` registrations so both the built-in agent and external agents share the same capabilities.
+Bridges a `ToolRegistry` to `navigator.modelContext` (WebMCP API) so external browser agents can drive the editor. `registerWebMCPTools(registry)` subscribes to the registry's `tool-registered` / `tool-unregistered` events and registers each tool with WebMCP using a per-tool `AbortController` (the abort signal is how WebMCP unregisters). Tools that join the registry asynchronously (built-in AI tools after browser availability checks, delegation tools when an API key is configured) are picked up automatically; the returned cleanup aborts every controller and removes both listeners. If `registerTool` throws (e.g. an older WebMCP shape without `unregisterTool`), the bridge logs a warning and tears down without retrying.
 
 ### `EditorPanel.tsx`
 
@@ -253,8 +253,8 @@ A dialog for creating, editing, and deleting custom skills.
 The main entry point:
 
 - Manages global state (API key, selected model, active suggestions, "approve all" toggle, skills).
-- Wires `EditorTools` and `WorkspaceTools` into the `ToolRegistry`, passing the Monaco editor ref and a snapshot ref of `WorkspacesContext.activeWorkspace.documents` respectively.
-- Registers `WebMCPTools` for external browser agent access.
+- Wires editor and workspace tools into the `ToolRegistry` (via `AgentProviderShim`), passing the Monaco editor ref and a snapshot ref of `WorkspacesContext.activeWorkspace.documents` respectively.
+- `AgentProviderShim` exposes the live registry to external browser agents via `registerWebMCPTools` (see `WebMCPTools.ts`), independent of API-key configuration.
 - Dynamically constructs `AgentConfig.systemInstructions`: appends skill names/descriptions and workspace tool guidance.
 - Renders `WorkspacePicker` when no workspace is active, or the editor layout (`WorkspacePanel` + `EditorPanel` + `ChatSidebar`) when a workspace is open.
 - Handles responsive layout (desktop collapsible split-pane vs. mobile bottom-sheet).
