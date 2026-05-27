@@ -15,7 +15,7 @@ const REVIEWING_CRITERIA =
   "clear overall verdict. Output is valid ReviewResult JSON with no prose outside it.";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite-preview";
+const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
 describe.skipIf(!apiKey)("reviewing quality", () => {
   let adapter: GoogleGenAIAdapter;

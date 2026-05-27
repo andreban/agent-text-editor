@@ -93,9 +93,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.getItem("gemini_api_key"),
   );
   const [modelName, setModelName] = useState<string>(() => {
-    const saved = localStorage.getItem("gemini_model_name");
-    if (saved === "gemini-2.0-flash") return "gemini-3.1-flash-lite-preview";
-    return saved || "gemini-3.1-flash-lite-preview";
+    let saved = localStorage.getItem("gemini_model_name");
+    if (
+      saved === "gemini-2.0-flash" ||
+      saved === "gemini-3.1-flash-lite-preview"
+    ) {
+      saved = null;
+    }
+    return saved || "gemini-3.1-flash-lite";
   });
   const [totalTokens, setTotalTokens] = useState<number>(0);
   const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());

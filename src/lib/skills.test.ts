@@ -67,7 +67,7 @@ describe("skills storage", () => {
       name: "A",
       description: "d",
       instructions: "i",
-      model: "gemini-2.5-pro",
+      model: "gemini-3.5-flash",
     };
     const withoutModel: Skill = {
       id: "b",
@@ -77,7 +77,7 @@ describe("skills storage", () => {
     };
     saveSkills([withModel, withoutModel]);
     const loaded = loadSkills();
-    expect(loaded[0].model).toBe("gemini-2.5-pro");
+    expect(loaded[0].model).toBe("gemini-3.5-flash");
     expect(loaded[1].model).toBeUndefined();
   });
 });
