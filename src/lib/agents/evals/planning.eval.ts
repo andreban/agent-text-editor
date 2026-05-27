@@ -14,7 +14,7 @@ const PLANNING_CRITERIA =
   "dependsOn: []. Redundant or empty steps are absent.";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite-preview";
+const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
 describe.skipIf(!apiKey)("planning quality", () => {
   let adapter: GoogleGenAIAdapter;

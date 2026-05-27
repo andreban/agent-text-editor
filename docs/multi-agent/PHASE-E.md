@@ -147,7 +147,7 @@ The planning quality eval suite. Runs with `npm run evals`.
 **Setup:**
 
 - Reads `GEMINI_API_KEY` and `GEMINI_MODEL` from `process.env` in a `beforeAll`. Calls `vi.skipAllTests()` with a message if the key is absent — keeps the suite skipped rather than failing when no key is available.
-- Creates a `GoogleGenAIAdapter` with the API key and the resolved model (`GEMINI_MODEL ?? "gemini-3.1-flash-lite-preview"`). This single adapter instance is shared: passed to `judge()` for scoring and used directly to construct `new AgentRunner(adapter, new ToolRegistry())` for running the planner. No factory needed.
+- Creates a `GoogleGenAIAdapter` with the API key and the resolved model (`GEMINI_MODEL ?? "gemini-3.1-flash-lite"`). This single adapter instance is shared: passed to `judge()` for scoring and used directly to construct `new AgentRunner(adapter, new ToolRegistry())` for running the planner. No factory needed.
 
 **Per-fixture tests (parameterized with `it.each`):**
 

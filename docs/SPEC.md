@@ -169,7 +169,7 @@ Implements `LlmAdapter` interface:
 - Handles tool calls and streaming text/thought deltas from the model.
 - Captures `thoughtSignature` from function call parts for correct turn attribution.
 - Enables thinking mode (`ThinkingLevel.HIGH`) by default.
-- Instantiated with the user's selected model name (e.g., `gemini-3.1-flash-lite-preview`).
+- Instantiated with the user's selected model name (e.g., `gemini-3.1-flash-lite`).
 
 ### `EditorTools.ts`
 

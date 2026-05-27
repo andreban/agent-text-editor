@@ -8,7 +8,7 @@ import { buildOrchestratorPrompt } from "./roles/orchestrator";
 import fixtures from "./fixtures/routing.json";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite-preview";
+const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
 describe.skipIf(!apiKey)("orchestrator routing", () => {
   let adapter: GoogleGenAIAdapter;

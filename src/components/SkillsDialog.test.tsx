@@ -24,7 +24,7 @@ function mockStore(skills: Skill[]) {
   vi.spyOn(storeModule, "useAgentConfig").mockReturnValue({
     apiKey: "test-key",
     setApiKey: vi.fn(),
-    modelName: "gemini-2.5-flash",
+    modelName: "gemini-3.1-flash-lite",
     setModelName: vi.fn(),
     totalTokens: 0,
     setTotalTokens: vi.fn(),

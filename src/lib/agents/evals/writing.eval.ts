@@ -16,7 +16,7 @@ const WRITING_CRITERIA =
   "formatting match it. Markdown fences are absent unless the content itself is markdown.";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite-preview";
+const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
 describe.skipIf(!apiKey)("writing quality", () => {
   let adapter: GoogleGenAIAdapter;

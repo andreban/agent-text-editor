@@ -40,7 +40,7 @@ describe("SettingsDialog", () => {
   });
 
   it("renders API key input and model selector when open", () => {
-    mockStore("test-key", "gemini-2.5-flash");
+    mockStore("test-key", "gemini-3.1-flash-lite");
     renderDialog(true);
 
     expect(screen.getByLabelText("Gemini API Key")).toBeInTheDocument();
@@ -48,7 +48,7 @@ describe("SettingsDialog", () => {
   });
 
   it("does not render content when closed", () => {
-    mockStore("test-key", "gemini-2.5-flash");
+    mockStore("test-key", "gemini-3.1-flash-lite");
     renderDialog(false);
 
     expect(screen.queryByLabelText("Gemini API Key")).not.toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("SettingsDialog", () => {
   it("saves API key and model when Save is clicked", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
-    mockStore("old-key", "gemini-2.5-flash");
+    mockStore("old-key", "gemini-3.1-flash-lite");
 
     renderDialog(true, onOpenChange);
 
@@ -66,19 +66,19 @@ describe("SettingsDialog", () => {
     await user.type(keyInput, "new-key");
 
     const modelSelect = screen.getByLabelText("Model");
-    await user.selectOptions(modelSelect, "gemini-2.5-pro");
+    await user.selectOptions(modelSelect, "gemini-3.5-flash");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(mockSetApiKey).toHaveBeenCalledWith("new-key");
-    expect(mockSetModelName).toHaveBeenCalledWith("gemini-2.5-pro");
+    expect(mockSetModelName).toHaveBeenCalledWith("gemini-3.5-flash");
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("does not update store when Cancel is clicked", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
-    mockStore("old-key", "gemini-2.5-flash");
+    mockStore("old-key", "gemini-3.1-flash-lite");
 
     renderDialog(true, onOpenChange);
 
@@ -91,7 +91,7 @@ describe("SettingsDialog", () => {
 
   it("toggles API key visibility when eye button is clicked", async () => {
     const user = userEvent.setup();
-    mockStore("test-key", "gemini-2.5-flash");
+    mockStore("test-key", "gemini-3.1-flash-lite");
 
     renderDialog(true);
 
@@ -107,7 +107,7 @@ describe("SettingsDialog", () => {
 
   it("resets draft values to current store values when reopened", () => {
     const onOpenChange = vi.fn();
-    mockStore("stored-key", "gemini-2.5-pro");
+    mockStore("stored-key", "gemini-3.5-flash");
 
     const { rerender } = render(
       <ThemeProvider>
@@ -127,13 +127,13 @@ describe("SettingsDialog", () => {
     const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
 
     expect(keyInput.value).toBe("stored-key");
-    expect(modelSelect.value).toBe("gemini-2.5-pro");
+    expect(modelSelect.value).toBe("gemini-3.5-flash");
   });
 
   it("sets API key to null when saved with empty input", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
-    mockStore("old-key", "gemini-2.5-flash");
+    mockStore("old-key", "gemini-3.1-flash-lite");
 
     renderDialog(true, onOpenChange);
 
