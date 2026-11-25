@@ -8,7 +8,7 @@ To provide a modern, AI-powered text editing experience where a browser-native A
 
 - **Monaco Editor Integration:** A high-performance text editor for a seamless writing experience, with a toggleable Markdown preview mode.
 - **AI Agent (MAST):** A browser-native agent using the `mast-ai` library for low-latency, secure, and stateful interactions.
-- **Google Gen AI Integration:** Utilizing the latest `@google/genai` SDK. Users can choose their preferred underlying model from a list of current models (defaulting to Gemini 3.1 Flash Lite Preview).
+- **Google Gen AI Integration:** Utilizing the latest `@google/genai` SDK. Users can choose their preferred underlying model from a list of current models (defaulting to Gemini 3.5 Flash Lite).
 - **Editor-Aware Tools:** The agent has access to tools that operate on the currently open document:
   - **Read:** Retrieve the entire open document's content.
   - **Read Selection:** Retrieve only the text currently highlighted by the user for focused tasks.

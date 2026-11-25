@@ -3,6 +3,7 @@
 
 import { beforeAll, describe, expect, it } from "vitest";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
+import { DEFAULT_MODEL } from "@/lib/models";
 import { DefaultAgentRunnerFactory } from "./roles/factory";
 import type { ResearchResult } from "./roles/researcher";
 import { runWriter } from "./roles/writer";
@@ -16,7 +17,7 @@ const WRITING_CRITERIA =
   "formatting match it. Markdown fences are absent unless the content itself is markdown.";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
+const modelName = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
 
 describe.skipIf(!apiKey)("writing quality", () => {
   let adapter: GoogleGenAIAdapter;

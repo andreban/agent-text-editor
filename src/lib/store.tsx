@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type * as monaco from "monaco-editor";
 import { Skill, initializeSkills, saveSkills } from "./skills";
+import { DEFAULT_MODEL, LEGACY_MODEL_MIGRATIONS } from "./models";
 import type { Plan } from "@/lib/agents";
 
 export interface Suggestion {
@@ -93,14 +94,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.getItem("gemini_api_key"),
   );
   const [modelName, setModelName] = useState<string>(() => {
-    let saved = localStorage.getItem("gemini_model_name");
-    if (
-      saved === "gemini-2.0-flash" ||
-      saved === "gemini-3.1-flash-lite-preview"
-    ) {
-      saved = null;
+    const saved = localStorage.getItem("gemini_model_name");
+    if (!saved) {
+      return DEFAULT_MODEL;
     }
-    return saved || "gemini-3.1-flash-lite";
+    return LEGACY_MODEL_MIGRATIONS[saved] ?? saved;
   });
   const [totalTokens, setTotalTokens] = useState<number>(0);
   const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());

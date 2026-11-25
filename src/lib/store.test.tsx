@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import { useApp, AppProvider, WorkflowState } from "./store";
+import { DEFAULT_MODEL, LEGACY_MODEL_MIGRATIONS } from "./models";
 
 function TestConsumer({
   onState,
@@ -70,5 +71,49 @@ describe("store — workflowState", () => {
     });
 
     expect(captured!.workflowState).toBeNull();
+  });
+});
+
+describe("store — modelName", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("defaults to DEFAULT_MODEL when localStorage is empty", () => {
+    let captured: ReturnType<typeof useApp> | null = null;
+    renderWithProvider((s) => {
+      captured = s;
+    });
+    expect(captured!.modelName).toBe(DEFAULT_MODEL);
+  });
+
+  it("restores a supported model from localStorage", () => {
+    localStorage.setItem("gemini_model_name", "gemini-4-carbon");
+    let captured: ReturnType<typeof useApp> | null = null;
+    renderWithProvider((s) => {
+      captured = s;
+    });
+    expect(captured!.modelName).toBe("gemini-4-carbon");
+  });
+
+  it.each(Object.entries(LEGACY_MODEL_MIGRATIONS))(
+    "migrates legacy saved model %s to %s",
+    (legacyModel, expectedModel) => {
+      localStorage.setItem("gemini_model_name", legacyModel);
+      let captured: ReturnType<typeof useApp> | null = null;
+      renderWithProvider((s) => {
+        captured = s;
+      });
+      expect(captured!.modelName).toBe(expectedModel);
+    },
+  );
+
+  it("preserves unknown custom model IDs not listed in LEGACY_MODEL_MIGRATIONS", () => {
+    localStorage.setItem("gemini_model_name", "custom-model-id");
+    let captured: ReturnType<typeof useApp> | null = null;
+    renderWithProvider((s) => {
+      captured = s;
+    });
+    expect(captured!.modelName).toBe("custom-model-id");
   });
 });
