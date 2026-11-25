@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import { useApp, AppProvider, WorkflowState } from "./store";
-import { DEFAULT_MODEL } from "./models";
+import { DEFAULT_MODEL, LEGACY_MODEL_MIGRATIONS } from "./models";
 
 function TestConsumer({
   onState,
@@ -96,17 +96,24 @@ describe("store — modelName", () => {
     expect(captured!.modelName).toBe("gemini-4-carbon");
   });
 
-  it.each([
-    "gemini-2.0-flash",
-    "gemini-3.1-flash-lite-preview",
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash",
-  ])("migrates deprecated saved model %s to DEFAULT_MODEL", (legacyModel) => {
-    localStorage.setItem("gemini_model_name", legacyModel);
+  it.each(Object.entries(LEGACY_MODEL_MIGRATIONS))(
+    "migrates legacy saved model %s to %s",
+    (legacyModel, expectedModel) => {
+      localStorage.setItem("gemini_model_name", legacyModel);
+      let captured: ReturnType<typeof useApp> | null = null;
+      renderWithProvider((s) => {
+        captured = s;
+      });
+      expect(captured!.modelName).toBe(expectedModel);
+    },
+  );
+
+  it("preserves unknown custom model IDs not listed in LEGACY_MODEL_MIGRATIONS", () => {
+    localStorage.setItem("gemini_model_name", "custom-model-id");
     let captured: ReturnType<typeof useApp> | null = null;
     renderWithProvider((s) => {
       captured = s;
     });
-    expect(captured!.modelName).toBe(DEFAULT_MODEL);
+    expect(captured!.modelName).toBe("custom-model-id");
   });
 });

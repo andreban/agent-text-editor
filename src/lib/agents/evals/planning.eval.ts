@@ -4,6 +4,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { AgentRunner, ToolRegistry } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
+import { DEFAULT_MODEL } from "@/lib/models";
 import { PLANNER_SYSTEM_PROMPT, type Plan } from "./roles/planner";
 import { judge } from "./judge";
 import fixtures from "./fixtures/planning.json";
@@ -14,7 +15,7 @@ const PLANNING_CRITERIA =
   "dependsOn: []. Redundant or empty steps are absent.";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
+const modelName = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
 
 describe.skipIf(!apiKey)("planning quality", () => {
   let adapter: GoogleGenAIAdapter;

@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import type * as monaco from "monaco-editor";
 import { Skill, initializeSkills, saveSkills } from "./skills";
-import { DEFAULT_MODEL, MODELS } from "./models";
+import { DEFAULT_MODEL, LEGACY_MODEL_MIGRATIONS } from "./models";
 import type { Plan } from "@/lib/agents";
 
 export interface Suggestion {
@@ -95,10 +95,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [modelName, setModelName] = useState<string>(() => {
     const saved = localStorage.getItem("gemini_model_name");
-    if (saved && MODELS.some((m) => m.id === saved)) {
-      return saved;
+    if (!saved) {
+      return DEFAULT_MODEL;
     }
-    return DEFAULT_MODEL;
+    return LEGACY_MODEL_MIGRATIONS[saved] ?? saved;
   });
   const [totalTokens, setTotalTokens] = useState<number>(0);
   const [skills, setSkillsState] = useState<Skill[]>(() => initializeSkills());

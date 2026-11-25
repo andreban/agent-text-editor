@@ -12,7 +12,7 @@ The application is a single-page React application bundled with Vite. It consist
 
 1. User enters a prompt in the chat sidebar. Any `@document` mention chips are resolved to `{ id, title }` pairs and prepended to the prompt.
 2. `AgentRunner` receives the prompt and passes it to the `GoogleGenAIAdapter`.
-3. The selected LLM (e.g., Gemini 3.1 Flash Lite Preview) decides whether to respond with text or call a tool.
+3. The selected LLM (e.g., Gemini 3.5 Flash Lite) decides whether to respond with text or call a tool.
 4. If a tool is called (e.g., `read`, `edit`, or `write`), the `ToolRegistry` executes the function. For modification tools (`edit`, `write`, workspace mutations), the UI intercepts the action to present the suggestion to the user, unless "approve all" mode is enabled.
 5. The result of the tool execution (or the user's feedback/decision from a suggestion) is returned to the LLM, and the loop continues until a final response is generated.
 6. If the task requires specialized knowledge, the main agent can call `delegate_to_skill`, invoking a sub-agent with specific instructions loaded from local storage. The sub-agent's results are returned to the main agent's context.
@@ -70,6 +70,7 @@ src/
 ├── lib/
 │   ├── diffDecorations.ts
 │   ├── EditorTools.ts
+│   ├── models.ts
 │   ├── skills.ts
 │   ├── store.tsx
 │   ├── ThemeProvider.tsx

@@ -4,11 +4,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { AgentConfig, AgentRunner, ToolRegistry } from "@mast-ai/core";
 import { GoogleGenAIAdapter } from "@mast-ai/google-genai";
+import { DEFAULT_MODEL } from "@/lib/models";
 import { buildOrchestratorPrompt } from "./roles/orchestrator";
 import fixtures from "./fixtures/routing.json";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite";
+const modelName = process.env.GEMINI_MODEL ?? DEFAULT_MODEL;
 
 describe.skipIf(!apiKey)("orchestrator routing", () => {
   let adapter: GoogleGenAIAdapter;

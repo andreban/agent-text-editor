@@ -18,3 +18,14 @@ export const MODELS: readonly ModelOption[] = [
   { id: "gemma-4-26b-a4b-it", label: "Gemma 4 26B A4B IT" },
   { id: "gemma-4-31b-it", label: "Gemma 4 31B IT" },
 ];
+
+export const LEGACY_MODEL_MIGRATIONS: Readonly<Record<string, string>> = {
+  "gemini-2.0-flash": DEFAULT_MODEL,
+  "gemini-2.5-flash": DEFAULT_MODEL,
+  "gemini-2.5-pro": "gemini-3.8-flash",
+  "gemini-3-flash-preview": "gemini-3.8-flash",
+  "gemini-3.1-pro-preview": "gemini-3.8-flash",
+  "gemini-3.1-flash-lite-preview": DEFAULT_MODEL,
+  "gemini-3.1-flash-lite": DEFAULT_MODEL,
+  "gemini-3.5-flash": "gemini-3.8-flash",
+};
