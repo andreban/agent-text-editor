@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 import { useApp, AppProvider, WorkflowState } from "./store";
+import { DEFAULT_MODEL } from "./models";
 
 function TestConsumer({
   onState,
@@ -70,5 +71,42 @@ describe("store — workflowState", () => {
     });
 
     expect(captured!.workflowState).toBeNull();
+  });
+});
+
+describe("store — modelName", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("defaults to DEFAULT_MODEL when localStorage is empty", () => {
+    let captured: ReturnType<typeof useApp> | null = null;
+    renderWithProvider((s) => {
+      captured = s;
+    });
+    expect(captured!.modelName).toBe(DEFAULT_MODEL);
+  });
+
+  it("restores a supported model from localStorage", () => {
+    localStorage.setItem("gemini_model_name", "gemini-4-carbon");
+    let captured: ReturnType<typeof useApp> | null = null;
+    renderWithProvider((s) => {
+      captured = s;
+    });
+    expect(captured!.modelName).toBe("gemini-4-carbon");
+  });
+
+  it.each([
+    "gemini-2.0-flash",
+    "gemini-3.1-flash-lite-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+  ])("migrates deprecated saved model %s to DEFAULT_MODEL", (legacyModel) => {
+    localStorage.setItem("gemini_model_name", legacyModel);
+    let captured: ReturnType<typeof useApp> | null = null;
+    renderWithProvider((s) => {
+      captured = s;
+    });
+    expect(captured!.modelName).toBe(DEFAULT_MODEL);
   });
 });

@@ -15,13 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAgentConfig } from "@/lib/store";
-
-const MODELS = [
-  { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite" },
-  { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
-  { id: "gemma-4-26b-a4b-it", label: "Gemma 4 26B A4B IT" },
-  { id: "gemma-4-31b-it", label: "Gemma 4 31B IT" },
-];
+import { MODELS } from "@/lib/models";
 
 interface SettingsDialogProps {
   open: boolean;

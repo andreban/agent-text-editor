@@ -193,7 +193,7 @@ describe("DelegateToSkillTool", () => {
         name: "Proofreader",
         description: "d",
         instructions: "i",
-        model: "gemini-3.5-flash",
+        model: "gemini-3.8-flash",
       },
     ]);
     const customRunnerFactory = vi
@@ -207,7 +207,7 @@ describe("DelegateToSkillTool", () => {
     await tool.call({ skillName: "Proofreader", task: "t" }, {});
     expect(customRunnerFactory).toHaveBeenCalledWith(
       expect.anything(),
-      "gemini-3.5-flash",
+      "gemini-3.8-flash",
     );
   });
 
